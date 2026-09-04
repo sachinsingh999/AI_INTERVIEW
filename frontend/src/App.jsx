@@ -4,6 +4,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Practice from "./pages/Practice";
 import PracticeDashboard from "./pages/PracticeDashboard";
@@ -15,11 +16,14 @@ import Analytics from "./pages/Analytics";
 import Roadmap from "./pages/Roadmap";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
+import ForgeAI from "./pages/ForgeAI";
 import POTDArchive from "./pages/POTDArchive";
 import CreateInterview from "./pages/CreateInterview";
 import InterviewSession from "./pages/InterviewSession";
 import PhaseCompleteTransition from "./pages/PhaseCompleteTransition";
 import InterviewResponses from "./pages/InterviewResponses";
+import InterviewCompleted from "./pages/InterviewCompleted";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ToastContainer from "./components/ToastContainer";
 import { useParams } from "react-router-dom";
@@ -39,6 +43,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/auth" element={<Auth initialMode="login" />} />
 
         {/* Protected Routes */}
         <Route
@@ -82,6 +87,15 @@ function App() {
           element={
             <ProtectedRoute>
               <PhaseCompleteTransition />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interview/:interviewId/completed"
+          element={
+            <ProtectedRoute>
+              <InterviewCompleted />
             </ProtectedRoute>
           }
         />
@@ -179,10 +193,27 @@ function App() {
         />
 
         <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/settings"
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/forge-ai"
+          element={
+            <ProtectedRoute>
+              <ForgeAI />
             </ProtectedRoute>
           }
         />

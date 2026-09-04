@@ -11,6 +11,60 @@ const { generateSingleCodingQuestion } = require("../services/aiService");
 const encodeBase64 = (str) => Buffer.from(str || "").toString("base64");
 const decodeBase64 = (str) => Buffer.from(str || "", "base64").toString("utf-8");
 
+const stripSolutionClass = (code, langKey) => {
+  if (!code) return code;
+  if (langKey === "python") {
+    const startIndex = code.search(/\bclass\s+Solution\b/);
+    if (startIndex === -1) return code;
+    const lines = code.split("\n");
+    let inClass = false;
+    let newLines = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.match(/\bclass\s+Solution\b/)) {
+        inClass = true;
+        continue;
+      }
+      if (inClass) {
+        if (line.trim() === "" || line.startsWith(" ") || line.startsWith("\t")) {
+          continue;
+        }
+        inClass = false;
+      }
+      newLines.push(line);
+    }
+    return newLines.join("\n");
+  }
+
+  const startIndex = code.search(/\bclass\s+Solution\b/);
+  if (startIndex === -1) return code;
+
+  const firstBraceIndex = code.indexOf("{", startIndex);
+  if (firstBraceIndex === -1) return code;
+
+  let braceCount = 1;
+  let index = firstBraceIndex + 1;
+  while (index < code.length && braceCount > 0) {
+    if (code[index] === "{") braceCount++;
+    else if (code[index] === "}") braceCount--;
+    index++;
+  }
+
+  if (braceCount === 0) {
+    let endIndex = index;
+    while (endIndex < code.length && (code[endIndex] === ";" || /\s/.test(code[endIndex]))) {
+      if (code[endIndex] === ";") {
+        endIndex++;
+        break;
+      }
+      endIndex++;
+    }
+    return code.slice(0, startIndex) + code.slice(endIndex);
+  }
+
+  return code;
+};
+
 // Helper to combine User Solution and Driver Code
 const combineUserSolutionAndDriver = (question, sourceCode, languageId) => {
   let langKey = "javascript";
@@ -21,7 +75,8 @@ const combineUserSolutionAndDriver = (question, sourceCode, languageId) => {
   else if (languageId === 50) langKey = "c";
 
   const fnName = question?.functionName || "solve";
-  const driver = question?.driverCode?.[langKey];
+  const rawDriver = question?.driverCode?.[langKey];
+  const driver = stripSolutionClass(rawDriver, langKey);
 
   if (langKey === "cpp") {
     const hasClass = sourceCode.includes("class Solution");

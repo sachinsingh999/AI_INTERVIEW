@@ -30,7 +30,36 @@ const userSchema = new mongoose.Schema(
       type: Object,
       default: null,
     },
+    username: {
+      type: String,
+      default: "",
+    },
+    bio: {
+      type: String,
+      default: "",
+    },
+    location: {
+      type: String,
+      default: "",
+    },
+    education: {
+      type: String,
+      default: "",
+    },
+    website: {
+      type: String,
+      default: "",
+    },
+    avatar: {
+      type: String,
+      default: "",
+    },
+    skills: {
+      type: [String],
+      default: ["React", "Node.js", "JavaScript", "DSA", "System Design", "SQL"],
+    },
     savedQuestions: [
+
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Question",

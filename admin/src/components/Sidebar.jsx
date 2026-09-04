@@ -63,21 +63,17 @@ function Sidebar() {
   return (
     <aside className="w-64 border-r border-slate-200/50 dark:border-slate-800/60 bg-white/95 dark:bg-[#0B1220]/95 flex flex-col h-screen sticky top-0 shrink-0">
       {/* Brand Header */}
-      <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-200/40 dark:border-slate-800/40">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-          <svg viewBox="0 0 24 24" className="h-5 w-5 text-indigo-650 dark:text-indigo-400" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-            <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="currentColor" />
-          </svg>
-        </div>
-        <div>
-          <span className="text-sm font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-800 dark:from-white dark:via-indigo-100 dark:to-slate-300 bg-clip-text text-transparent">
-            MockAI Admin
-          </span>
-          <span className="block text-[8px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none mt-0.5">
-            System Console
-          </span>
-        </div>
+      <div className="h-16 flex items-center px-4 border-b border-slate-200/40 dark:border-slate-800/40">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center group cursor-pointer shrink-0"
+        >
+          <img
+            src="/logo.png"
+            alt="CodeForge Admin Logo"
+            className="h-16 object-contain -my-4 transform origin-left transition-all duration-300 group-hover:scale-105"
+          />
+        </button>
       </div>
 
       {/* Nav Links */}

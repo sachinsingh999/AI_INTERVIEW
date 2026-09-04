@@ -585,64 +585,105 @@ Return ONLY a valid JSON object matching this structure.
 };
 
 const extractResumeData = async (resumeText) => {
-  try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-    });
+  const schema = {
+    name: "",
+    email: "",
+    phone: "",
+    linkedin: "",
+    github: "",
+    portfolio: "",
+    location: "",
+    summary: "",
+    skills: [],
+    education: [],
+    experience: [],
+    projects: [],
+    certifications: [],
+    achievements: [],
+    languages: []
+  };
 
-    const prompt = `
-You are an expert resume parser.
-Analyze the following resume details:
-"""
-${resumeText}
-"""
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+  });
 
-Extract the following information and return exactly a JSON object matching this structure:
+  const systemPrompt = `You are a resume parsing engine.
+Extract ONLY information present in the resume.
+Return ONLY valid JSON.
+Never invent values.
+Never guess missing fields.
+
+Schema:
 {
-  "skills": ["List of core skills found"],
-  "projects": ["List of notable projects"],
-  "technologies": ["List of software tools/technologies"],
-  "experience": ["List of work experiences or roles"],
-  "education": ["List of education details or schools"],
-  "summary": "A concise professional summary of the candidate's career background (max 3 sentences)."
+  "name":"",
+  "email":"",
+  "phone":"",
+  "linkedin":"",
+  "github":"",
+  "portfolio":"",
+  "location":"",
+  "summary":"",
+  "skills":[],
+  "education":[],
+  "experience":[],
+  "projects":[],
+  "certifications":[],
+  "achievements":[],
+  "languages":[]
 }
 
-Return ONLY a valid JSON object.
-`;
+If a field does not exist return:
+"" for strings
+[] for arrays
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json"
+No markdown.
+No explanations.
+Only JSON.`;
+
+  const userContent = `Resume Text:\n"""\n${resumeText}\n"""`;
+
+  let attempts = 3;
+  let lastError = null;
+
+  while (attempts > 0) {
+    try {
+      const result = await model.generateContent({
+        contents: [
+          { role: "user", parts: [{ text: systemPrompt + "\n\n" + userContent }] }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const text = result.response.text().trim();
+      const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      // Validate schema keys to ensure all are present and correctly typed
+      const sanitized = {};
+      for (const key of Object.keys(schema)) {
+        if (Array.isArray(schema[key])) {
+          sanitized[key] = Array.isArray(parsed[key]) ? parsed[key] : [];
+        } else {
+          sanitized[key] = typeof parsed[key] === "string" ? parsed[key] : (parsed[key] ? String(parsed[key]) : "");
+        }
       }
-    });
 
-    const text = result.response.text().trim();
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error("Gemini API extractResumeData error:", error.message);
-    
-    // Heuristic fallbacks if API is offline
-    const lower = (resumeText || "").toLowerCase();
-    const skills = [];
-    if (lower.includes("react")) skills.push("React");
-    if (lower.includes("javascript") || lower.includes("js")) skills.push("JavaScript");
-    if (lower.includes("typescript") || lower.includes("ts")) skills.push("TypeScript");
-    if (lower.includes("node")) skills.push("Node.js");
-    if (lower.includes("python")) skills.push("Python");
-    if (lower.includes("sql")) skills.push("SQL");
-    if (skills.length === 0) skills.push("Software Engineering");
-
-    return {
-      skills,
-      projects: ["Personal Portfolio Project", "Mock Interview Arena"],
-      technologies: ["Git", "VS Code", ...skills],
-      experience: ["Software Developer Internship", "Open Source Contributor"],
-      education: ["Bachelor of Science in Computer Science"],
-      summary: "Aspiring software developer with a focus on web technologies, responsive UI development, and data-driven systems."
-    };
+      return sanitized;
+    } catch (err) {
+      console.warn(`[AI Parser] Attempt failed (${4 - attempts}/3). Error: ${err.message}`);
+      lastError = err;
+      attempts--;
+      if (attempts > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
   }
+
+  // Fallback instead of crashing completely or returning mock data, return the empty schema structure
+  console.error(`[AI Parser] All extraction attempts failed: ${lastError.message}. Returning empty structured layout.`);
+  return schema;
 };
 
 const generateSingleCodingQuestion = async (role = "Software Engineer", difficulty = "Medium", category = "DSA", existingTitles = []) => {
@@ -1438,11 +1479,74 @@ Return ONLY a JSON object matching this schema:
  * Includes 2 AI attempts (1 retry) and progressive filter relaxation DB fallback
  */
 const generate2TechnicalQuestions = async (context = {}) => {
-  const { getFallbackTechnicalQuestions } = require("./techFallbackService");
-  console.log("[Tech DB Fetch] Fetching Technical Round 1 DSA Coding Questions FROM MONGODB DB ONLY...");
-  const finalQuestions = await getFallbackTechnicalQuestions(2, [], context);
-  console.log(`[Tech DB Fetch Log] Successfully fetched ${finalQuestions.length} DSA questions from MongoDB database.`);
-  return finalQuestions;
+  const role = context.role || context.jobRole || "Software Developer";
+  const difficulty = context.difficulty || "Medium";
+  const excludedTexts = context.excludedTexts || [];
+
+  // Pick two distinct DSA topics from standard list
+  const dsaTopics = [
+    "Arrays", "Strings", "Hashing", "Two Pointers", "Sliding Window",
+    "Stack", "Queue", "Linked List", "Binary Tree", "BST", "Heap",
+    "Graph", "BFS", "DFS", "Backtracking", "Recursion",
+    "Dynamic Programming", "Greedy", "Binary Search", "Bit Manipulation"
+  ];
+  const topic1 = dsaTopics[Math.floor(Math.random() * dsaTopics.length)];
+  let topic2 = dsaTopics[Math.floor(Math.random() * dsaTopics.length)];
+  while (topic1 === topic2) {
+    topic2 = dsaTopics[Math.floor(Math.random() * dsaTopics.length)];
+  }
+
+  console.log(`[Tech Round 1 Generation] Generating 2 DSA Coding Questions dynamically using Gemini for topics: ${topic1}, ${topic2}...`);
+
+  try {
+    const q1 = await generateSingleCodingQuestion(role, difficulty, topic1, excludedTexts);
+    const q2 = await generateSingleCodingQuestion(role, difficulty, topic2, [...excludedTexts, q1.title]);
+
+    const formatQuestion = (q, idx) => {
+      const functionSignature = {
+        functionName: q.functionName || "solve",
+        returnType: q.returnType || "int",
+        parameters: q.parameters || [{ type: "vector<int>&", name: "height" }],
+      };
+
+      return {
+        id: `p2_q${idx + 1}`,
+        phase: 2,
+        phaseName: "Technical Round 1",
+        type: "coding",
+        difficulty: q.difficulty || difficulty,
+        category: q.tags?.[0] || q.category || "Data Structures & Algorithms",
+        title: q.title || `DSA Coding Challenge ${idx + 1}`,
+        question: q.description || q.question,
+        description: q.description || q.question,
+        functionSignature,
+        functionName: functionSignature.functionName,
+        returnType: functionSignature.returnType,
+        parameters: functionSignature.parameters,
+        constraints: Array.isArray(q.constraints) ? q.constraints.join("\n") : (q.constraints || "Time Complexity: O(N)\nSpace Complexity: O(N)"),
+        sampleInput: q.examples?.[0]?.input || (q.visibleTestCases?.[0]?.input) || "",
+        sampleOutput: q.examples?.[0]?.output || (q.visibleTestCases?.[0]?.expected) || "",
+        examples: q.examples || [],
+        testCases: q.visibleTestCases || q.testCases || [],
+        hiddenTestCases: q.hiddenTestCases || [],
+        language: "javascript",
+        starterCode: q.starterCode || "",
+        driverCode: q.driverCode || null,
+        expectedAnswerPoints: q.expectedAnswerPoints || [],
+        idealAnswer: q.idealAnswer || "Optimal technical answer.",
+        timeLimit: q.timeLimit || 300,
+        marks: q.marks || 10,
+        source: "AI Generator",
+      };
+    };
+
+    return [formatQuestion(q1, 0), formatQuestion(q2, 1)];
+  } catch (err) {
+    console.error("Failed to generate custom DSA coding questions via Gemini, calling fallback:", err.message);
+    const { getFallbackTechnicalQuestions } = require("./techFallbackService");
+    const dbFallback = await getFallbackTechnicalQuestions(2, [], context);
+    return dbFallback;
+  }
 };
 
 module.exports = {

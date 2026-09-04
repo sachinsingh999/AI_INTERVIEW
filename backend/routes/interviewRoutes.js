@@ -15,6 +15,7 @@ const {
   patchAnswer,
   submitInterviewSession,
   startPhase,
+  submitPhase,
   getInterviewWorkspace,
   updateInterviewWorkspace,
   executeWorkspaceSandbox,
@@ -26,6 +27,8 @@ const {
   getWorkspaceVersions,
   restoreWorkspaceVersion,
   patchWorkspaceFile,
+  getVoiceNextQuestion,
+  submitVoiceAnswer,
 } = require("../controllers/interviewController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -39,6 +42,11 @@ router.post("/save-answer", protect, saveAnswer);
 router.patch("/:interviewId/answer", protect, patchAnswer);
 router.post("/submit", protect, submitInterviewSession);
 router.post("/start-phase", protect, startPhase);
+router.post("/:id/phase/:phaseNum/submit", protect, submitPhase);
+
+// Voice assessment routes
+router.post("/:id/voice/next-question", protect, getVoiceNextQuestion);
+router.post("/:id/voice/submit-answer", protect, submitVoiceAnswer);
 
 // Get All Interviews
 router.get("/", protect, getInterviews);

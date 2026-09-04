@@ -6,6 +6,7 @@ import SessionSidebar from "../components/interview/session/SessionSidebar";
 import PhaseTransitionModal from "../components/interview/session/PhaseTransitionModal";
 import SubmitConfirmationModal from "../components/interview/session/SubmitConfirmationModal";
 import TechnicalRound2Workspace from "../components/interview/session/TechnicalRound2Workspace";
+import VoiceInterviewWorkspace from "../components/interview/session/VoiceInterviewWorkspace";
 import api from "../services/api";
 
 export default function InterviewSession() {
@@ -30,6 +31,13 @@ export default function InterviewSession() {
   const [sessionData, setSessionData] = useState(null);
   const [currentPhaseKey, setCurrentPhaseKey] = useState(initialPhase);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [lobbyCompleted, setLobbyCompleted] = useState(() => {
+    try {
+      return localStorage.getItem(`lobby_completed_${interviewId}`) === "true";
+    } catch (e) {
+      return false;
+    }
+  });
 
   // Sync currentPhaseKey with URL search parameter when phase changes
   useEffect(() => {
@@ -159,6 +167,103 @@ export default function InterviewSession() {
     }
   }, [sessionData, interviewId]);
 
+  // Sync mockup questions for client-side local sessions if future phases are empty
+  useEffect(() => {
+    if (interviewId && interviewId.startsWith("session-") && sessionData) {
+      let changed = false;
+      const updatedPhases = { ...sessionData.phases };
+
+      if (!updatedPhases.phase2?.questions?.length) {
+        updatedPhases.phase2 = {
+          ...updatedPhases.phase2,
+          questions: [
+            {
+              id: "p2_q1",
+              phase: 2,
+              phaseName: "Technical Round 1",
+              type: "coding",
+              difficulty: "Medium",
+              category: "JavaScript & Frontend",
+              title: "Cloning Object with Circular References",
+              description: "Write a function `deepClone(obj)` that creates a deep copy of a given object. It must handle circular references, nested arrays, and dates correctly.",
+              starterCode: {
+                javascript: "function deepClone(obj) {\n  // Write your code here\n}"
+              }
+            },
+            {
+              id: "p2_q2",
+              phase: 2,
+              phaseName: "Technical Round 1",
+              type: "coding",
+              difficulty: "Hard",
+              category: "Algorithms & State",
+              title: "Custom Event Emitter Pattern",
+              description: "Implement a robust `EventEmitter` class with `subscribe`, `unsubscribe`, and `emit` capabilities. Multiple callbacks should be triggerable for the same event name.",
+              starterCode: {
+                javascript: "class EventEmitter {\n  // Write your code here\n}"
+              }
+            }
+          ]
+        };
+        changed = true;
+      }
+
+      if (!updatedPhases.phase3?.questions?.length) {
+        updatedPhases.phase3 = {
+          ...updatedPhases.phase3,
+          questions: [
+            {
+              id: "p3_q1",
+              phase: 3,
+              phaseName: "Technical Round 2 (Coding)",
+              type: "coding",
+              title: "Optimizing Real-time Search Autocomplete",
+              description: "Write a high-performance debounced search autocomplete component logic. Focus on caching previous query results, handling out-of-order network responses, and aborting stale fetch requests.",
+              starterCode: {
+                javascript: "function debounce(func, wait) {\n  // Write your code here\n}"
+              }
+            }
+          ]
+        };
+        changed = true;
+      }
+
+      if (!updatedPhases.phase4?.questions?.length) {
+        updatedPhases.phase4 = {
+          ...updatedPhases.phase4,
+          questions: [
+            {
+              id: "p4_q1",
+              phase: 4,
+              phaseName: "HR & Behavioral Round",
+              type: "hr",
+              title: "Behavioral: Conflict Resolution & Team Alignment",
+              description: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
+              placeholder: "Use the STAR method..."
+            },
+            {
+              id: "p4_q2",
+              phase: 4,
+              phaseName: "HR & Behavioral Round",
+              type: "hr",
+              title: "Situational: Handling High-Pressure Deadlines & Trade-offs",
+              description: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
+              placeholder: "Explain the scenario..."
+            }
+          ]
+        };
+        changed = true;
+      }
+
+      if (changed) {
+        setSessionData(prev => ({
+          ...prev,
+          phases: updatedPhases
+        }));
+      }
+    }
+  }, [interviewId, sessionData]);
+
   // Prevent returning to completed phases
   useEffect(() => {
     if (!interviewId || !currentPhaseKey || !sessionData) return;
@@ -282,10 +387,19 @@ export default function InterviewSession() {
     }
   };
 
-  const completeAptitudePhase = () => {
+  const completeAptitudePhase = async () => {
     const answeredCount = currentQuestions.filter(q => {
-      const a = answers?.[q.id];
-      return a && (typeof a === "string" ? a.trim().length > 0 : a.selectedOption);
+      const a = answers?.[q.id] || answers?.[q._id];
+      if (!a) return false;
+      if (typeof a === "string") return a.trim().length > 0;
+      if (typeof a === "object") {
+        if (a.selectedOption !== undefined && a.selectedOption !== null) return true;
+        if (a.selectedOptions && a.selectedOptions.length > 0) return true;
+        if (a.code && a.code.trim().length > 0) return true;
+        if (a.text && a.text.trim().length > 0) return true;
+        return Object.keys(a).length > 0;
+      }
+      return false;
     }).length;
     const totalCount = currentQuestions.length || 10;
     const skippedCount = Math.max(0, totalCount - answeredCount);
@@ -310,15 +424,32 @@ export default function InterviewSession() {
       localStorage.setItem(`interview_stats_${interviewId}_oa`, JSON.stringify(realStats));
     } catch (e) {}
 
+    try {
+      await api.post(
+        `/interview/${interviewId}/phase/1/submit`,
+        { answers },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Failed to submit Phase 1:", err);
+    }
+
     navigate(`/interview/${interviewId}/phase-complete?phase=oa`, {
       state: { realStats, phase: "oa", questions: currentQuestions, answers }
     });
   };
 
-  const completeTech1Phase = () => {
+  const completeTech1Phase = async () => {
     const answeredCount = currentQuestions.filter(q => {
-      const a = answers?.[q.id];
-      return a && (typeof a === "string" ? a.trim().length > 0 : a.code?.trim().length > 0);
+      const a = answers?.[q.id] || answers?.[q._id];
+      if (!a) return false;
+      if (typeof a === "string") return a.trim().length > 0;
+      if (typeof a === "object") {
+        if (a.code && a.code.trim().length > 0) return true;
+        if (a.text && a.text.trim().length > 0) return true;
+        return Object.keys(a).length > 0;
+      }
+      return false;
     }).length;
     const totalCount = currentQuestions.length || 2;
     const skippedCount = Math.max(0, totalCount - answeredCount);
@@ -343,15 +474,32 @@ export default function InterviewSession() {
       localStorage.setItem(`interview_stats_${interviewId}_tech1`, JSON.stringify(realStats));
     } catch (e) {}
 
+    try {
+      await api.post(
+        `/interview/${interviewId}/phase/2/submit`,
+        { answers },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Failed to submit Phase 2:", err);
+    }
+
     navigate(`/interview/${interviewId}/phase-complete?phase=tech1`, {
       state: { realStats, phase: "tech1", questions: currentQuestions, answers }
     });
   };
 
-  const completeTech2Phase = () => {
+  const completeTech2Phase = async () => {
     const answeredCount = currentQuestions.filter(q => {
-      const a = answers?.[q.id];
-      return a && (typeof a === "string" ? a.trim().length > 0 : a.code?.trim().length > 0);
+      const a = answers?.[q.id] || answers?.[q._id];
+      if (!a) return false;
+      if (typeof a === "string") return a.trim().length > 0;
+      if (typeof a === "object") {
+        if (a.code && a.code.trim().length > 0) return true;
+        if (a.text && a.text.trim().length > 0) return true;
+        return Object.keys(a).length > 0;
+      }
+      return false;
     }).length;
     const totalCount = currentQuestions.length || 2;
     const skippedCount = Math.max(0, totalCount - answeredCount);
@@ -376,13 +524,32 @@ export default function InterviewSession() {
       localStorage.setItem(`interview_stats_${interviewId}_tech2`, JSON.stringify(realStats));
     } catch (e) {}
 
-    navigate(`/interview/${interviewId}/responses`);
+    try {
+      await api.post(
+        `/interview/${interviewId}/phase/3/submit`,
+        { answers },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Failed to submit Phase 3:", err);
+    }
+
+    navigate(`/interview/${interviewId}/phase-complete?phase=tech2`, {
+      state: { realStats, phase: "tech2", questions: currentQuestions, answers }
+    });
   };
 
-  const completeHRPhase = () => {
+  const completeHRPhase = async () => {
     const answeredCount = currentQuestions.filter(q => {
-      const a = answers?.[q.id];
-      return a && (typeof a === "string" ? a.trim().length > 0 : a.code?.trim().length > 0);
+      const a = answers?.[q.id] || answers?.[q._id];
+      if (!a) return false;
+      if (typeof a === "string") return a.trim().length > 0;
+      if (typeof a === "object") {
+        if (a.text && a.text.trim().length > 0) return true;
+        if (a.code && a.code.trim().length > 0) return true;
+        return Object.keys(a).length > 0;
+      }
+      return false;
     }).length;
     const totalCount = currentQuestions.length || 3;
     const skippedCount = Math.max(0, totalCount - answeredCount);
@@ -406,6 +573,16 @@ export default function InterviewSession() {
       localStorage.setItem(`interview_completed_phase_${interviewId}_phase4`, "true");
       localStorage.setItem(`interview_stats_${interviewId}_hr`, JSON.stringify(realStats));
     } catch (e) {}
+
+    try {
+      await api.post(
+        `/interview/${interviewId}/phase/4/submit`,
+        { answers },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Failed to submit Phase 4:", err);
+    }
 
     navigate(`/interview/${interviewId}/phase-complete?phase=hr`, {
       state: { realStats, phase: "hr", questions: currentQuestions, answers },
@@ -534,13 +711,44 @@ export default function InterviewSession() {
   }
 
   if (currentPhaseKey === "phase3" || currentPhaseKey === "technical_round_2") {
+    if (!lobbyCompleted) {
+      return (
+        <TechnicalRound2Workspace
+          interviewId={interviewId}
+          role={sessionData?.role || "Frontend React Developer"}
+          difficulty={sessionData?.difficulty || "Medium"}
+          timeLeftSeconds={timeLeftSeconds}
+          resumeAnalysis={sessionData?.resumeAnalysis}
+          onCompletePhase={() => {
+            setLobbyCompleted(true);
+            try {
+              localStorage.setItem(`lobby_completed_${interviewId}`, "true");
+            } catch (e) {}
+          }}
+        />
+      );
+    }
     return (
-      <TechnicalRound2Workspace
+      <VoiceInterviewWorkspace
         interviewId={interviewId}
         role={sessionData?.role || "Frontend React Developer"}
         difficulty={sessionData?.difficulty || "Medium"}
         timeLeftSeconds={timeLeftSeconds}
-        onCompletePhase={completeTech2Phase}
+        resumeAnalysis={sessionData?.resumeAnalysis}
+        onCompletePhase={() => {
+          try {
+            localStorage.removeItem(`lobby_completed_${interviewId}`);
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && (k.startsWith(`interview_notes_${interviewId}_`) || k.startsWith(`interview_draft_${interviewId}_`))) {
+                localStorage.removeItem(k);
+                i--;
+              }
+            }
+          } catch (e) {}
+          completeTech2Phase();
+        }}
+        sessionData={sessionData}
       />
     );
   }
@@ -576,6 +784,11 @@ export default function InterviewSession() {
           isFirst={currentIndex === 0}
           isLast={currentIndex === currentQuestions.length - 1}
           isLocked={sessionData?.status === "Completed" || sessionData?.isLocked}
+          questions={currentQuestions}
+          answers={answers}
+          visitedQuestions={visitedQuestions}
+          flaggedQuestions={flaggedQuestions}
+          onSelectQuestion={goToQuestion}
         />
 
         {/* Right: Side Panel (Hidden for coding/technical code mode to maximize workspace) */}

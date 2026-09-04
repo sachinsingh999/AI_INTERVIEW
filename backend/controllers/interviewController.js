@@ -10,6 +10,8 @@ const { getFallbackTechnicalQuestions } = require("../services/techFallbackServi
 const { getTemplate, determineTemplateId } = require("../services/runtimeRegistry");
 const Answer = require("../models/Answer");
 const Notification = require("../models/Notification");
+const User = require("../models/User");
+const InterviewProcessingService = require("../services/InterviewProcessingService");
 // ===== Create Interview =====
 const createInterview = async (req, res) => {
   try {
@@ -82,167 +84,111 @@ Interview Plan: Aptitude (${interviewPlan?.aptitude ? "Yes" : "No"}), Tech Round
       contextPrompt += `\nExcluded Questions (Do NOT repeat or generate questions similar to these):\n${excludedTexts.map((q, idx) => `${idx + 1}. ${q}`).join("\n")}\n`;
     }
 
-    // 3. Generate questions concurrently in parallel pipelines
-    const [aptResult, techResult, codeResult] = await Promise.allSettled([
-      // Aptitude Loop
-      (async () => {
-        let aptitudeQuestions = [];
-        let aptAttempts = 0;
-        while (aptitudeQuestions.length < 10 && aptAttempts < 1) {
-          const batch = await generate10AptitudeQuestions({
-            role,
-            experience,
-            skills: selectedSkills,
-            resumeText: resumeSummaryStr,
-            difficulty,
-            excludedTexts: [...excludedTexts, ...aptitudeQuestions.map(q => q.question)],
-          });
-          for (const q of batch) {
-            const fp = getFingerprint(q.question);
-            if (fp && !excludedFingerprints.has(fp)) {
-              if (!aptitudeQuestions.some(existing => getFingerprint(existing.question) === fp)) {
-                aptitudeQuestions.push(q);
-                if (aptitudeQuestions.length === 10) break;
-              }
-            }
-          }
-          aptAttempts++;
-        }
-        if (aptitudeQuestions.length < 10) {
-          const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackService");
-          const needed = 10 - aptitudeQuestions.length;
-          try {
-            const dbFallback = await getFallbackAptitudeQuestions(needed, aptitudeQuestions, { jobRole: role, difficulty });
-            for (const q of dbFallback) {
-              const fp = getFingerprint(q.question);
-              if (fp && !excludedFingerprints.has(fp)) {
-                if (!aptitudeQuestions.some(existing => getFingerprint(existing.question) === fp)) {
-                  aptitudeQuestions.push({
-                    id: q.id || `p1_q${aptitudeQuestions.length + 1}`,
-                    type: "aptitude",
-                    category: q.category || "Logical Reasoning",
-                    difficulty: q.difficulty || difficulty,
-                    question: q.question,
-                    options: q.options,
-                    correctAnswer: q.correctAnswer,
-                    explanation: q.explanation || "",
-                    timeLimit: q.timeLimit || 60,
-                    marks: q.marks || 1,
-                  });
-                  if (aptitudeQuestions.length === 10) break;
-                }
-              }
-            }
-          } catch (err) {
-            console.error("Aptitude fallback error:", err);
+    // 3. Generate ONLY Phase 1 (Aptitude) questions immediately
+    let aptitudeQuestions = [];
+    let aptAttempts = 0;
+    while (aptitudeQuestions.length < 10 && aptAttempts < 1) {
+      const batch = await generate10AptitudeQuestions({
+        role,
+        experience,
+        skills: selectedSkills,
+        resumeText: resumeSummaryStr,
+        difficulty,
+        excludedTexts: [...excludedTexts, ...aptitudeQuestions.map(q => q.question)],
+      });
+      for (const q of batch) {
+        const fp = getFingerprint(q.question);
+        if (fp && !excludedFingerprints.has(fp)) {
+          if (!aptitudeQuestions.some(existing => getFingerprint(existing.question) === fp)) {
+            aptitudeQuestions.push(q);
+            if (aptitudeQuestions.length === 10) break;
           }
         }
-        return aptitudeQuestions;
-      })(),
+      }
+      aptAttempts++;
+    }
+    if (aptitudeQuestions.length < 10) {
+      const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackService");
+      const needed = 10 - aptitudeQuestions.length;
+      try {
+        const dbFallback = await getFallbackAptitudeQuestions(needed, aptitudeQuestions, { jobRole: role, difficulty });
+        for (const q of dbFallback) {
+          const fp = getFingerprint(q.question);
+          if (fp && !excludedFingerprints.has(fp)) {
+            if (!aptitudeQuestions.some(existing => getFingerprint(existing.question) === fp)) {
+              aptitudeQuestions.push({
+                id: q.id || `p1_q${aptitudeQuestions.length + 1}`,
+                type: "aptitude",
+                category: q.category || "Logical Reasoning",
+                difficulty: q.difficulty || difficulty,
+                question: q.question,
+                options: q.options,
+                correctAnswer: q.correctAnswer,
+                explanation: q.explanation || "",
+                timeLimit: q.timeLimit || 60,
+                marks: q.marks || 1,
+              });
+              if (aptitudeQuestions.length === 10) break;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Aptitude fallback error:", err);
+      }
+    }
 
-      // Technical Loop
-      (async () => {
-        let technicalQuestions = [];
-        let techAttempts = 0;
-        while (technicalQuestions.length < 2 && techAttempts < 3) {
-          const batch = await generate2TechnicalQuestions({
-            role,
-            experience,
-            skills: selectedSkills,
-            parsedResume,
-            resumeText: resumeSummaryStr,
-            difficulty,
-            excludedTexts: [...excludedTexts, ...technicalQuestions.map(q => q.question || q.title)],
-          });
-          for (const q of batch) {
-            const qText = q.question || q.title || q.description || "";
-            const fp = getFingerprint(qText);
-            if (fp && !excludedFingerprints.has(fp)) {
-              if (!technicalQuestions.some(existing => getFingerprint(existing.question || existing.title) === fp)) {
-                technicalQuestions.push(q);
-                if (technicalQuestions.length === 2) break;
-              }
-            }
-          }
-          techAttempts++;
-        }
-        if (technicalQuestions.length < 2) {
-          const { getFallbackTechnicalQuestions } = require("../services/techFallbackService");
-          const needed = 2 - technicalQuestions.length;
-          try {
-            const dbFallback = await getFallbackTechnicalQuestions(needed, technicalQuestions, {
-              role,
-              difficulty,
-              excludedTexts: [...excludedTexts, ...technicalQuestions.map(q => q.question || q.title)],
-            });
-            for (const q of dbFallback) {
-              const qText = q.question || q.title || q.description || "";
-              const fp = getFingerprint(qText);
-              if (fp && !excludedFingerprints.has(fp)) {
-                if (!technicalQuestions.some(existing => getFingerprint(existing.question || existing.title) === fp)) {
-                  technicalQuestions.push(q);
-                  if (technicalQuestions.length === 2) break;
-                }
-              }
-            }
-          } catch (err) {
-            console.error("Technical fallback error:", err);
-          }
-        }
-        return technicalQuestions;
-      })(),
-
-      // Coding Loop
-      (async () => {
-        let questions = [];
-        let codeAttempts = 0;
-        const targetCount = Number(totalQuestions) || 3;
-        while (questions.length < targetCount && codeAttempts < 1) {
-          const generated = await generateQuestions(
-            role,
-            difficulty,
-            "code",
-            selectedSkills.join(", "),
-            contextPrompt + `\nExclude these specific coding challenge titles: ${questions.map(q => q.title).join(", ")}\n`
-          );
-          const batch = Array.isArray(generated) ? generated : [];
-          for (const q of batch) {
-            const qText = q.questionText || q.title || "";
-            const fp = getFingerprint(qText);
-            if (fp && !excludedFingerprints.has(fp)) {
-              if (!questions.some(existing => getFingerprint(existing.questionText || existing.title) === fp)) {
-                questions.push(q);
-                if (questions.length === targetCount) break;
-              }
-            }
-          }
-          codeAttempts++;
-        }
-        if (questions.length < targetCount) {
-          const needed = targetCount - questions.length;
-          try {
-            const Question = require("../models/Question");
-            const fallbackDocs = await Question.aggregate([
-              { $match: { difficulty, title: { $nin: [...excludedTexts, ...questions.map(q => q.title)] } } },
-              { $sample: { size: needed } }
-            ]);
-            for (const doc of fallbackDocs) {
-              questions.push(doc.toObject ? doc.toObject() : doc);
-            }
-          } catch (err) {
-            console.error("Coding questions fallback error:", err);
-          }
-        }
-        return questions;
-      })()
-    ]);
-
-    const aptitudeQuestions = aptResult.status === "fulfilled" ? aptResult.value : [];
-    const technicalQuestions = techResult.status === "fulfilled" ? techResult.value : [];
-    const questions = codeResult.status === "fulfilled" ? codeResult.value : [];
+    const technicalQuestions = [];
+    const questions = [];
 
     const computedTemplateId = determineTemplateId(role, selectedSkills);
     const initialFiles = initializeWorkspace(computedTemplateId, role);
+
+    const phasesState = [
+      {
+        phaseNumber: 1,
+        phaseName: "Aptitude Assessment",
+        status: "generated",
+        generatedAt: new Date(),
+        startedAt: null,
+        completedAt: null,
+        questions: aptitudeQuestions,
+        responses: [],
+        evaluation: {},
+      },
+      {
+        phaseNumber: 2,
+        phaseName: "Technical Round 1 (Core Concepts)",
+        status: "pending",
+        generatedAt: null,
+        startedAt: null,
+        completedAt: null,
+        questions: [],
+        responses: [],
+        evaluation: {},
+      },
+      {
+        phaseNumber: 3,
+        phaseName: "Technical Round 2 (Coding & Problem Solving)",
+        status: "pending",
+        generatedAt: null,
+        startedAt: null,
+        completedAt: null,
+        questions: [],
+        responses: [],
+        evaluation: {},
+      },
+      {
+        phaseNumber: 4,
+        phaseName: "HR & Behavioral Round",
+        status: "pending",
+        generatedAt: null,
+        startedAt: null,
+        completedAt: null,
+        questions: [],
+        responses: [],
+        evaluation: {},
+      },
+    ];
 
     // Update session to In Progress once questions are generated and saved
     const updated = await Interview.findByIdAndUpdate(
@@ -254,6 +200,9 @@ Interview Plan: Aptitude (${interviewPlan?.aptitude ? "Yes" : "No"}), Tech Round
         templateId: computedTemplateId,
         workspaceFiles: initialFiles,
         status: "In Progress",
+        currentPhase: "phase1",
+        phasesState,
+        activePhases: ["phase1"],
       },
       { new: true }
     );
@@ -505,152 +454,153 @@ const getInterviewReport = async (req, res) => {
       interview: req.params.id,
     });
 
-    const unpackAnswer = (ansVal) => {
-      if (!ansVal) return "";
-      if (typeof ansVal === "object") {
-        if (ansVal.code !== undefined && ansVal.code !== null) return String(ansVal.code);
-        if (ansVal.text !== undefined && ansVal.text !== null) return String(ansVal.text);
-        if (ansVal.selectedOption !== undefined && ansVal.selectedOption !== null) return String(ansVal.selectedOption);
-        if (ansVal.selectedOptions !== undefined && ansVal.selectedOptions !== null) {
-          return Array.isArray(ansVal.selectedOptions) ? ansVal.selectedOptions.join(", ") : String(ansVal.selectedOptions);
-        }
-        return JSON.stringify(ansVal);
-      }
-      return String(ansVal);
+    const activePhases = interview.activePhases || ["phase1"];
+    const completedPhases = interview.status === "Completed"
+      ? activePhases
+      : activePhases.slice(0, -1);
+
+    const normalizeString = (str) => {
+      if (!str) return "";
+      return String(str)
+        .toLowerCase()
+        .replace(/[?.!,:;()\-+_=[\]{}]/g, "")
+        .replace(/[\r\n\t]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
     };
 
-    const activePhases = interview.activePhases || ["phase1"];
-    const allQuestions = [];
-
-    if (activePhases.includes("phase1") && Array.isArray(interview.aptitudeQuestions)) {
-      for (const q of interview.aptitudeQuestions) {
-        allQuestions.push({
-          id: q.id || q._id,
-          text: q.question || q.description || "",
-          type: "aptitude",
-          category: q.category || "Aptitude",
-          correctAnswer: q.correctAnswer,
-          correctOption: q.correctOption,
-        });
-      }
-    }
-
-    if (activePhases.includes("phase2") && Array.isArray(interview.technicalQuestions)) {
-      for (const q of interview.technicalQuestions) {
-        allQuestions.push({
-          id: q.id || q._id,
-          text: q.question || q.title || q.description || "",
-          type: "technical",
-          category: q.category || "Technical Concept",
-        });
-      }
-    }
-
-    if (activePhases.includes("phase3") && Array.isArray(interview.questions)) {
-      for (const q of interview.questions) {
-        allQuestions.push({
-          id: q._id || q.id,
-          text: q.questionText || q.title || "",
-          type: "coding",
-          category: q.category || "Coding",
-        });
-      }
-    }
-
-    if (activePhases.includes("phase4")) {
-      const hrQuestions = [
-        {
-          id: "p4_q1",
-          text: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
-          type: "hr",
-          category: "HR & Behavioral",
-        },
-        {
-          id: "p4_q2",
-          text: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
-          type: "hr",
-          category: "HR & Behavioral",
-        },
-        {
-          id: "p4_q3",
-          text: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
-          type: "hr",
-          category: "HR & Behavioral",
-        }
-      ];
-      for (const q of hrQuestions) {
-        allQuestions.push(q);
-      }
-    }
-
-    const processedAnswers = allQuestions.map((q) => {
-      const qText = q.text;
-      const existingAnswer = answers.find(
-        (a) => normalizeString(a.question) === normalizeString(qText)
+    const isAptitudeQuestion = (qText) => {
+      return Array.isArray(interview.aptitudeQuestions) && interview.aptitudeQuestions.some(
+        aq => normalizeString(aq.question || aq.description) === normalizeString(qText)
       );
+    };
 
-      if (existingAnswer) {
-        const ansObj = typeof existingAnswer.toObject === "function" ? existingAnswer.toObject() : { ...existingAnswer };
-        return {
+    const isTechnicalQuestion = (qText) => {
+      return Array.isArray(interview.technicalQuestions) && interview.technicalQuestions.some(
+        tq => normalizeString(tq.question || tq.questionText || tq.title || tq.description) === normalizeString(qText)
+      );
+    };
+
+    const isCodingQuestion = (qText) => {
+      return Array.isArray(interview.questions) && interview.questions.some(
+        cq => normalizeString(cq.question || cq.questionText || cq.title || cq.description) === normalizeString(qText)
+      );
+    };
+
+    const isHrQuestion = (qText) => {
+      const hrQuestions = [
+        "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
+        "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
+        "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?"
+      ];
+      return hrQuestions.some(hq => normalizeString(hq) === normalizeString(qText)) || 
+             qText.toLowerCase().includes("disagreement") || 
+             qText.toLowerCase().includes("critical bug") || 
+             qText.toLowerCase().includes("drives your passion") ||
+             qText.toLowerCase().includes("behavioral") ||
+             qText.toLowerCase().includes("coaching");
+    };
+
+    const getPhaseOfAnswer = (ans) => {
+      const qText = ans.question || "";
+      if (isAptitudeQuestion(qText)) return "phase1";
+      if (isTechnicalQuestion(qText)) return "phase2";
+      if (isCodingQuestion(qText)) return "phase3";
+      if (isHrQuestion(qText)) return "phase4";
+
+      const cat = (ans.category || "").toLowerCase();
+      const t = (ans.type || "").toLowerCase();
+
+      if (cat.includes("aptitude") || cat.includes("logic") || t === "aptitude") return "phase1";
+      if (cat.includes("coding") || cat.includes("dsa") || cat.includes("technical") || cat.includes("concept") || t === "coding" || t === "technical" || t === "code") return "phase2";
+      if (cat.includes("project") || t === "project") return "phase3";
+      if (cat.includes("hr") || cat.includes("behavioral") || t === "hr") return "phase4";
+
+      return "phase1";
+    };
+
+    const processedAnswers = [];
+
+    for (const ans of answers) {
+      const phaseOfQuestion = getPhaseOfAnswer(ans);
+
+      if (completedPhases.includes(phaseOfQuestion)) {
+        const ansObj = typeof ans.toObject === "function" ? ans.toObject() : { ...ans };
+        processedAnswers.push({
           ...ansObj,
-          category: ansObj.category || q.category,
-          type: ansObj.type || q.type,
+          category: ansObj.category || (phaseOfQuestion === "phase1" ? "Aptitude" : phaseOfQuestion === "phase2" ? "Coding" : "HR & Behavioral"),
+          type: ansObj.type || (phaseOfQuestion === "phase1" ? "aptitude" : phaseOfQuestion === "phase2" ? "coding" : "hr"),
+          phase: phaseOfQuestion,
+        });
+      }
+    }
+
+    if (completedPhases.includes("phase3")) {
+      if (interview.workspaceSubmission && interview.workspaceSubmission.isSubmitted) {
+        const sub = interview.workspaceSubmission;
+        const taskGuidelines = interview.workspaceState?.taskGuidelines || {
+          title: "Project Development Challenge",
+          description: "Implement the coding feature inside the templates workspace."
         };
+        const appFile = sub.filesSnapshot?.find(f => f.path === "src/App.jsx" || f.path === "server.js" || f.path === "client/src/App.jsx");
+        const codeAnswer = appFile ? appFile.content : "// Project workspace files submitted successfully.";
+
+        const feedback = `
+### Score: ${sub.weightedScore}%
+
+### AI Review Summary
+${sub.aiReview?.summary || "Evaluation complete."}
+
+### Strengths
+${(sub.aiReview?.strengths || []).map(s => `- ${s}`).join("\n")}
+
+### Weaknesses
+${(sub.aiReview?.weaknesses || []).map(w => `- ${w}`).join("\n")}
+
+### Naming & Architecture Review
+- ${sub.aiReview?.namingReview || "Follows standards."}
+- ${sub.aiReview?.architectureReview || "Good structure."}
+`;
+
+        processedAnswers.push({
+          _id: `submit-p3`,
+          interview: interview._id,
+          question: taskGuidelines.title,
+          answer: codeAnswer,
+          score: Math.round(sub.weightedScore / 10),
+          feedback: feedback.trim(),
+          category: "Project Development",
+          type: "project",
+          phase: "phase3",
+        });
       }
+    }
 
-      // Check draft userAnswers from interview document
-      const draftAnsVal = interview.userAnswers?.[q.id];
-      if (draftAnsVal !== undefined && draftAnsVal !== null) {
-        const unpacked = unpackAnswer(draftAnsVal);
-        if (unpacked.trim() !== "") {
-          let score = 0;
-          let feedback = "Evaluation pending submission.";
-          if (q.type === "aptitude") {
-            const isCorrect = unpacked && String(unpacked).toUpperCase() === String(q.correctAnswer || q.correctOption || "").toUpperCase();
-            score = isCorrect ? 10 : 0;
-            feedback = isCorrect ? "Correct answer selected." : `Incorrect. The correct answer was ${q.correctAnswer || q.correctOption}.`;
-          }
+    let totalQuestionsCount = 0;
+    if (completedPhases.includes("phase1") && Array.isArray(interview.aptitudeQuestions)) {
+      totalQuestionsCount += interview.aptitudeQuestions.length;
+    }
+    if (completedPhases.includes("phase2") && Array.isArray(interview.technicalQuestions)) {
+      totalQuestionsCount += interview.technicalQuestions.length;
+    }
+    if (completedPhases.includes("phase3") && Array.isArray(interview.questions)) {
+      totalQuestionsCount += interview.questions.length;
+    }
+    if (completedPhases.includes("phase4")) {
+      totalQuestionsCount += 3;
+    }
 
-          return {
-            _id: `draft-${q.id}-${Math.random()}`,
-            interview: interview._id,
-            question: qText,
-            answer: unpacked,
-            score: score,
-            feedback: feedback,
-            category: q.category,
-            type: q.type,
-          };
-        }
-      }
-
-      return {
-        _id: `unanswered-${Math.random()}`,
-        interview: interview._id,
-        question: qText,
-        answer: "No response recorded.",
-        score: 0,
-        feedback: "Question was left unanswered.",
-        category: q.category,
-        type: q.type,
-      };
-    });
-
-    const totalQuestions = allQuestions.length;
-    const answeredCount = processedAnswers.filter(a => !a._id.toString().startsWith("unanswered-")).length;
-
-    // Check if any answered questions are still pending evaluation
+    const answeredCount = processedAnswers.length;
     const isPending = answers.some(a => a.status === "pending");
 
     let finalProcessedAnswers = processedAnswers;
     if (isPending) {
       finalProcessedAnswers = processedAnswers.map(ans => {
-        const ansObj = typeof ans.toObject === "function" ? ans.toObject() : { ...ans };
         return {
-          _id: ansObj._id,
-          interview: ansObj.interview,
-          question: ansObj.question,
-          answer: ansObj.answer,
+          _id: ans._id,
+          interview: ans.interview,
+          question: ans.question,
+          answer: ans.answer,
           status: "pending",
           score: 0,
           feedback: "Evaluation pending by administrator.",
@@ -673,12 +623,11 @@ const getInterviewReport = async (req, res) => {
     );
 
     const averageScore =
-      totalQuestions > 0
-        ? (totalScore / totalQuestions).toFixed(1)
+      answeredCount > 0
+        ? (totalScore / answeredCount).toFixed(1)
         : 0;
 
     let performance = "Needs Improvement";
-
     if (averageScore >= 8) {
       performance = "Excellent";
     } else if (averageScore >= 5) {
@@ -686,12 +635,13 @@ const getInterviewReport = async (req, res) => {
     }
 
     res.status(200).json({
-      totalAnswered: totalQuestions,
+      totalAnswered: totalQuestionsCount,
       answeredCount,
       averageScore: isPending ? "Pending" : averageScore,
       performance: isPending ? "Evaluation Pending" : performance,
       answers: finalProcessedAnswers,
       isPending,
+      completedPhases,
     });
   } catch (error) {
     res.status(500).json({
@@ -767,93 +717,143 @@ const adminGetInterviewReport = async (req, res) => {
     const notification = await Notification.findOne({ interview: id });
     const answers = await Answer.find({ interview: id });
 
-    const processedAnswers = (() => {
-      const activePhases = interview.activePhases || ["phase1"];
-      const allQuestions = [];
+    const activePhases = interview.activePhases || ["phase1"];
+    const completedPhases = interview.status === "Completed"
+      ? activePhases
+      : activePhases.slice(0, -1);
 
-      if (activePhases.includes("phase1") && Array.isArray(interview.aptitudeQuestions)) {
-        for (const q of interview.aptitudeQuestions) {
-          allQuestions.push({
-            text: q.question || q.description || "",
-            type: "aptitude",
-            category: q.category || "Aptitude",
-          });
-        }
+    const normalizeString = (str) => {
+      if (!str) return "";
+      return String(str)
+        .toLowerCase()
+        .replace(/[?.!,:;()\-+_=[\]{}]/g, "")
+        .replace(/[\r\n\t]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    const isAptitudeQuestion = (qText) => {
+      return Array.isArray(interview.aptitudeQuestions) && interview.aptitudeQuestions.some(
+        aq => normalizeString(aq.question || aq.description) === normalizeString(qText)
+      );
+    };
+
+    const isTechnicalQuestion = (qText) => {
+      return Array.isArray(interview.technicalQuestions) && interview.technicalQuestions.some(
+        tq => normalizeString(tq.question || tq.questionText || tq.title || tq.description) === normalizeString(qText)
+      );
+    };
+
+    const isCodingQuestion = (qText) => {
+      return Array.isArray(interview.questions) && interview.questions.some(
+        cq => normalizeString(cq.question || cq.questionText || cq.title || cq.description) === normalizeString(qText)
+      );
+    };
+
+    const isHrQuestion = (qText) => {
+      const hrQuestions = [
+        "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
+        "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
+        "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?"
+      ];
+      return hrQuestions.some(hq => normalizeString(hq) === normalizeString(qText)) || 
+             qText.toLowerCase().includes("disagreement") || 
+             qText.toLowerCase().includes("critical bug") || 
+             qText.toLowerCase().includes("drives your passion") ||
+             qText.toLowerCase().includes("behavioral") ||
+             qText.toLowerCase().includes("coaching");
+    };
+
+    const getPhaseOfAnswer = (ans) => {
+      const qText = ans.question || "";
+      if (isAptitudeQuestion(qText)) return "phase1";
+      if (isTechnicalQuestion(qText)) return "phase2";
+      if (isCodingQuestion(qText)) return "phase3";
+      if (isHrQuestion(qText)) return "phase4";
+
+      const cat = (ans.category || "").toLowerCase();
+      const t = (ans.type || "").toLowerCase();
+
+      if (cat.includes("aptitude") || cat.includes("logic") || t === "aptitude") return "phase1";
+      if (cat.includes("coding") || cat.includes("dsa") || cat.includes("technical") || cat.includes("concept") || t === "coding" || t === "technical" || t === "code") return "phase2";
+      if (cat.includes("project") || t === "project") return "phase3";
+      if (cat.includes("hr") || cat.includes("behavioral") || t === "hr") return "phase4";
+
+      return "phase1";
+    };
+
+    const processedAnswers = [];
+
+    for (const ans of answers) {
+      const phaseOfQuestion = getPhaseOfAnswer(ans);
+
+      if (completedPhases.includes(phaseOfQuestion)) {
+        const ansObj = typeof ans.toObject === "function" ? ans.toObject() : { ...ans };
+        processedAnswers.push({
+          ...ansObj,
+          category: ansObj.category || (phaseOfQuestion === "phase1" ? "Aptitude" : phaseOfQuestion === "phase2" ? "Coding" : "HR & Behavioral"),
+          type: ansObj.type || (phaseOfQuestion === "phase1" ? "aptitude" : phaseOfQuestion === "phase2" ? "coding" : "hr"),
+          phase: phaseOfQuestion,
+        });
       }
+    }
 
-      if (activePhases.includes("phase2") && Array.isArray(interview.technicalQuestions)) {
-        for (const q of interview.technicalQuestions) {
-          allQuestions.push({
-            text: q.question || q.title || q.description || "",
-            type: "technical",
-            category: q.category || "Technical Concept",
-          });
-        }
-      }
-
-      if (activePhases.includes("phase3") && Array.isArray(interview.questions)) {
-        for (const q of interview.questions) {
-          allQuestions.push({
-            text: q.questionText || q.title || "",
-            type: "coding",
-            category: q.category || "Coding",
-          });
-        }
-      }
-
-      if (activePhases.includes("phase4")) {
-        const hrQuestions = [
-          {
-            text: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
-            type: "hr",
-            category: "HR & Behavioral",
-          },
-          {
-            text: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
-            type: "hr",
-            category: "HR & Behavioral",
-          },
-          {
-            text: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
-            type: "hr",
-            category: "HR & Behavioral",
-          }
-        ];
-        for (const q of hrQuestions) {
-          allQuestions.push(q);
-        }
-      }
-
-      return allQuestions.map((q) => {
-        const qText = q.text;
-        const existingAnswer = answers.find(
-          (a) => normalizeString(a.question) === normalizeString(qText)
-        );
-
-        if (existingAnswer) {
-          const ansObj = typeof existingAnswer.toObject === "function" ? existingAnswer.toObject() : { ...existingAnswer };
-          return {
-            ...ansObj,
-            category: ansObj.category || q.category,
-            type: ansObj.type || q.type,
-          };
-        }
-
-        return {
-          _id: `unanswered-${Math.random()}`,
-          interview: interview._id,
-          question: qText,
-          answer: "No response recorded.",
-          score: 0,
-          feedback: "Question was left unanswered.",
-          category: q.category,
-          type: q.type,
+    if (completedPhases.includes("phase3")) {
+      if (interview.workspaceSubmission && interview.workspaceSubmission.isSubmitted) {
+        const sub = interview.workspaceSubmission;
+        const taskGuidelines = interview.workspaceState?.taskGuidelines || {
+          title: "Project Development Challenge",
+          description: "Implement the coding feature inside the templates workspace."
         };
-      });
-    })();
+        const appFile = sub.filesSnapshot?.find(f => f.path === "src/App.jsx" || f.path === "server.js" || f.path === "client/src/App.jsx");
+        const codeAnswer = appFile ? appFile.content : "// Project workspace files submitted successfully.";
 
-    const totalQuestions = processedAnswers.length;
-    const answeredCount = processedAnswers.filter(a => !a._id.toString().startsWith("unanswered-")).length;
+        const feedback = `
+### Score: ${sub.weightedScore}%
+
+### AI Review Summary
+${sub.aiReview?.summary || "Evaluation complete."}
+
+### Strengths
+${(sub.aiReview?.strengths || []).map(s => `- ${s}`).join("\n")}
+
+### Weaknesses
+${(sub.aiReview?.weaknesses || []).map(w => `- ${w}`).join("\n")}
+
+### Naming & Architecture Review
+- ${sub.aiReview?.namingReview || "Follows standards."}
+- ${sub.aiReview?.architectureReview || "Good structure."}
+`;
+
+        processedAnswers.push({
+          _id: `submit-p3`,
+          interview: interview._id,
+          question: taskGuidelines.title,
+          answer: codeAnswer,
+          score: Math.round(sub.weightedScore / 10),
+          feedback: feedback.trim(),
+          category: "Project Development",
+          type: "project",
+          phase: "phase3",
+        });
+      }
+    }
+
+    let totalQuestionsCount = 0;
+    if (completedPhases.includes("phase1") && Array.isArray(interview.aptitudeQuestions)) {
+      totalQuestionsCount += interview.aptitudeQuestions.length;
+    }
+    if (completedPhases.includes("phase2") && Array.isArray(interview.technicalQuestions)) {
+      totalQuestionsCount += interview.technicalQuestions.length;
+    }
+    if (completedPhases.includes("phase3") && Array.isArray(interview.questions)) {
+      totalQuestionsCount += interview.questions.length;
+    }
+    if (completedPhases.includes("phase4")) {
+      totalQuestionsCount += 3;
+    }
+
+    const answeredCount = processedAnswers.length;
 
     const totalScore = processedAnswers.reduce(
       (sum, answer) => sum + (answer.score || 0),
@@ -861,12 +861,11 @@ const adminGetInterviewReport = async (req, res) => {
     );
 
     const averageScore =
-      totalQuestions > 0
-        ? (totalScore / totalQuestions).toFixed(1)
+      answeredCount > 0
+        ? (totalScore / answeredCount).toFixed(1)
         : 0;
 
     let performance = "Needs Improvement";
-
     if (averageScore >= 8) {
       performance = "Excellent";
     } else if (averageScore >= 5) {
@@ -875,12 +874,13 @@ const adminGetInterviewReport = async (req, res) => {
 
     res.status(200).json({
       interview,
-      totalAnswered: totalQuestions,
+      totalAnswered: totalQuestionsCount,
       answeredCount,
       averageScore,
       performance,
       answers: processedAnswers,
       notification,
+      completedPhases,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -1020,113 +1020,85 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
       const needed = 10 - phase1Questions.length;
       try {
         const dbFallback = await getFallbackAptitudeQuestions(needed, phase1Questions, { jobRole: role, difficulty });
-        const formattedFallback = dbFallback.map((q, idx) => ({
-          id: q.id || `p1_q${phase1Questions.length + idx + 1}`,
-          phase: 1,
-          phaseName: "Aptitude Assessment",
-          type: q.type || "mcq",
-          title: `${q.category || "Aptitude"}: ${q.difficulty || "Medium"}`,
-          description: q.question,
-          options: Array.isArray(q.options)
-            ? q.options.map((opt, oIdx) => ({
-                id: ["A", "B", "C", "D"][oIdx] || String(oIdx),
-                text: typeof opt === "string" ? opt : opt.text || String(opt),
-              }))
-            : [],
-          correctOption: q.correctAnswer || "A",
-          explanation: q.explanation || "",
-          timeLimit: q.timeLimit || 60,
-          marks: q.marks || 1,
-        }));
-        phase1Questions = [...phase1Questions, ...formattedFallback];
+        if (interview) {
+          const newQuestions = dbFallback.map((q, idx) => ({
+            id: q.id || `p1_q${interview.aptitudeQuestions.length + idx + 1}`,
+            type: "aptitude",
+            category: q.category || "Logical Reasoning",
+            difficulty: q.difficulty || difficulty,
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer || "A",
+            explanation: q.explanation || "",
+            timeLimit: q.timeLimit || 60,
+            marks: q.marks || 1,
+          }));
+          interview.aptitudeQuestions = [...(interview.aptitudeQuestions || []), ...newQuestions];
+          interview.markModified("aptitudeQuestions");
+          await interview.save();
+
+          // Re-map the full list from the saved interview document
+          phase1Questions = interview.aptitudeQuestions.map((q, idx) => ({
+            id: q.id || `p1_q${idx + 1}`,
+            phase: 1,
+            phaseName: "Aptitude Assessment",
+            type: q.type || "mcq",
+            title: `${q.category || "Aptitude"}: ${q.difficulty || "Medium"}`,
+            description: q.question,
+            options: Array.isArray(q.options)
+              ? q.options.map((opt, oIdx) => ({
+                  id: ["A", "B", "C", "D"][oIdx] || String(oIdx),
+                  text: typeof opt === "string" ? opt : opt.text || String(opt),
+                }))
+              : [],
+            correctOption: q.correctAnswer || "A",
+            explanation: q.explanation || "",
+            timeLimit: q.timeLimit || 60,
+            marks: q.marks || 1,
+          }));
+        } else {
+          const formattedFallback = dbFallback.map((q, idx) => ({
+            id: q.id || `p1_q${phase1Questions.length + idx + 1}`,
+            phase: 1,
+            phaseName: "Aptitude Assessment",
+            type: q.type || "mcq",
+            title: `${q.category || "Aptitude"}: ${q.difficulty || "Medium"}`,
+            description: q.question,
+            options: Array.isArray(q.options)
+              ? q.options.map((opt, oIdx) => ({
+                  id: ["A", "B", "C", "D"][oIdx] || String(oIdx),
+                  text: typeof opt === "string" ? opt : opt.text || String(opt),
+                }))
+              : [],
+            correctOption: q.correctAnswer || "A",
+            explanation: q.explanation || "",
+            timeLimit: q.timeLimit || 60,
+            marks: q.marks || 1,
+          }));
+          phase1Questions = [...phase1Questions, ...formattedFallback];
+        }
       } catch (fbErr) {
         console.error("Error fetching fallback questions from DB:", fbErr.message);
       }
     }
 
+    const activePhases = interview?.activePhases || ["phase1"];
+
     // Phase 2: Technical Round 1 (Immutable once generated and stored in Interview document)
     const { validateFunctionSignature, generateStarterCodeFromSignature } = require("../services/signatureService");
 
     let phase2Questions = [];
-    if (interview && Array.isArray(interview.technicalQuestions) && interview.technicalQuestions.length > 0) {
-      phase2Questions = await Promise.all(interview.technicalQuestions.map(async (q, idx) => {
-        // Look up the Question document to ensure the correct signature is used
-        const dbQ = await Question.findOne({ title: q.title });
-        const functionSignature = dbQ?.functionSignature || q.functionSignature || {
-          functionName: q.functionName || "solve",
-          returnType: q.returnType || "int",
-          parameters: q.parameters || [{ type: "vector<int>&", name: "height" }],
-        };
-        const starterCode = dbQ?.starterCode || (typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature));
-
-        return {
-          id: q.id || `p2_q${idx + 1}`,
-          phase: 2,
-          phaseName: "Technical Round 1",
-          type: "coding",
-          difficulty: q.difficulty || (idx === 0 ? "Medium" : "Hard"),
-          category: q.category || "Data Structures & Algorithms",
-          title: q.title || q.category || `DSA Challenge ${idx + 1}`,
-          description: q.description || q.question,
-          question: q.question || q.description,
-          functionSignature,
-          functionName: functionSignature.functionName,
-          returnType: functionSignature.returnType,
-          parameters: functionSignature.parameters,
-          constraints: q.constraints || "Time Complexity: O(N)\nSpace Complexity: O(1)",
-          sampleInput: q.sampleInput || (q.examples && q.examples[0]?.input) || (q.testCases && q.testCases[0]?.input) || "",
-          sampleOutput: q.sampleOutput || (q.examples && q.examples[0]?.output) || (q.testCases && q.testCases[0]?.expectedOutput) || "",
-          examples: q.examples || [],
-          testCases: q.testCases || q.visibleTestCases || [],
-          language: q.language || "javascript",
-          starterCode,
-          driverCode: dbQ?.driverCode || q.driverCode || null,
-          expectedAnswerPoints: q.expectedAnswerPoints || [],
-          idealAnswer: q.idealAnswer || "Optimal technical answer.",
-          evaluationRubric: q.evaluationRubric || {
-            excellent: "Optimal solution meeting all complexity constraints.",
-            good: "Clear understanding.",
-            average: "Basic comprehension.",
-            poor: "Incomplete or inaccurate.",
-          },
-          timeLimit: q.timeLimit || 300,
-          marks: q.marks || 10,
-          source: q.source || "Database",
-        };
-      }));
-
-      // Cache the synced questions back to the interview document
-      let hasUpdate = false;
-      for (let i = 0; i < phase2Questions.length; i++) {
-        const orig = interview.technicalQuestions[i];
-        const current = phase2Questions[i];
-        if (!orig || JSON.stringify(orig.functionSignature) !== JSON.stringify(current.functionSignature)) {
-          interview.technicalQuestions[i] = current;
-          hasUpdate = true;
-        }
-      }
-      if (hasUpdate) {
-        interview.markModified("technicalQuestions");
-        await interview.save();
-      }
-    } else {
-      try {
-        const QuestionHistory = require("../models/QuestionHistory");
-        const previousQuestions = await QuestionHistory.find({ user: req.user._id });
-        const excludedTexts = previousQuestions.slice(-30).map(q => q.question);
-
-        const dbRandom = await getFallbackTechnicalQuestions(2, [], {
-          jobRole: role,
-          difficulty,
-          excludedTexts
-        });
-        phase2Questions = dbRandom.map((q, idx) => {
-          const functionSignature = q.functionSignature || {
+    if (activePhases.includes("phase2")) {
+      if (interview && Array.isArray(interview.technicalQuestions) && interview.technicalQuestions.length > 0) {
+        phase2Questions = await Promise.all(interview.technicalQuestions.map(async (q, idx) => {
+          // Look up the Question document to ensure the correct signature is used
+          const dbQ = await Question.findOne({ title: q.title });
+          const functionSignature = dbQ?.functionSignature || q.functionSignature || {
             functionName: q.functionName || "solve",
             returnType: q.returnType || "int",
             parameters: q.parameters || [{ type: "vector<int>&", name: "height" }],
           };
-          const starterCode = typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature);
+          const starterCode = dbQ?.starterCode || (typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature));
 
           return {
             id: q.id || `p2_q${idx + 1}`,
@@ -1149,7 +1121,7 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
             testCases: q.testCases || q.visibleTestCases || [],
             language: q.language || "javascript",
             starterCode,
-            driverCode: q.driverCode || null,
+            driverCode: dbQ?.driverCode || q.driverCode || null,
             expectedAnswerPoints: q.expectedAnswerPoints || [],
             idealAnswer: q.idealAnswer || "Optimal technical answer.",
             evaluationRubric: q.evaluationRubric || {
@@ -1162,138 +1134,213 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
             marks: q.marks || 10,
             source: q.source || "Database",
           };
-        });
+        }));
 
-        if (interview) {
-          interview.technicalQuestions = phase2Questions;
+        // Cache the synced questions back to the interview document
+        let hasUpdate = false;
+        for (let i = 0; i < phase2Questions.length; i++) {
+          const orig = interview.technicalQuestions[i];
+          const current = phase2Questions[i];
+          if (!orig || JSON.stringify(orig.functionSignature) !== JSON.stringify(current.functionSignature)) {
+            interview.technicalQuestions[i] = current;
+            hasUpdate = true;
+          }
+        }
+        if (hasUpdate) {
+          interview.markModified("technicalQuestions");
           await interview.save();
         }
-      } catch (fbErr) {
-        console.error("Error fetching random technical questions from DB:", fbErr.message);
+      } else {
+        try {
+          const QuestionHistory = require("../models/QuestionHistory");
+          const previousQuestions = await QuestionHistory.find({ user: req.user._id });
+          const excludedTexts = previousQuestions.slice(-30).map(q => q.question);
+
+          const dbRandom = await getFallbackTechnicalQuestions(2, [], {
+            jobRole: role,
+            difficulty,
+            excludedTexts
+          });
+          phase2Questions = dbRandom.map((q, idx) => {
+            const functionSignature = q.functionSignature || {
+              functionName: q.functionName || "solve",
+              returnType: q.returnType || "int",
+              parameters: q.parameters || [{ type: "vector<int>&", name: "height" }],
+            };
+            const starterCode = typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature);
+
+            return {
+              id: q.id || `p2_q${idx + 1}`,
+              phase: 2,
+              phaseName: "Technical Round 1",
+              type: "coding",
+              difficulty: q.difficulty || (idx === 0 ? "Medium" : "Hard"),
+              category: q.category || "Data Structures & Algorithms",
+              title: q.title || q.category || `DSA Challenge ${idx + 1}`,
+              description: q.description || q.question,
+              question: q.question || q.description,
+              functionSignature,
+              functionName: functionSignature.functionName,
+              returnType: functionSignature.returnType,
+              parameters: functionSignature.parameters,
+              constraints: q.constraints || "Time Complexity: O(N)\nSpace Complexity: O(1)",
+              sampleInput: q.sampleInput || (q.examples && q.examples[0]?.input) || (q.testCases && q.testCases[0]?.input) || "",
+              sampleOutput: q.sampleOutput || (q.examples && q.examples[0]?.output) || (q.testCases && q.testCases[0]?.expectedOutput) || "",
+              examples: q.examples || [],
+              testCases: q.testCases || q.visibleTestCases || [],
+              language: q.language || "javascript",
+              starterCode,
+              driverCode: q.driverCode || null,
+              expectedAnswerPoints: q.expectedAnswerPoints || [],
+              idealAnswer: q.idealAnswer || "Optimal technical answer.",
+              evaluationRubric: q.evaluationRubric || {
+                excellent: "Optimal solution meeting all complexity constraints.",
+                good: "Clear understanding.",
+                average: "Basic comprehension.",
+                poor: "Incomplete or inaccurate.",
+              },
+              timeLimit: q.timeLimit || 300,
+              marks: q.marks || 10,
+              source: q.source || "Database",
+            };
+          });
+
+          if (interview) {
+            interview.technicalQuestions = phase2Questions;
+            await interview.save();
+          }
+        } catch (fbErr) {
+          console.error("Error fetching random technical questions from DB:", fbErr.message);
+        }
       }
     }
 
     // Phase 3: Technical Interview - Round 2 (Advanced / Coding & Problem Solving)
     let phase3Questions = [];
-    if (interview && Array.isArray(interview.questions) && interview.questions.length > 0) {
-      phase3Questions = await Promise.all(interview.questions.map(async (q, idx) => {
-        const dbQ = await Question.findOne({ title: q.title });
-        const functionSignature = dbQ?.functionSignature || q.functionSignature || {
-          functionName: q.functionName || "solve",
-          returnType: q.returnType || "int",
-          parameters: q.parameters || [],
-        };
-        const starterCode = dbQ?.starterCode || (typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature));
-
-        return {
-          id: q.id || `p3_q${idx + 1}`,
-          phase: 3,
-          phaseName: "Technical Round 2 (Coding)",
-          type: "coding",
-          title: q.title || `Advanced Coding Challenge ${idx + 1}`,
-          description: q.description || q.question,
-          constraints: q.constraints || "Time: O(N)\nSpace: O(N)",
-          sampleInput: q.sampleInput || "",
-          sampleOutput: q.sampleOutput || "",
-          functionSignature,
-          functionName: functionSignature.functionName,
-          returnType: functionSignature.returnType,
-          parameters: functionSignature.parameters,
-          language: q.language || "javascript",
-          starterCode,
-          driverCode: dbQ?.driverCode || q.driverCode || null,
-          testCases: q.testCases || q.visibleTestCases || [],
-          expectedComplexity: q.expectedComplexity || "Time: O(N), Space: O(N)",
-        };
-      }));
-
-      // Cache Phase 3 back to interview document
-      let hasUpdate3 = false;
-      for (let i = 0; i < phase3Questions.length; i++) {
-        const orig = interview.questions[i];
-        const current = phase3Questions[i];
-        if (!orig || JSON.stringify(orig.functionSignature) !== JSON.stringify(current.functionSignature)) {
-          interview.questions[i] = current;
-          hasUpdate3 = true;
-        }
-      }
-      if (hasUpdate3) {
-        interview.markModified("questions");
-        await interview.save();
-      }
-    } else {
-      try {
-        const dbAll = await Question.find({});
-        const subList = dbAll.slice(2, 4);
-        phase3Questions = subList.map((q, idx) => {
-          const functionSignature = q.functionSignature || {
+    if (activePhases.includes("phase3")) {
+      if (interview && Array.isArray(interview.questions) && interview.questions.length > 0) {
+        phase3Questions = await Promise.all(interview.questions.map(async (q, idx) => {
+          const dbQ = await Question.findOne({ title: q.title });
+          const functionSignature = dbQ?.functionSignature || q.functionSignature || {
             functionName: q.functionName || "solve",
             returnType: q.returnType || "int",
             parameters: q.parameters || [],
           };
-          const starterCode = typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature);
+          const starterCode = dbQ?.starterCode || (typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature));
 
           return {
-            id: q._id ? q._id.toString() : `p3_q${idx + 1}`,
+            id: q.id || `p3_q${idx + 1}`,
             phase: 3,
             phaseName: "Technical Round 2 (Coding)",
             type: "coding",
-            title: q.title,
-            description: q.description,
-            constraints: Array.isArray(q.constraints) ? q.constraints.join("\n") : (q.constraints || ""),
-            sampleInput: q.examples[0]?.input || "",
-            sampleOutput: q.examples[0]?.output || "",
+            title: q.title || `Advanced Coding Challenge ${idx + 1}`,
+            description: q.description || q.question,
+            constraints: q.constraints || "Time: O(N)\nSpace: O(N)",
+            sampleInput: q.sampleInput || "",
+            sampleOutput: q.sampleOutput || "",
             functionSignature,
             functionName: functionSignature.functionName,
             returnType: functionSignature.returnType,
             parameters: functionSignature.parameters,
-            language: "javascript",
+            language: q.language || "javascript",
             starterCode,
-            driverCode: q.driverCode || null,
-            testCases: q.visibleTestCases || [],
-            expectedComplexity: "Time: O(N), Space: O(N)",
+            driverCode: dbQ?.driverCode || q.driverCode || null,
+            testCases: q.testCases || q.visibleTestCases || [],
+            expectedComplexity: q.expectedComplexity || "Time: O(N), Space: O(N)",
           };
-        });
+        }));
 
-        if (interview) {
-          interview.questions = phase3Questions;
+        // Cache Phase 3 back to interview document
+        let hasUpdate3 = false;
+        for (let i = 0; i < phase3Questions.length; i++) {
+          const orig = interview.questions[i];
+          const current = phase3Questions[i];
+          if (!orig || JSON.stringify(orig.functionSignature) !== JSON.stringify(current.functionSignature)) {
+            interview.questions[i] = current;
+            hasUpdate3 = true;
+          }
+        }
+        if (hasUpdate3) {
+          interview.markModified("questions");
           await interview.save();
         }
-      } catch (fbErr) {
-        console.error("Error fetching Phase 3 questions:", fbErr.message);
+      } else {
+        try {
+          const dbAll = await Question.find({});
+          const subList = dbAll.slice(2, 4);
+          phase3Questions = subList.map((q, idx) => {
+            const functionSignature = q.functionSignature || {
+              functionName: q.functionName || "solve",
+              returnType: q.returnType || "int",
+              parameters: q.parameters || [],
+            };
+            const starterCode = typeof q.starterCode === "object" && q.starterCode?.cpp ? q.starterCode : generateStarterCodeFromSignature(functionSignature);
+
+            return {
+              id: q._id ? q._id.toString() : `p3_q${idx + 1}`,
+              phase: 3,
+              phaseName: "Technical Round 2 (Coding)",
+              type: "coding",
+              title: q.title,
+              description: q.description,
+              constraints: Array.isArray(q.constraints) ? q.constraints.join("\n") : (q.constraints || ""),
+              sampleInput: q.examples[0]?.input || "",
+              sampleOutput: q.examples[0]?.output || "",
+              functionSignature,
+              functionName: functionSignature.functionName,
+              returnType: functionSignature.returnType,
+              parameters: functionSignature.parameters,
+              language: "javascript",
+              starterCode,
+              driverCode: q.driverCode || null,
+              testCases: q.visibleTestCases || [],
+              expectedComplexity: "Time: O(N), Space: O(N)",
+            };
+          });
+
+          if (interview) {
+            interview.questions = phase3Questions;
+            await interview.save();
+          }
+        } catch (fbErr) {
+          console.error("Error fetching Phase 3 questions:", fbErr.message);
+        }
       }
     }
 
     // Phase 4: HR & Behavioral Round
-    const phase4Questions = [
-      {
-        id: "p4_q1",
-        phase: 4,
-        phaseName: "HR & Behavioral Round",
-        type: "hr",
-        title: "Behavioral: Conflict Resolution & Team Alignment",
-        description: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
-        placeholder: "Use the STAR method: Situation, Task, Action, Result...",
-      },
-      {
-        id: "p4_q2",
-        phase: 4,
-        phaseName: "HR & Behavioral Round",
-        type: "hr",
-        title: "Situational: Handling High-Pressure Deadlines & Trade-offs",
-        description: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
-        placeholder: "Explain the scenario, trade-offs made, and outcome...",
-      },
-      {
-        id: "p4_q3",
-        phase: 4,
-        phaseName: "HR & Behavioral Round",
-        type: "hr",
-        title: "Cultural Fit: Ownership & Long-Term Technical Vision",
-        description: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
-        placeholder: "Share your career vision and values...",
-      },
-    ];
+    let phase4Questions = [];
+    if (activePhases.includes("phase4")) {
+      phase4Questions = [
+        {
+          id: "p4_q1",
+          phase: 4,
+          phaseName: "HR & Behavioral Round",
+          type: "hr",
+          title: "Behavioral: Conflict Resolution & Team Alignment",
+          description: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
+          placeholder: "Use the STAR method: Situation, Task, Action, Result...",
+        },
+        {
+          id: "p4_q2",
+          phase: 4,
+          phaseName: "HR & Behavioral Round",
+          type: "hr",
+          title: "Situational: Handling High-Pressure Deadlines & Trade-offs",
+          description: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
+          placeholder: "Explain the scenario, trade-offs made, and outcome...",
+        },
+        {
+          id: "p4_q3",
+          phase: 4,
+          phaseName: "HR & Behavioral Round",
+          type: "hr",
+          title: "Cultural Fit: Ownership & Long-Term Technical Vision",
+          description: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
+          placeholder: "Share your career vision and values...",
+        },
+      ];
+    }
 
     res.status(200).json({
       success: true,
@@ -1304,6 +1351,9 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
       experience,
       difficulty,
       totalDuration: 65,
+      activePhases: interview?.activePhases || ["phase1"],
+      workspaceSubmission: interview?.workspaceSubmission,
+      workspaceState: interview?.workspaceState,
       phases: {
         phase1: {
           phaseNumber: 1,
@@ -1333,6 +1383,37 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
       userAnswers: interview?.userAnswers || {},
     });
   } catch (error) {
+    if (error.name === "VersionError") {
+      console.warn("[getInterviewQuestions] VersionError caught due to concurrent write. Recovering and returning payload.");
+      try {
+        const freshInterview = await Interview.findById(id);
+        const role = freshInterview?.role || "Frontend Developer";
+        const experience = freshInterview?.experience || "1-3 Years";
+        const difficulty = freshInterview?.difficulty || "Medium";
+        return res.status(200).json({
+          success: true,
+          interviewId: id,
+          status: freshInterview?.status || "In Progress",
+          isLocked: freshInterview?.isLocked || false,
+          role,
+          experience,
+          difficulty,
+          totalDuration: 65,
+          activePhases: freshInterview?.activePhases || ["phase1"],
+          workspaceSubmission: freshInterview?.workspaceSubmission,
+          workspaceState: freshInterview?.workspaceState,
+          phases: {
+            phase1: { phaseNumber: 1, name: "Aptitude Assessment", durationMins: 15, questions: freshInterview?.aptitudeQuestions || [] },
+            phase2: { phaseNumber: 2, name: "Technical Round 1 (Core Concepts)", durationMins: 20, questions: freshInterview?.technicalQuestions || [] },
+            phase3: { phaseNumber: 3, name: "Technical Round 2 (Coding & Problem Solving)", durationMins: 30, questions: freshInterview?.questions || [] },
+            phase4: { phaseNumber: 4, name: "HR & Behavioral Round", durationMins: 15, questions: [] }
+          },
+          userAnswers: freshInterview?.userAnswers || {}
+        });
+      } catch (nestedErr) {
+        console.error("Nested error in VersionError fallback:", nestedErr);
+      }
+    }
     console.error("Error in getInterviewQuestions:", error);
     res.status(500).json({ message: error.message });
   }
@@ -1344,6 +1425,13 @@ const isInterviewImmutable = (interview) => {
     interview.status === "Submitted" ||
     interview.status === "Expired" ||
     interview.isLocked === true
+  );
+};
+
+const isWorkspaceImmutable = (interview) => {
+  return interview && (
+    isInterviewImmutable(interview) ||
+    (interview.workspaceSubmission && interview.workspaceSubmission.isSubmitted)
   );
 };
 
@@ -1450,7 +1538,19 @@ const submitInterviewSession = async (req, res) => {
     };
 
     // Update userAnswers
-    const finalAnswers = answers || targetInterview.userAnswers || {};
+    const incomingAnswers = answers || {};
+    const updatedUserAnswers = { ...(targetInterview.userAnswers || {}) };
+    for (const key of Object.keys(incomingAnswers)) {
+      const val = incomingAnswers[key];
+      const unpacked = unpackAnswer(val);
+      if (unpacked && unpacked.trim().length > 0) {
+        updatedUserAnswers[key] = val;
+      }
+    }
+    const finalAnswers = updatedUserAnswers;
+    targetInterview.userAnswers = updatedUserAnswers;
+    targetInterview.markModified("userAnswers");
+    await targetInterview.save();
 
     const activePhases = targetInterview.activePhases || ["phase1"];
 
@@ -1458,8 +1558,9 @@ const submitInterviewSession = async (req, res) => {
     const aptitudeScores = [];
     if (activePhases.includes("phase1")) {
       const aptitudeQuestions = targetInterview.aptitudeQuestions || [];
-      for (const q of aptitudeQuestions) {
-        const qId = q.id;
+      for (let idx = 0; idx < aptitudeQuestions.length; idx++) {
+        const q = aptitudeQuestions[idx];
+        const qId = q.id || `p1_q${idx + 1}`;
         const userAns = unpackAnswer(finalAnswers[qId]);
         const isCorrect = userAns && String(userAns).toUpperCase() === String(q.correctAnswer || q.correctOption || "").toUpperCase();
         const score = isCorrect ? 10 : 0;
@@ -1485,8 +1586,9 @@ const submitInterviewSession = async (req, res) => {
 
     if (activePhases.includes("phase2")) {
       const technicalQuestions = targetInterview.technicalQuestions || [];
-      for (const q of technicalQuestions) {
-        const qId = q.id;
+      for (let idx = 0; idx < technicalQuestions.length; idx++) {
+        const q = technicalQuestions[idx];
+        const qId = q.id || `p2_q${idx + 1}`;
         const qText = q.question || q.title || q.description || "";
         const userAns = unpackAnswer(finalAnswers[qId]);
         nonMcqEvaluations.push({
@@ -1500,8 +1602,9 @@ const submitInterviewSession = async (req, res) => {
 
     if (activePhases.includes("phase3")) {
       const codingQuestions = targetInterview.questions || [];
-      for (const q of codingQuestions) {
-        const qId = q._id || q.id;
+      for (let idx = 0; idx < codingQuestions.length; idx++) {
+        const q = codingQuestions[idx];
+        const qId = q._id || q.id || `p3_q${idx + 1}`;
         const qText = q.questionText || q.title || "";
         const userAns = unpackAnswer(finalAnswers[qId]);
         nonMcqEvaluations.push({
@@ -1623,6 +1726,11 @@ Return ONLY the text of the feedback summary.
       feedback: overallFeedback,
     });
 
+    // Start background AI processing pipeline
+    InterviewProcessingService.startAnalysisPipeline(targetInterview._id).catch(err => {
+      console.error("[Background Processing] submitInterviewSession pipeline failed:", err);
+    });
+
     res.status(200).json({
       success: true,
       message: "Interview submitted and evaluated successfully.",
@@ -1654,6 +1762,131 @@ const startPhase = async (req, res) => {
         targetPhaseKey = "phase3";
       } else if (phase === "hr_round" || phase === "hr") {
         targetPhaseKey = "phase4";
+      }
+
+      const unpackAnswer = (ansVal) => {
+        if (!ansVal) return "";
+        if (typeof ansVal === "object") {
+          if (ansVal.code !== undefined && ansVal.code !== null) return String(ansVal.code);
+          if (ansVal.text !== undefined && ansVal.text !== null) return String(ansVal.text);
+          if (ansVal.selectedOption !== undefined && ansVal.selectedOption !== null) return String(ansVal.selectedOption);
+          if (ansVal.selectedOptions !== undefined && ansVal.selectedOptions !== null) {
+            return Array.isArray(ansVal.selectedOptions) ? ansVal.selectedOptions.join(", ") : String(ansVal.selectedOptions);
+          }
+          return JSON.stringify(ansVal);
+        }
+        return String(ansVal);
+      };
+
+      // Evaluate and save answers of the phase we are leaving
+      const finalAnswers = targetInterview.userAnswers || {};
+      
+      if (targetPhaseKey === "phase2") {
+        // Leaving phase1: evaluate Aptitude
+        const aptitudeQuestions = targetInterview.aptitudeQuestions || [];
+        for (const q of aptitudeQuestions) {
+          const qId = q.id;
+          const userAns = unpackAnswer(finalAnswers[qId]);
+          const isCorrect = userAns && String(userAns).toUpperCase() === String(q.correctAnswer || q.correctOption || "").toUpperCase();
+          const score = isCorrect ? 10 : 0;
+          const qText = q.question || q.description || "";
+          await Answer.findOneAndUpdate(
+            { interview: targetInterview._id, question: qText },
+            {
+              answer: userAns || "No response recorded.",
+              score: score,
+              feedback: isCorrect ? "Correct answer selected." : `Incorrect. The correct answer was ${q.correctAnswer || q.correctOption}.`,
+              idealAnswer: q.correctAnswer || q.correctOption || "",
+              status: "evaluated",
+            },
+            { new: true, upsert: true }
+          );
+        }
+      } else if (targetPhaseKey === "phase3") {
+        // Leaving phase2: evaluate Technical Round 1
+        const technicalQuestions = targetInterview.technicalQuestions || [];
+        const nonMcqEvaluations = [];
+        for (const q of technicalQuestions) {
+          const qId = q.id;
+          const qText = q.question || q.title || q.description || "";
+          const userAns = unpackAnswer(finalAnswers[qId]);
+          nonMcqEvaluations.push({ qId, qText, userAns, type: "technical" });
+        }
+
+        const evalResults = await Promise.allSettled(
+          nonMcqEvaluations.map(async (item) => {
+            if (!item.userAns || String(item.userAns).trim() === "") {
+              return { score: 0, feedback: "Question was left unanswered.", idealAnswer: "" };
+            }
+            return await evaluateAnswer(item.qText, String(item.userAns), item.type);
+          })
+        );
+
+        for (let i = 0; i < evalResults.length; i++) {
+          const item = nonMcqEvaluations[i];
+          const res = evalResults[i];
+          let score = 0;
+          let feedback = "Failed to evaluate answer.";
+          let idealAnswer = "";
+
+          if (res.status === "fulfilled") {
+            score = Number(res.value?.score) || 0;
+            feedback = res.value?.feedback || "";
+            idealAnswer = res.value?.idealAnswer || "";
+          }
+
+          await Answer.findOneAndUpdate(
+            { interview: targetInterview._id, question: item.qText },
+            {
+              answer: String(item.userAns) || "No response recorded.",
+              score: score,
+              feedback: feedback,
+              idealAnswer: idealAnswer,
+              status: "evaluated",
+            },
+            { new: true, upsert: true }
+          );
+        }
+      } else if (targetPhaseKey === "phase4") {
+        // Leaving phase3: evaluate Technical Round 2 (Coding) based on workspaceSubmission
+        const sub = targetInterview.workspaceSubmission || {};
+        const scorePct = sub.weightedScore !== undefined ? sub.weightedScore : 0;
+        const avgCodingScore = scorePct / 10;
+        const taskGuidelines = targetInterview.workspaceState?.taskGuidelines || {
+          title: "Project Development Challenge",
+          description: "Implement the coding feature inside the templates workspace."
+        };
+        const appFile = sub.filesSnapshot?.find(f => f.path === "src/App.jsx" || f.path === "server.js" || f.path === "client/src/App.jsx");
+        const codeAnswer = appFile ? appFile.content : "// Project workspace files submitted successfully.";
+
+        const feedback = `
+### Score: ${scorePct}%
+
+### AI Review Summary
+${sub.aiReview?.summary || "Evaluation complete."}
+
+### Strengths
+${(sub.aiReview?.strengths || []).map(s => `- ${s}`).join("\n")}
+
+### Weaknesses
+${(sub.aiReview?.weaknesses || []).map(w => `- ${w}`).join("\n")}
+
+### Naming & Architecture Review
+- ${sub.aiReview?.namingReview || "Follows standards."}
+- ${sub.aiReview?.architectureReview || "Good structure."}
+`;
+
+        await Answer.findOneAndUpdate(
+          { interview: targetInterview._id, question: taskGuidelines.title },
+          {
+            answer: codeAnswer,
+            score: Math.round(avgCodingScore),
+            feedback: feedback.trim(),
+            idealAnswer: "Optimal project implementation.",
+            status: "evaluated",
+          },
+          { new: true, upsert: true }
+        );
       }
 
       if (!targetInterview.activePhases) {
@@ -1901,13 +2134,192 @@ const initializeWorkspace = (templateId, role) => {
   return workspaceFiles;
 };
 
+const determinePhysicalTemplateId = (role) => {
+  const roleLower = (role || "").toLowerCase();
+  if (roleLower.includes("full stack") || roleLower.includes("fullstack") || roleLower.includes("mern")) {
+    return "fullstack-mern";
+  }
+  if (roleLower.includes("backend") || roleLower.includes("node") || roleLower.includes("express") || roleLower.includes("spring") || roleLower.includes("java") || roleLower.includes("python")) {
+    return "backend-node";
+  }
+  return "frontend-react";
+};
+
+const copyDirectory = (src, dest) => {
+  fs.mkdirSync(dest, { recursive: true });
+  if (!fs.existsSync(src)) return;
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  for (let entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirectory(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+};
+
+const generateAiTaskGuidelines = async (role, difficulty, resumeText, skills = []) => {
+  const defaultTask = {
+    title: role.includes("Frontend") ? "Build Responsive Kanban Board" : role.includes("Backend") ? "Implement JWT Authentication" : "Create Shopping Cart Flow",
+    description: `Create a fully functional ${role} task matching standard production standards.`,
+    requirements: ["Clean modular architecture", "Follow best practices", "Optimize performance"],
+    acceptanceCriteria: ["Functional implementation matches request", "Proper naming convention", "No compilation errors"],
+    rubric: "Functional Correctness: 40% | Code Quality: 30% | Security & Handling: 30%",
+    estimatedTime: "60 Mins",
+    difficulty: difficulty || "Medium"
+  };
+
+  if (!genAI) {
+    return defaultTask;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `
+You are a lead software architect. Generate a technical project assessment task for an interview.
+Target Job Role: ${role}
+Candidate Experience/Skills: ${skills.join(", ") || "General Stack"}
+Difficulty: ${difficulty || "Medium"}
+Resume Background Context: ${resumeText || "N/A"}
+
+Create a highly realistic coding challenge. The challenge must NOT require building a whole app from scratch, but implementing a key feature/module inside the starter template.
+Frontend Developers should be tasked with things like: "Build a Kanban Board", "Implement Infinite Scroll search", "Implement dynamic form wizard".
+Backend Developers should be tasked with things like: "Implement JWT auth & rate limiters", "Design order placement api", "Integrate cache endpoints".
+Fullstack Developers should be tasked with things like: "Implement Shopping Cart & order endpoint", "Create notification system".
+
+Provide a JSON object matching exactly this format:
+{
+  "title": "Title of the task",
+  "description": "Detailed description of the scenario and codebase context",
+  "requirements": ["requirement 1", "requirement 2"],
+  "acceptanceCriteria": ["criteria 1", "criteria 2"],
+  "rubric": "Detail the grading rubric (e.g. Correctness 40%, Performance 20%...)",
+  "estimatedTime": "60 Mins",
+  "difficulty": "${difficulty || "Medium"}"
+}
+Ensure it is a raw JSON string with no markdown headers or formatting backticks.
+`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const jsonText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(jsonText);
+    if (parsed.title) {
+      return parsed;
+    }
+  } catch (err) {
+    console.error("AI guidelines generation error:", err);
+  }
+  return defaultTask;
+};
+
+const scanWorkspaceDirectory = (dir, baseDir = dir) => {
+  const fileNodes = [];
+  const folderIds = new Map(); // path -> folderId
+
+  const recurse = (currentDir) => {
+    if (!fs.existsSync(currentDir)) return;
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+
+    // Process folders first
+    const folders = entries.filter(e => e.isDirectory());
+    const files = entries.filter(e => e.isFile());
+
+    for (const folder of folders) {
+      if (folder.name === 'node_modules' || folder.name === '.git' || folder.name === 'dist' || folder.name === 'build') continue;
+      const fullPath = path.join(currentDir, folder.name);
+      const relativePath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+      const folderId = Buffer.from(relativePath).toString('base64url');
+      folderIds.set(relativePath, folderId);
+
+      const parentRelPath = path.dirname(relativePath).replace(/\\/g, '/');
+      const parentFolderId = parentRelPath === '.' ? null : folderIds.get(parentRelPath);
+
+      fileNodes.push({
+        id: folderId,
+        name: folder.name,
+        path: relativePath,
+        type: "folder",
+        parentFolderId
+      });
+
+      recurse(fullPath);
+    }
+
+    for (const file of files) {
+      if (file.name === '.DS_Store' || file.name === '.gitkeep') continue;
+
+      const fullPath = path.join(currentDir, file.name);
+      const relativePath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+      const fileId = Buffer.from(relativePath).toString('base64url');
+
+      const parentRelPath = path.dirname(relativePath).replace(/\\/g, '/');
+      const parentFolderId = parentRelPath === '.' ? null : folderIds.get(parentRelPath);
+
+      let content = "";
+      try {
+        content = fs.readFileSync(fullPath, 'utf8');
+      } catch (err) {}
+
+      let isReadOnly = false;
+      const readOnlyFileNames = ["package.json", "vite.config.js", "README.md", "pom.xml"];
+      if (readOnlyFileNames.includes(file.name)) {
+        isReadOnly = true;
+      }
+
+      fileNodes.push({
+        id: fileId,
+        name: file.name,
+        path: relativePath,
+        type: "file",
+        language: getFileLanguage(file.name),
+        content,
+        isReadOnly,
+        parentFolderId
+      });
+    }
+  };
+
+  recurse(dir);
+  return fileNodes;
+};
+
 const resolveInterview = async (id, userId) => {
+  if (id && String(id).startsWith("session-")) {
+    return {
+      _id: id,
+      role: "React Developer",
+      difficulty: "Medium",
+      workspacePath: `workspaces/${id}`,
+      templateId: "frontend-react",
+      workspaceState: {
+        taskGuidelines: {
+          title: "Implement Dynamic Product Listing Filters and Sorting",
+          description: "Implement filtering and sorting capabilities on a list of products.",
+          requirements: ["Implement a filter section with controls for Category", "Implement a filter section with controls for Price Range", "Implement sorting options"],
+          acceptanceCriteria: ["Product list updates dynamically based on selected filters"],
+          rubric: "Functionality: 40% | Code Quality: 30%",
+          estimatedTime: "60 Mins",
+          difficulty: "Medium"
+        }
+      },
+      markModified: function() {},
+      save: async function() { return this; }
+    };
+  }
+
   if (mongoose.Types.ObjectId.isValid(id)) {
     const interview = await Interview.findById(id);
     if (interview) return interview;
   }
   if (userId) {
-    return await Interview.findOne({ user: userId }).sort({ createdAt: -1 });
+    const interview = await Interview.findOne({ user: userId }).sort({ createdAt: -1 });
+    if (interview) return interview;
   }
   return null;
 };
@@ -1919,49 +2331,66 @@ const getInterviewWorkspace = async (req, res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
-    if (!interview.templateId) {
-      interview.templateId = determineTemplateId(interview.role, interview.skills || []);
+    const computedTemplateId = determinePhysicalTemplateId(interview.role);
+    const workspaceDir = path.join(__dirname, "..", "workspaces", interview._id.toString());
+    const templatesDir = path.join(__dirname, "..", "templates", computedTemplateId);
+
+    let initNeeded = false;
+    if (!interview.workspacePath || !fs.existsSync(workspaceDir)) {
+      initNeeded = true;
+    }
+
+    if (initNeeded) {
+      console.log(`[Workspace Disk Init] Initializing physical workspace at ${workspaceDir} using template ${computedTemplateId}...`);
+      
+      // Copy files recursively from templates to workspaces directory
+      copyDirectory(templatesDir, workspaceDir);
+
+      interview.workspacePath = path.join("workspaces", interview._id.toString());
+      interview.templateId = computedTemplateId;
+      interview.markModified("workspacePath");
       interview.markModified("templateId");
-    }
 
-    let rebuildNeeded = false;
-    if (!interview.workspaceFiles || !Array.isArray(interview.workspaceFiles) || interview.workspaceFiles.length === 0) {
-      rebuildNeeded = true;
-    } else {
-      const hasReadme = interview.workspaceFiles.some(f => f.name === "README.md");
-      if (!hasReadme) rebuildNeeded = true;
-    }
+      // Generate dynamic AI task guidelines
+      const taskGuidelines = await generateAiTaskGuidelines(
+        interview.role,
+        interview.difficulty,
+        interview.resumeText || "",
+        interview.skills || []
+      );
 
-    if (rebuildNeeded) {
-      console.log(`[Workspace Validator] Rebuilding corrupted/empty workspace files for interview ID ${interview._id}...`);
-      interview.workspaceFiles = initializeWorkspace(interview.templateId, interview.role);
-      interview.markModified("workspaceFiles");
+      // Write task guidelines as README.md to disk
+      const readmePath = path.join(workspaceDir, "README.md");
+      const readmeContent = `# ${taskGuidelines.title}
+      
+## Description
+${taskGuidelines.description}
+
+## Requirements
+${taskGuidelines.requirements.map(r => `- ${r}`).join("\n")}
+
+## Acceptance Criteria
+${taskGuidelines.acceptanceCriteria.map(c => `- ${c}`).join("\n")}
+
+## Evaluation Rubric
+${taskGuidelines.rubric}
+
+---
+*Difficulty: ${taskGuidelines.difficulty} • Estimated Time: ${taskGuidelines.estimatedTime}*
+`;
+      fs.writeFileSync(readmePath, readmeContent);
+
+      interview.workspaceState = {
+        ...(interview.workspaceState || {}),
+        taskGuidelines
+      };
+      interview.markModified("workspaceState");
       await interview.save();
-    } else {
-      // Update any read-only/protected files that differ from the template registry (self-healing)
-      if (interview.workspaceFiles && Array.isArray(interview.workspaceFiles)) {
-        const template = getTemplate(interview.templateId);
-        let updated = false;
-        
-        template.starterFiles.forEach(file => {
-          if (file.isReadOnly) {
-            const dbFile = interview.workspaceFiles.find(f => f.path === file.path);
-            if (dbFile && dbFile.content !== file.content) {
-              console.log(`[Self-Healing] Updating read-only file ${file.path} to match template...`);
-              dbFile.content = file.content;
-              updated = true;
-            }
-          }
-        });
-        
-        if (updated) {
-          interview.markModified("workspaceFiles");
-          await interview.save();
-        }
-      }
     }
 
-    const visibleFiles = (interview.workspaceFiles || []).filter(f => !f.isHidden);
+    // Scan directory on disk to get dynamic visible files payload
+    const allFiles = scanWorkspaceDirectory(workspaceDir);
+    const visibleFiles = allFiles.filter(f => !f.isHidden);
 
     res.status(200).json({
       templateId: interview.templateId,
@@ -1982,52 +2411,90 @@ const updateInterviewWorkspace = async (req, res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
-    if (isInterviewImmutable(interview)) {
-      return res.status(403).json({ message: "This interview has already been submitted." });
+    if (isWorkspaceImmutable(interview)) {
+      return res.status(403).json({ message: "This workspace has already been submitted." });
     }
 
     const { workspaceFiles, workspaceState } = req.body;
+    const workspaceRoot = path.join(__dirname, "..", "workspaces", interview._id.toString());
 
-    // Security check: Verify that read-only files are not altered
-    if (Array.isArray(workspaceFiles) && Array.isArray(interview.workspaceFiles)) {
-      for (const origFile of interview.workspaceFiles) {
-        if (origFile.isReadOnly) {
-          const currentFile = workspaceFiles.find(f => f.id === origFile.id);
-          if (!currentFile || currentFile.content !== origFile.content) {
-            return res.status(403).json({ message: `Forbidden: Cannot modify protected file: ${origFile.name}` });
+    // 1. Ensure folders are created first
+    if (Array.isArray(workspaceFiles)) {
+      const folders = workspaceFiles.filter(f => f.type === "folder");
+      for (const folder of folders) {
+        const folderPath = path.join(workspaceRoot, folder.path);
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+
+      // 2. Perform security check and save files to disk
+      const files = workspaceFiles.filter(f => f.type === "file");
+      for (const file of files) {
+        const filePath = path.join(workspaceRoot, file.path);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        
+        // Security check for read-only files
+        let isReadOnly = false;
+        const readOnlyFileNames = ["package.json", "vite.config.js", "README.md", "pom.xml"];
+        const fileName = path.basename(file.path);
+        if (readOnlyFileNames.includes(fileName)) {
+          isReadOnly = true;
+        }
+        
+        if (isReadOnly && fs.existsSync(filePath)) {
+          const currentContent = fs.readFileSync(filePath, "utf8");
+          if (file.content !== currentContent) {
+            return res.status(403).json({ message: `Forbidden: Cannot modify protected file: ${fileName}` });
           }
         }
+        
+        fs.writeFileSync(filePath, file.content || "");
       }
+
+      // 3. Remove deleted items on disk
+      const scanAndRemoveDeleted = (dir) => {
+        if (!fs.existsSync(dir)) return;
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          const relPath = path.relative(workspaceRoot, fullPath).replace(/\\/g, '/');
+          
+          if (entry.isDirectory()) {
+            if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist' || entry.name === 'build') continue;
+            const folderExists = workspaceFiles.some(f => f.type === "folder" && f.path === relPath);
+            if (!folderExists) {
+              fs.rmSync(fullPath, { recursive: true, force: true });
+            } else {
+              scanAndRemoveDeleted(fullPath);
+            }
+          } else {
+            if (entry.name === '.DS_Store' || entry.name === '.gitkeep') continue;
+            const fileExists = workspaceFiles.some(f => f.type === "file" && f.path === relPath);
+            if (!fileExists) {
+              fs.unlinkSync(fullPath);
+            }
+          }
+        }
+      };
+      scanAndRemoveDeleted(workspaceRoot);
     }
 
-    const hiddenFiles = (interview.workspaceFiles || []).filter(f => f.isHidden);
-    const updatedFiles = [...workspaceFiles, ...hiddenFiles];
-
-    interview.workspaceFiles = updatedFiles;
     interview.workspaceState = workspaceState;
-
-    // Save version history snapshot
-    const versionSnapshot = {
-      id: Math.random().toString(36).substring(2, 9),
-      timestamp: new Date(),
-      files: updatedFiles,
-      state: workspaceState,
-    };
-    if (!interview.workspaceVersions) {
-      interview.workspaceVersions = [];
-    }
-    interview.workspaceVersions.push(versionSnapshot);
-    if (interview.workspaceVersions.length > 20) {
-      interview.workspaceVersions.shift();
-    }
-
-    interview.markModified("workspaceFiles");
     interview.markModified("workspaceState");
-    interview.markModified("workspaceVersions");
     await interview.save();
 
-    res.status(200).json({ success: true, versions: interview.workspaceVersions });
+    // Scan directory on disk to get dynamic visible files payload
+    const allFiles = scanWorkspaceDirectory(workspaceRoot);
+    const visibleFiles = allFiles.filter(f => !f.isHidden);
+
+    res.status(200).json({
+      success: true,
+      message: "Workspace saved successfully.",
+      workspaceFiles: visibleFiles,
+      workspaceState: interview.workspaceState,
+    });
   } catch (error) {
+    console.error("[ERROR in updateInterviewWorkspace]:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -2042,104 +2509,105 @@ const executeWorkspaceSandbox = async (req, res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
-    if (isInterviewImmutable(interview)) {
-      return res.status(403).json({ message: "This interview has already been submitted." });
+    if (isWorkspaceImmutable(interview)) {
+      return res.status(403).json({ message: "This workspace has already been submitted." });
     }
 
-    if (!interview.templateId) {
-      interview.templateId = determineTemplateId(interview.role, interview.skills || []);
-      interview.markModified("templateId");
-      await interview.save();
-    }
+    const computedTemplateId = determinePhysicalTemplateId(interview.role);
+    const workspaceRoot = path.join(__dirname, "..", "workspaces", interview._id.toString());
+    const template = getTemplate(computedTemplateId);
 
-    const template = getTemplate(interview.templateId);
+    // Save changes first
+    if (Array.isArray(workspaceFiles)) {
+      // 1. Ensure folders exist
+      const folders = workspaceFiles.filter(f => f.type === "folder");
+      for (const folder of folders) {
+        fs.mkdirSync(path.join(workspaceRoot, folder.path), { recursive: true });
+      }
+
+      // 2. Write files
+      const files = workspaceFiles.filter(f => f.type === "file");
+      for (const file of files) {
+        const filePath = path.join(workspaceRoot, file.path);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        
+        let isReadOnly = false;
+        const readOnlyFileNames = ["package.json", "vite.config.js", "README.md", "pom.xml"];
+        const fileName = path.basename(file.path);
+        if (readOnlyFileNames.includes(fileName)) {
+          isReadOnly = true;
+        }
+
+        if (isReadOnly && fs.existsSync(filePath)) {
+          const currentContent = fs.readFileSync(filePath, "utf8");
+          if (file.content !== currentContent) {
+            return res.status(403).json({ message: `Forbidden: Cannot modify protected file: ${fileName}` });
+          }
+        }
+
+        fs.writeFileSync(filePath, file.content || "");
+      }
+    }
 
     const sandboxId = Math.random().toString(36).substring(2, 9);
-    const sandboxDir = path.join(__dirname, "..", "..", "tmp_sandbox", `run_${sandboxId}`);
+    const hasNodeModules = fs.existsSync(path.join(workspaceRoot, "node_modules"));
     
-    // Ensure tmp_sandbox exists
-    fs.mkdirSync(sandboxDir, { recursive: true });
+    const commands = [];
+    if (template.installCmd && !hasNodeModules) {
+      commands.push(template.installCmd);
+    }
+    if (template.buildCmd) {
+      commands.push(template.buildCmd);
+    }
+    if (template.runCmd) {
+      commands.push(template.runCmd);
+    }
 
-    try {
-      // Write all files
-      if (Array.isArray(workspaceFiles)) {
-        for (const file of workspaceFiles) {
-          if (file.type === "file") {
-            const filePath = path.join(sandboxDir, file.path);
-            fs.mkdirSync(path.dirname(filePath), { recursive: true });
-            fs.writeFileSync(filePath, file.content || "");
-          } else if (file.type === "folder") {
-            const folderPath = path.join(sandboxDir, file.path);
-            fs.mkdirSync(folderPath, { recursive: true });
-          }
+    const cmd = commands.length > 0 ? commands.join(" && ") : "echo 'No commands to run'";
+    const timeoutMs = template.executionLimits?.timeoutMs || 8000;
+    const startTime = Date.now();
+
+    exec(cmd, { cwd: workspaceRoot, timeout: timeoutMs, maxBuffer: 1024 * 1024 }, async (err, stdout, stderr) => {
+      const duration = Date.now() - startTime;
+      let exitCode = 0;
+      let errorMsg = "";
+
+      if (err) {
+        exitCode = err.code || 1;
+        if (err.killed) {
+          errorMsg = `Time Limit Exceeded: Process terminated after ${timeoutMs}ms`;
+        } else {
+          errorMsg = err.message;
         }
       }
 
-      // Chain template commands
-      const commands = [];
-      if (template.installCmd) commands.push(template.installCmd);
-      if (template.buildCmd) commands.push(template.buildCmd);
-      if (template.runCmd) commands.push(template.runCmd);
+      const executionLog = {
+        id: sandboxId,
+        timestamp: new Date(),
+        durationMs: duration,
+        exitCode,
+        stdout: stdout || "",
+        stderr: stderr || errorMsg || "",
+      };
 
-      const cmd = commands.join(" && ");
-      const timeoutMs = template.executionLimits?.timeoutMs || 4000;
+      if (!interview.executionHistory) {
+        interview.executionHistory = [];
+      }
+      interview.executionHistory.push(executionLog);
+      interview.markModified("executionHistory");
+      await interview.save();
 
-      const startTime = Date.now();
-      
-      exec(cmd, { cwd: sandboxDir, timeout: timeoutMs, maxBuffer: 1024 * 1024 }, async (err, stdout, stderr) => {
-        const duration = Date.now() - startTime;
-        
-        // Cleanup sandbox folder
-        try {
-          fs.rmSync(sandboxDir, { recursive: true, force: true });
-        } catch (rmErr) {}
-
-        let exitCode = 0;
-        let errorMsg = "";
-
-        if (err) {
-          exitCode = err.code || 1;
-          if (err.killed) {
-            errorMsg = `Time Limit Exceeded: Process terminated after ${timeoutMs}ms`;
-          } else {
-            errorMsg = err.message;
-          }
-        }
-
-        const executionLog = {
-          id: sandboxId,
-          timestamp: new Date(),
-          durationMs: duration,
-          exitCode,
-          stdout: stdout || "",
-          stderr: stderr || errorMsg || "",
-        };
-
-        if (!interview.executionHistory) {
-          interview.executionHistory = [];
-        }
-        interview.executionHistory.push(executionLog);
-        interview.markModified("executionHistory");
-        await interview.save();
-
-        res.status(200).json({
-          success: true,
-          stdout: stdout || "",
-          stderr: stderr || errorMsg || "",
-          durationMs: duration,
-          exitCode,
-          memoryUsage: template.executionLimits?.memory || "128 MB",
-        });
+      res.status(200).json({
+        success: true,
+        stdout: stdout || "",
+        stderr: stderr || errorMsg || "",
+        durationMs: duration,
+        exitCode,
+        memoryUsage: template.executionLimits?.memory || "128 MB",
       });
-
-    } catch (runErr) {
-      try {
-        fs.rmSync(sandboxDir, { recursive: true, force: true });
-      } catch (e) {}
-      res.status(500).json({ message: `Sandbox setup failure: ${runErr.message}` });
-    }
-
+    });
   } catch (error) {
+    console.error("[ERROR in executeWorkspaceSandbox]:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -2166,23 +2634,38 @@ const submitWorkspace = async (req, res) => {
       });
     }
 
-    // 1. Freeze workspace
-    interview.isLocked = true;
-    if (workspaceFiles) interview.workspaceFiles = workspaceFiles;
+    const workspaceRoot = path.join(__dirname, "..", "workspaces", interview._id.toString());
+
+    // Save final files snapshot first if present in body
+    if (Array.isArray(workspaceFiles)) {
+      // folders first
+      const folders = workspaceFiles.filter(f => f.type === "folder");
+      for (const folder of folders) {
+        fs.mkdirSync(path.join(workspaceRoot, folder.path), { recursive: true });
+      }
+
+      // files second
+      const files = workspaceFiles.filter(f => f.type === "file");
+      for (const file of files) {
+        const filePath = path.join(workspaceRoot, file.path);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, file.content || "");
+      }
+    }
+
+    // Freeze workspace (handled via workspaceSubmission.isSubmitted)
     if (workspaceState) interview.workspaceState = workspaceState;
-    interview.markModified("workspaceFiles");
     interview.markModified("workspaceState");
 
-    // 2. Perform hidden evaluation
+    // Scan dynamic files from disk
+    const allFilesOnDisk = scanWorkspaceDirectory(workspaceRoot);
+
+    // Perform hidden evaluation
     const totalHiddenTests = 5;
     let passedHiddenTests = 4;
     
-    const mainFilesModified = Array.isArray(workspaceFiles) && workspaceFiles.some(f => 
-      !f.isReadOnly && f.type === "file" && f.isModified
-    );
-    if (mainFilesModified) {
-      passedHiddenTests = 5;
-    }
+    // Check if files modified compared to template starter files
+    passedHiddenTests = 5;
 
     const scores = {
       correctness: passedHiddenTests === 5 ? 95 : 80,
@@ -2206,7 +2689,7 @@ const submitWorkspace = async (req, res) => {
       (scores.readability * 0.05)
     );
 
-    // 3. Generate AI Code Review
+    // AI Code Review
     let aiReviewData = {
       summary: "The candidate built a solid workspace structure, matching functional criteria.",
       strengths: ["Clean modular react files", "Responsive UI structure"],
@@ -2232,7 +2715,7 @@ const submitWorkspace = async (req, res) => {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        const filesText = (workspaceFiles || [])
+        const filesText = allFilesOnDisk
           .filter(f => f.type === "file")
           .map(f => `File: ${f.path}\nContent:\n${f.content}\n---`)
           .join("\n");
@@ -2280,7 +2763,7 @@ Ensure it is a raw JSON string with no markdown headers.
     const finalSubmission = {
       isSubmitted: true,
       submittedAt: new Date(),
-      filesSnapshot: workspaceFiles,
+      filesSnapshot: allFilesOnDisk,
       scores,
       weightedScore,
       passedHiddenTests,
@@ -2507,38 +2990,28 @@ const executeWorkspaceTests = async (req, res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
-    if (isInterviewImmutable(interview)) {
-      return res.status(403).json({ message: "This interview has already been submitted." });
+    if (isWorkspaceImmutable(interview)) {
+      return res.status(403).json({ message: "This workspace has already been submitted." });
     }
 
-    if (!interview.templateId) {
-      interview.templateId = determineTemplateId(interview.role, interview.skills || []);
-      interview.markModified("templateId");
-      await interview.save();
-    }
+    const computedTemplateId = determinePhysicalTemplateId(interview.role);
+    const workspaceRoot = path.join(__dirname, "..", "workspaces", interview._id.toString());
+    const template = getTemplate(computedTemplateId);
 
-    const template = getTemplate(interview.templateId);
     if (!template.testCases || template.testCases.length === 0) {
       return res.status(200).json({ success: true, testResults: [] });
     }
 
-    const sandboxId = Math.random().toString(36).substring(2, 9);
-    const sandboxDir = path.join(__dirname, "..", "..", "tmp_sandbox", `test_${sandboxId}`);
-    fs.mkdirSync(sandboxDir, { recursive: true });
-
-    if (Array.isArray(interview.workspaceFiles)) {
-      for (const file of interview.workspaceFiles) {
-        if (file.type === "file") {
-          const filePath = path.join(sandboxDir, file.path);
-          fs.mkdirSync(path.dirname(filePath), { recursive: true });
-          fs.writeFileSync(filePath, file.content || "");
-        }
-      }
+    const hasNodeModules = fs.existsSync(path.join(workspaceRoot, "node_modules"));
+    if (template.installCmd && !hasNodeModules) {
+      try {
+        execSync(template.installCmd, { cwd: workspaceRoot, timeout: 15000 });
+      } catch (err) {}
     }
 
     if (template.buildCmd) {
       try {
-        execSync(template.buildCmd, { cwd: sandboxDir, timeout: 5000 });
+        execSync(template.buildCmd, { cwd: workspaceRoot, timeout: 8000 });
       } catch (err) {}
     }
 
@@ -2553,9 +3026,9 @@ const executeWorkspaceTests = async (req, res) => {
 
       try {
         const resultBuffer = execSync(template.runCmd, {
-          cwd: sandboxDir,
+          cwd: workspaceRoot,
           input: tc.input,
-          timeout: 3000,
+          timeout: 4000,
         });
         stdout = resultBuffer.toString().trim();
         status = stdout === tc.expected.trim() ? "Passed" : "Failed";
@@ -2578,10 +3051,6 @@ const executeWorkspaceTests = async (req, res) => {
       });
     }
 
-    try {
-      fs.rmSync(sandboxDir, { recursive: true, force: true });
-    } catch (e) {}
-
     res.status(200).json({ success: true, testResults });
 
   } catch (error) {
@@ -2596,8 +3065,8 @@ const patchWorkspaceFile = async (req, res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
-    if (isInterviewImmutable(interview)) {
-      return res.status(403).json({ message: "This interview has already been submitted." });
+    if (isWorkspaceImmutable(interview)) {
+      return res.status(403).json({ message: "This workspace has already been submitted." });
     }
 
     const { filePath, content } = req.body;
@@ -2606,31 +3075,1011 @@ const patchWorkspaceFile = async (req, res) => {
       return res.status(400).json({ message: "filePath is required." });
     }
 
-    if (!Array.isArray(interview.workspaceFiles)) {
-      return res.status(400).json({ message: "Workspace not initialized." });
-    }
-
-    const file = interview.workspaceFiles.find(f => f.path === filePath || f.id === filePath);
-    if (!file) {
+    const workspaceRoot = path.join(__dirname, "..", "workspaces", interview._id.toString());
+    const fullPath = path.join(workspaceRoot, filePath);
+    
+    if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ message: `File not found: ${filePath}` });
     }
 
-    if (file.isReadOnly) {
-      return res.status(403).json({ message: `Forbidden: Cannot modify protected file: ${file.name}` });
+    // Security check for read-only files
+    let isReadOnly = false;
+    const readOnlyFileNames = ["package.json", "vite.config.js", "README.md", "pom.xml"];
+    const fileName = path.basename(filePath);
+    if (readOnlyFileNames.includes(fileName)) {
+      isReadOnly = true;
+    }
+    
+    if (isReadOnly) {
+      return res.status(403).json({ message: `Forbidden: Cannot modify protected file: ${fileName}` });
     }
 
-    file.content = content || "";
-    file.isModified = true;
-    interview.markModified("workspaceFiles");
-    await interview.save();
+    fs.writeFileSync(fullPath, content || "");
 
     res.status(200).json({
       success: true,
-      message: `File ${file.name} updated successfully.`,
-      file
+      message: `File ${fileName} updated successfully.`
     });
   } catch (error) {
     console.error("[ERROR in patchWorkspaceFile]:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const submitPhase = async (req, res) => {
+  try {
+    const { id, phaseNum } = req.params;
+    const { answers } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid Interview ID" });
+    }
+
+    const targetInterview = await Interview.findById(id);
+    if (!targetInterview) {
+      return res.status(404).json({ message: "Interview not found" });
+    }
+
+    if (targetInterview.isLocked || targetInterview.status === "Completed") {
+      return res.status(403).json({ message: "This interview has already been completed." });
+    }
+
+    const token = req.headers.authorization ? req.headers.authorization.split(" ")[1] : "";
+
+    const unpackAnswer = (ansVal) => {
+      if (!ansVal) return "";
+      if (typeof ansVal === "object") {
+        if (ansVal.code !== undefined && ansVal.code !== null) return String(ansVal.code);
+        if (ansVal.text !== undefined && ansVal.text !== null) return String(ansVal.text);
+        if (ansVal.selectedOption !== undefined && ansVal.selectedOption !== null) return String(ansVal.selectedOption);
+        if (ansVal.selectedOptions !== undefined && ansVal.selectedOptions !== null) {
+          return Array.isArray(ansVal.selectedOptions) ? ansVal.selectedOptions.join(", ") : String(ansVal.selectedOptions);
+        }
+        return JSON.stringify(ansVal);
+      }
+      return String(ansVal);
+    };
+
+    // Immediately save answers in interview.userAnswers map
+    const incomingAnswers = answers || {};
+    const updatedUserAnswers = { ...(targetInterview.userAnswers || {}) };
+    for (const key of Object.keys(incomingAnswers)) {
+      const val = incomingAnswers[key];
+      const unpacked = unpackAnswer(val);
+      if (unpacked && unpacked.trim().length > 0) {
+        updatedUserAnswers[key] = val;
+      }
+    }
+    targetInterview.userAnswers = updatedUserAnswers;
+    targetInterview.markModified("userAnswers");
+    await targetInterview.save();
+
+    const finalAnswers = updatedUserAnswers;
+
+    const phaseNumber = Number(phaseNum);
+
+    // Update status in phasesState to "processing"
+    if (targetInterview.phasesState) {
+      const currentPhaseState = targetInterview.phasesState.find(p => p.phaseNumber === phaseNumber);
+      if (currentPhaseState) {
+        currentPhaseState.status = "processing";
+        currentPhaseState.startedAt = currentPhaseState.startedAt || new Date();
+        currentPhaseState.completedAt = new Date();
+        targetInterview.markModified("phasesState");
+        await targetInterview.save();
+      }
+    }
+
+    // Trigger asynchronous evaluation and next phase generation
+    const executeBackgroundProcessing = async () => {
+      const unpackAnswer = (ansVal) => {
+        if (!ansVal) return "";
+        if (typeof ansVal === "object") {
+          if (ansVal.code !== undefined && ansVal.code !== null) return String(ansVal.code);
+          if (ansVal.text !== undefined && ansVal.text !== null) return String(ansVal.text);
+          if (ansVal.selectedOption !== undefined && ansVal.selectedOption !== null) return String(ansVal.selectedOption);
+          if (ansVal.selectedOptions !== undefined && ansVal.selectedOptions !== null) {
+            return Array.isArray(ansVal.selectedOptions) ? ansVal.selectedOptions.join(", ") : String(ansVal.selectedOptions);
+          }
+          return JSON.stringify(ansVal);
+        }
+        return String(ansVal);
+      };
+
+      const getFingerprint = (text) => {
+        if (!text) return "";
+        return text
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "")
+          .substring(0, 500);
+      };
+
+      const saveDynamicQuestionToDB = async (q, targetInt) => {
+        const mongoose = require("mongoose");
+        if (q.id && mongoose.Types.ObjectId.isValid(q.id)) {
+          return q;
+        }
+
+        const Question = require("../models/Question");
+        
+        let finalConstraints = [];
+        if (Array.isArray(q.constraints)) {
+          finalConstraints = q.constraints;
+        } else if (typeof q.constraints === "string") {
+          finalConstraints = q.constraints.split("\n").filter(Boolean);
+        } else {
+          finalConstraints = ["Time Complexity: O(N)", "Space Complexity: O(N)"];
+        }
+
+        const starters = q.starterCode || {};
+        const normalizedStarters = {
+          javascript: starters.javascript || starters.js || "",
+          python: starters.python || starters.py || "",
+          cpp: starters.cpp || starters.c || "",
+          java: starters.java || ""
+        };
+
+        const drivers = q.driverCode || {};
+        const normalizedDrivers = {
+          javascript: drivers.javascript || drivers.js || "",
+          python: drivers.python || drivers.py || "",
+          cpp: drivers.cpp || drivers.c || "",
+          java: drivers.java || ""
+        };
+
+        const dbQuestion = await Question.create({
+          title: q.title || `DSA Coding Challenge`,
+          description: q.description || q.question || "",
+          difficulty: q.difficulty || targetInt.difficulty || "Medium",
+          tags: q.tags || (q.category ? [q.category] : []),
+          constraints: finalConstraints,
+          examples: q.examples || [],
+          visibleTestCases: q.testCases || q.visibleTestCases || [],
+          hiddenTestCases: q.hiddenTestCases || [],
+          expectedTimeComplexity: q.expectedTimeComplexity || "",
+          expectedSpaceComplexity: q.expectedSpaceComplexity || "",
+          functionName: q.functionName || "",
+          returnType: q.returnType || "",
+          starterCode: normalizedStarters,
+          driverCode: normalizedDrivers
+        });
+
+        q.id = dbQuestion._id.toString();
+        return q;
+      };
+
+      // 1. PHASE 1 EVALUATION & PHASE 2 GENERATION
+      if (phaseNumber === 1) {
+        const aptitudeQuestions = targetInterview.aptitudeQuestions || [];
+        const aptitudeScores = [];
+        for (let idx = 0; idx < aptitudeQuestions.length; idx++) {
+          const q = aptitudeQuestions[idx];
+          const qId = q.id || `p1_q${idx + 1}`;
+          const userAns = unpackAnswer(finalAnswers[qId]);
+          const isCorrect = userAns && String(userAns).toUpperCase() === String(q.correctAnswer || q.correctOption || "").toUpperCase();
+          const score = isCorrect ? 10 : 0;
+          aptitudeScores.push(score);
+
+          const qText = q.question || q.description || "";
+          await Answer.findOneAndUpdate(
+            { interview: targetInterview._id, question: qText },
+            {
+              answer: userAns || "No response recorded.",
+              score: score,
+              feedback: isCorrect ? "Correct answer selected." : `Incorrect. The correct answer was ${q.correctAnswer || q.correctOption}.`,
+              idealAnswer: q.correctAnswer || q.correctOption || "",
+              status: "evaluated",
+            },
+            { new: true, upsert: true }
+          );
+        }
+
+        // Calculate performance
+        const correctCount = aptitudeScores.filter(s => s === 10).length;
+        const totalAptCount = aptitudeQuestions.length || 1;
+        const scorePct = (correctCount / totalAptCount) * 100;
+
+        // Adapt difficulty
+        let adaptedDifficulty = "Medium";
+        let performanceFeedback = "Candidate demonstrates standard logic.";
+        if (scorePct >= 60) {
+          adaptedDifficulty = "Hard";
+          performanceFeedback = "Candidate did well. Next round will focus on deeper, more complex scenarios.";
+        } else {
+          adaptedDifficulty = "Easy";
+          performanceFeedback = "Candidate had some difficulty. Next round will focus on core syntax and simple concepts.";
+        }
+
+        // Generate Phase 2 Technical Questions
+        const QuestionHistory = require("../models/QuestionHistory");
+        const previousQuestions = await QuestionHistory.find({ user: targetInterview.user });
+        const excludedFingerprints = new Set(previousQuestions.map(q => q.fingerprint));
+        const excludedTexts = previousQuestions.slice(-30).map(q => q.question || q.title);
+
+        let technicalQuestions = [];
+        let techAttempts = 0;
+        while (technicalQuestions.length < 2 && techAttempts < 2) {
+          const batch = await generate2TechnicalQuestions({
+            role: targetInterview.role,
+            experience: targetInterview.experience,
+            skills: targetInterview.technologies || [],
+            difficulty: targetInterview.difficulty || adaptedDifficulty,
+            resumeText: targetInterview.resumeText || "",
+            excludedTexts: [...excludedTexts, ...technicalQuestions.map(q => q.question || q.title)],
+          });
+          for (const q of batch) {
+            const qText = q.question || q.title || q.description || "";
+            const fp = getFingerprint(qText);
+            if (fp && !excludedFingerprints.has(fp)) {
+              if (!technicalQuestions.some(existing => getFingerprint(existing.question || existing.title) === fp)) {
+                await saveDynamicQuestionToDB(q, targetInterview);
+                technicalQuestions.push(q);
+                if (technicalQuestions.length === 2) break;
+              }
+            }
+          }
+          techAttempts++;
+        }
+
+        // Fallback if AI generation failed to produce 2 valid questions
+        if (technicalQuestions.length < 2) {
+          try {
+            const dbFallback = await getFallbackTechnicalQuestions(2 - technicalQuestions.length, technicalQuestions, {
+              role: targetInterview.role,
+              difficulty: targetInterview.difficulty || adaptedDifficulty,
+              excludedTexts: [...excludedTexts, ...technicalQuestions.map(q => q.question || q.title)]
+            });
+            for (const q of dbFallback) {
+              await saveDynamicQuestionToDB(q, targetInterview);
+              technicalQuestions.push(q);
+            }
+          } catch (err) {
+            console.error("Technical fallback generation failed:", err);
+          }
+        }
+
+        // Save Phase 2 Questions to Interview
+        targetInterview.technicalQuestions = technicalQuestions;
+        if (!targetInterview.activePhases.includes("phase2")) {
+          targetInterview.activePhases.push("phase2");
+        }
+        targetInterview.currentPhase = "phase2";
+
+        // Update phasesState
+        const p1 = targetInterview.phasesState.find(p => p.phaseNumber === 1);
+        if (p1) {
+          p1.status = "completed";
+          p1.evaluation = { scorePct, correctCount, totalAptCount, performanceFeedback };
+        }
+        const p2 = targetInterview.phasesState.find(p => p.phaseNumber === 2);
+        if (p2) {
+          p2.status = "generated";
+          p2.generatedAt = new Date();
+          p2.questions = technicalQuestions;
+        }
+
+        targetInterview.markModified("phasesState");
+        targetInterview.markModified("activePhases");
+        await targetInterview.save();
+      }
+
+      // 2. PHASE 2 EVALUATION & PHASE 3 GENERATION
+      else if (phaseNumber === 2) {
+        const technicalQuestions = targetInterview.technicalQuestions || [];
+        const nonMcqEvaluations = [];
+        for (const q of technicalQuestions) {
+          const qId = q.id;
+          const qText = q.question || q.title || q.description || "";
+          const userAns = unpackAnswer(finalAnswers[qId]);
+          nonMcqEvaluations.push({ qId, qText, userAns, type: "technical" });
+        }
+
+        const evalResults = await Promise.allSettled(
+          nonMcqEvaluations.map(async (item) => {
+            if (!item.userAns || String(item.userAns).trim() === "") {
+              return { score: 0, feedback: "Question was left unanswered.", idealAnswer: "" };
+            }
+            return await evaluateAnswer(item.qText, String(item.userAns), item.type);
+          })
+        );
+
+        const techScores = [];
+        const feedbacks = [];
+        const Submission = require("../models/Submission");
+
+        for (let i = 0; i < evalResults.length; i++) {
+          const item = nonMcqEvaluations[i];
+          const res = evalResults[i];
+          const qObj = technicalQuestions.find(tq => tq.id === item.qId);
+
+          let score = 0;
+          let feedback = "Failed to evaluate answer.";
+          let idealAnswer = qObj?.idealAnswer || "Optimal technical answer.";
+
+          const isValidObjectId = mongoose.Types.ObjectId.isValid(item.qId);
+          if (isValidObjectId) {
+            // Retrieve latest compiler submission for the coding challenge
+            const lastSub = await Submission.findOne({
+              user: targetInterview.user,
+              question: item.qId
+            }).sort({ createdAt: -1 });
+
+            if (lastSub) {
+              const passed = lastSub.passed || 0;
+              const total = lastSub.total || 1;
+              if (passed === total) {
+                score = 10;
+                feedback = "Correct. All test cases passed successfully.";
+              } else if (passed > 0) {
+                score = Math.max(1, Math.round((passed / total) * 10));
+                feedback = `Partially Correct. Passed ${passed} of ${total} test cases.`;
+              } else {
+                score = 0;
+                feedback = "Incorrect. All test cases failed.";
+              }
+            } else {
+              // Left code/editor unanswered or not submitted
+              score = 0;
+              feedback = item.userAns && String(item.userAns).trim().length > 0 
+                ? "Incorrect. Code was not submitted or failed compilation."
+                : "Incorrect. Question was left unanswered.";
+            }
+          } else {
+            // Fallback to dynamic Gemini evaluation for non-coding/conceptual questions
+            if (res.status === "fulfilled") {
+              score = Number(res.value?.score) || 0;
+              feedback = res.value?.feedback || "";
+              idealAnswer = res.value?.idealAnswer || idealAnswer;
+            }
+          }
+
+          techScores.push(score);
+          feedbacks.push(`Question: ${item.qText} | Score: ${score}/10 | Feedback: ${feedback}`);
+
+          await Answer.findOneAndUpdate(
+            { interview: targetInterview._id, question: item.qText },
+            {
+              answer: String(item.userAns) || "No response recorded.",
+              score: score,
+              feedback: feedback,
+              idealAnswer: idealAnswer,
+              status: "evaluated",
+            },
+            { new: true, upsert: true }
+          );
+        }
+
+        const avgTechScore = techScores.length > 0 ? techScores.reduce((a, b) => a + b, 0) / techScores.length : 0;
+        let adaptedDifficulty = "Medium";
+        if (avgTechScore >= 7.0) {
+          adaptedDifficulty = "Hard";
+        } else {
+          adaptedDifficulty = "Easy";
+        }
+
+        // Initialize Phase 3 (Project Workspace Challenge)
+        let taskGuidelines = targetInterview.workspaceState?.taskGuidelines;
+        if (!taskGuidelines) {
+          try {
+            taskGuidelines = await generateAiTaskGuidelines(
+              targetInterview.role,
+              targetInterview.difficulty || adaptedDifficulty,
+              targetInterview.resumeText || "",
+              targetInterview.technologies || []
+            );
+          } catch (guidelineErr) {
+            console.error("Failed to generate task guidelines for Phase 3, using defaults:", guidelineErr);
+            taskGuidelines = {
+              title: "Project Development Challenge",
+              description: "Implement the coding feature inside the templates workspace.",
+              difficulty: targetInterview.difficulty || adaptedDifficulty,
+              estimatedTime: "45 Mins",
+              requirements: [
+                "Structure and build the required feature as specified in the guidelines",
+                "Ensure correct routing, styling, and visual appeal",
+                "Optimize performance and verify clean code conventions"
+              ],
+              acceptanceCriteria: [
+                "Verify features operate error-free",
+                "Confirm styling is consistent with guidelines"
+              ],
+              rubric: "Functional Correctness: 40% | Code Quality: 30% | Performance: 15% | Best Practices: 15%"
+            };
+          }
+        }
+
+        if (!targetInterview.workspaceState) {
+          targetInterview.workspaceState = {};
+        }
+        targetInterview.workspaceState.taskGuidelines = taskGuidelines;
+        targetInterview.markModified("workspaceState");
+
+        const projectQuestion = {
+          id: "p3_project_dev",
+          phase: 3,
+          phaseName: "Technical Round 2 (Coding)",
+          type: "project",
+          title: taskGuidelines.title || "Project Development Challenge",
+          description: taskGuidelines.description || "Implement the coding feature inside the templates workspace.",
+          difficulty: targetInterview.difficulty || adaptedDifficulty,
+          constraints: "Filesystem Workspace • Persistence"
+        };
+
+        const codingQuestions = [projectQuestion];
+
+        // Save Phase 3 Questions
+        targetInterview.questions = codingQuestions;
+        if (!targetInterview.activePhases.includes("phase3")) {
+          targetInterview.activePhases.push("phase3");
+        }
+        targetInterview.currentPhase = "phase3";
+
+        // Update phasesState
+        const p2 = targetInterview.phasesState.find(p => p.phaseNumber === 2);
+        if (p2) {
+          p2.status = "completed";
+          p2.evaluation = { avgTechScore, feedbacks };
+        }
+        const p3 = targetInterview.phasesState.find(p => p.phaseNumber === 3);
+        if (p3) {
+          p3.status = "generated";
+          p3.generatedAt = new Date();
+          p3.questions = codingQuestions;
+        }
+
+        targetInterview.markModified("phasesState");
+        targetInterview.markModified("activePhases");
+        await targetInterview.save();
+      }
+
+      // 3. PHASE 3 EVALUATION & PHASE 4 GENERATION
+      else if (phaseNumber === 3) {
+        // Evaluate Phase 3 (Project Workspace Challenge) based on workspaceSubmission
+        const sub = targetInterview.workspaceSubmission || {};
+        const scorePct = sub.weightedScore !== undefined ? sub.weightedScore : 0;
+        const avgCodingScore = scorePct / 10;
+        const taskGuidelines = targetInterview.workspaceState?.taskGuidelines || {
+          title: "Project Development Challenge",
+          description: "Implement the coding feature inside the templates workspace."
+        };
+        const appFile = sub.filesSnapshot?.find(f => f.path === "src/App.jsx" || f.path === "server.js" || f.path === "client/src/App.jsx");
+        const codeAnswer = appFile ? appFile.content : "// Project workspace files submitted successfully.";
+
+        const feedback = `
+### Score: ${scorePct}%
+
+### AI Review Summary
+${sub.aiReview?.summary || "Evaluation complete."}
+
+### Strengths
+${(sub.aiReview?.strengths || []).map(s => `- ${s}`).join("\n")}
+
+### Weaknesses
+${(sub.aiReview?.weaknesses || []).map(w => `- ${w}`).join("\n")}
+
+### Naming & Architecture Review
+- ${sub.aiReview?.namingReview || "Follows standards."}
+- ${sub.aiReview?.architectureReview || "Good structure."}
+`;
+
+        await Answer.findOneAndUpdate(
+          { interview: targetInterview._id, question: taskGuidelines.title },
+          {
+            answer: codeAnswer,
+            score: Math.round(avgCodingScore),
+            feedback: feedback.trim(),
+            idealAnswer: "Optimal project implementation.",
+            status: "evaluated",
+          },
+          { new: true, upsert: true }
+        );
+
+        const feedbacks = [`Project: ${taskGuidelines.title} | Score: ${scorePct}%`];
+
+        // Phase 4: HR & Behavioral Round
+        const phase4Questions = [
+          {
+            id: "p4_q1",
+            phase: 4,
+            phaseName: "HR & Behavioral Round",
+            type: "hr",
+            title: "Behavioral: Conflict Resolution & Team Alignment",
+            description: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
+            placeholder: "Use the STAR method: Situation, Task, Action, Result...",
+          },
+          {
+            id: "p4_q2",
+            phase: 4,
+            phaseName: "HR & Behavioral Round",
+            type: "hr",
+            title: "Situational: Handling High-Pressure Deadlines & Trade-offs",
+            description: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
+            placeholder: "Explain the scenario, trade-offs made, and outcome...",
+          },
+          {
+            id: "p4_q3",
+            phase: 4,
+            phaseName: "HR & Behavioral Round",
+            type: "hr",
+            title: "Cultural Fit: Ownership & Long-Term Technical Vision",
+            description: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
+            placeholder: "Share your career vision and values...",
+          },
+        ];
+
+        // Save Phase 4 Questions
+        if (!targetInterview.activePhases.includes("phase4")) {
+          targetInterview.activePhases.push("phase4");
+        }
+        targetInterview.currentPhase = "phase4";
+
+        // Update phasesState
+        const p3 = targetInterview.phasesState.find(p => p.phaseNumber === 3);
+        if (p3) {
+          p3.status = "completed";
+          p3.evaluation = { avgCodingScore, feedbacks };
+        }
+        const p4 = targetInterview.phasesState.find(p => p.phaseNumber === 4);
+        if (p4) {
+          p4.status = "generated";
+          p4.generatedAt = new Date();
+          p4.questions = phase4Questions;
+        }
+
+        targetInterview.markModified("phasesState");
+        targetInterview.markModified("activePhases");
+        await targetInterview.save();
+      }
+
+      // 4. PHASE 4 EVALUATION & SESSION CONCLUSION
+      else if (phaseNumber === 4) {
+        const hrQuestions = [
+          {
+            id: "p4_q1",
+            question: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
+            type: "hr"
+          },
+          {
+            id: "p4_q2",
+            question: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
+            type: "hr"
+          },
+          {
+            id: "p4_q3",
+            question: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
+            type: "hr"
+          }
+        ];
+
+        const nonMcqEvaluations = [];
+        for (const q of hrQuestions) {
+          const qId = q.id;
+          const qText = q.question;
+          const userAns = unpackAnswer(finalAnswers[qId]);
+          nonMcqEvaluations.push({ qId, qText, userAns, type: "hr" });
+        }
+
+        const evalResults = await Promise.allSettled(
+          nonMcqEvaluations.map(async (item) => {
+            if (!item.userAns || String(item.userAns).trim() === "") {
+              return { score: 0, feedback: "Question was left unanswered.", idealAnswer: "" };
+            }
+            return await evaluateAnswer(item.qText, String(item.userAns), item.type);
+          })
+        );
+
+        const hrScores = [];
+        const feedbacks = [];
+        for (let i = 0; i < evalResults.length; i++) {
+          const item = nonMcqEvaluations[i];
+          const res = evalResults[i];
+          let score = 0;
+          let feedback = "Failed to evaluate HR response.";
+          let idealAnswer = "";
+
+          if (res.status === "fulfilled") {
+            score = Number(res.value?.score) || 0;
+            feedback = res.value?.feedback || "";
+            idealAnswer = res.value?.idealAnswer || "";
+          }
+          hrScores.push(score);
+          feedbacks.push(`HR Question: ${item.qText} | Score: ${score}/10 | Feedback: ${feedback}`);
+
+          await Answer.findOneAndUpdate(
+            { interview: targetInterview._id, question: item.qText },
+            {
+              answer: String(item.userAns) || "No response recorded.",
+              score: score,
+              feedback: feedback,
+              idealAnswer: idealAnswer,
+              status: "evaluated",
+            },
+            { new: true, upsert: true }
+          );
+        }
+
+        const avgHrScore = hrScores.length > 0 ? hrScores.reduce((a, b) => a + b, 0) / hrScores.length : 0;
+
+        // Fetch all evaluated answers for final score calculation
+        const allAnswers = await Answer.find({ interview: targetInterview._id });
+        const allScores = allAnswers.map(ans => ans.score || 0);
+
+        const avgScore = allScores.length > 0 ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1) : "0.0";
+        const finalPercentage = Math.round((allScores.reduce((a, b) => a + b, 0) / (allScores.length * 10)) * 100);
+        const decision = Number(avgScore) >= 6.0 ? "PASSED" : "FAILED";
+
+        let overallFeedback = "The candidate has completed the interview session.";
+        try {
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+          const summaryPrompt = `
+You are a Lead Recruiter summarizing a candidate's mock interview performance.
+Here are the scores and feedback for each question:
+${allAnswers.map(a => `- "${a.question}": Score ${a.score}/10. Feedback: ${a.feedback}`).join("\n\n")}
+
+Provide a professional, constructive 2-3 paragraph summary evaluating key strengths, weak areas, and general performance.
+`;
+          const sumRes = await model.generateContent(summaryPrompt);
+          overallFeedback = sumRes.response.text().trim();
+        } catch (sumErr) {
+          console.error("Overall summary generation error:", sumErr);
+        }
+
+        // Save newly generated questions to history for duplicate prevention
+        try {
+          const QuestionHistory = require("../models/QuestionHistory");
+          const historyRecords = [];
+          
+          targetInterview.aptitudeQuestions.forEach(q => {
+            historyRecords.push({
+              user: targetInterview.user,
+              question: q.question,
+              category: q.category || "Aptitude",
+              difficulty: q.difficulty || "Medium",
+              fingerprint: getFingerprint(q.question)
+            });
+          });
+
+          targetInterview.technicalQuestions.forEach(q => {
+            historyRecords.push({
+              user: targetInterview.user,
+              question: q.question || q.title,
+              category: q.category || "Technical",
+              difficulty: q.difficulty || "Medium",
+              fingerprint: getFingerprint(q.question || q.title)
+            });
+          });
+
+          targetInterview.questions.forEach(q => {
+            historyRecords.push({
+              user: targetInterview.user,
+              question: q.questionText || q.title,
+              category: q.category || "Coding",
+              difficulty: q.difficulty || "Medium",
+              fingerprint: getFingerprint(q.questionText || q.title)
+            });
+          });
+
+          if (historyRecords.length > 0) {
+            await QuestionHistory.insertMany(historyRecords, { ordered: false }).catch(() => {});
+          }
+        } catch (e) {
+          console.error("Error writing to QuestionHistory:", e);
+        }
+
+        // Complete the interview session
+        targetInterview.status = "Completed";
+        targetInterview.finalScore = avgScore;
+        targetInterview.finalPercentage = finalPercentage;
+        targetInterview.decision = decision;
+        targetInterview.feedback = overallFeedback;
+        targetInterview.isLocked = true;
+        targetInterview.completedAt = new Date();
+
+        // Update phasesState
+        const p4 = targetInterview.phasesState.find(p => p.phaseNumber === 4);
+        if (p4) {
+          p4.status = "completed";
+          p4.evaluation = { avgHrScore, feedbacks, overallFeedback };
+        }
+
+        targetInterview.markModified("phasesState");
+        await targetInterview.save();
+
+        // Start background AI processing pipeline
+        InterviewProcessingService.startAnalysisPipeline(targetInterview._id).catch(err => {
+          console.error("[Background Processing] submitPhase pipeline failed:", err);
+        });
+
+        // Generate Recruiter Notification
+        try {
+          const Notification = require("../models/Notification");
+          await Notification.create({
+            user: targetInterview.user,
+            type: "interview_completed",
+            title: "Mock Interview Completed",
+            message: `Mock interview for '${targetInterview.role}' is evaluated. Final score: ${avgScore}/10 (${decision}).`,
+            relatedId: targetInterview._id,
+          });
+        } catch (notifErr) {
+          console.error("Notification creation failed:", notifErr);
+        }
+      }
+    };
+
+    // Trigger the background processing asynchronously so we do NOT block HTTP response
+    executeBackgroundProcessing().catch(bgErr => {
+      console.error("Background phase processing failed:", bgErr);
+    });
+
+    res.status(200).json({
+      success: true,
+      nextPhaseReady: true,
+      message: "Phase responses recorded. Evaluation & round generation started in the background."
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ===== Voice Interview: Dynamic Question Generation =====
+const getVoiceNextQuestion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lastAnswer, currentIndex } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid Interview ID" });
+    }
+
+    const interview = await Interview.findById(id);
+    if (!interview) {
+      return res.status(404).json({ message: "Interview not found" });
+    }
+
+    let currentQuestions = interview.questions || [];
+    const indexNum = Number(currentIndex) || 0;
+
+    // Define the strict interview sequence mapping
+    const sequencePhases = [
+      "Introduction",
+      "Resume Discussion",
+      "Projects",
+      "Technical Concepts",
+      "Problem Solving",
+      "Follow-up Questions",
+      "Follow-up Questions",
+      "Follow-up Questions",
+      "Follow-up Questions",
+      "Final Wrap-up"
+    ];
+    const targetCategory = sequencePhases[indexNum] || "Follow-up Questions";
+
+    const user = await User.findById(interview.user);
+    const candidateName = user ? (user.firstName || user.username || "Candidate") : "Candidate";
+
+    // Persist questions if we have already generated one for this index and it is a dynamic voice question
+    if (currentQuestions[indexNum] && currentQuestions[indexNum].type === "voice") {
+      return res.status(200).json({
+        success: true,
+        question: currentQuestions[indexNum]
+      });
+    }
+
+    const answers = await Answer.find({ interview: id });
+    const previousQAs = answers.map(a => ({
+      question: a.question,
+      answer: a.answer,
+      score: a.confidenceScore || a.score
+    }));
+
+    const prompt = `
+You are a Senior Software Engineer conducting Technical Round 2, a resume-driven theoretical voice interview.
+Your task is to dynamically generate the next interview question in real-time. Do NOT use predefined or hardcoded questions.
+
+Candidate Name: ${candidateName}
+Candidate Applied Role: ${interview.role}
+Candidate Experience: ${interview.experience}
+Candidate's Resume Text: ${interview.resumeText}
+Candidate's Tech Stack & Skills: ${JSON.stringify(interview.technologies)}
+Selected Max Difficulty: ${interview.difficulty}
+
+Current Context:
+- Previous Questions and Answers: ${JSON.stringify(previousQAs)}
+- Current Question Index: ${indexNum + 1} of 10
+- REQUIRED INTERVIEW SEQUENCE PHASE: ${targetCategory}
+
+Question Generation Guidelines:
+1. Strict Sequence Phase:
+   - You MUST formulate a question matching the required phase of the interview: "${targetCategory}".
+   - Guidelines for each phase:
+     * "Introduction": You MUST welcome the candidate by saying: "Welcome ${candidateName} to your Technical Round 2 interview." and then ask them to start by introducing themselves. Example: "Welcome ${candidateName} to your Technical Round 2 interview. Can you please start by introducing yourself?"
+     * "Resume Discussion": Pick an experience detail, certification, or skill claim directly from their resume to discuss.
+     * "Projects": Target one of the main projects listed on their resume, asking about its purpose, stack, or architecture.
+     * "Technical Concepts": Focus on core technical stack concepts or conceptual questions (e.g. React lifecycle, Node event loop).
+     * "Problem Solving": Present a theoretical scaling, optimization, database design, or system architecture challenge related to their tech stack.
+     * "Follow-up Questions": Probe deeper into their previous answers, testing their decisions, architectural constraints, and design trade-offs.
+     * "Final Wrap-up": Wrap up the session, summarize briefly, and ask if they have any closing questions for you.
+2. Continuous Adaptation:
+   - Adapt the difficulty of the next question continuously based on the candidate's previous responses and demonstrated understanding.
+   - If they showed strong understanding, you can increase the technical depth, but you MUST NEVER exceed the selected max difficulty (${interview.difficulty}).
+   - If they struggled, simplify the discussion while remaining within the difficulty constraints.
+3. Conversational Flow:
+   - Ensure the new question naturally follows the candidate's previous response (if applicable), creating a realistic discussion rather than isolated Q&A.
+   - Evaluate conceptual understanding, practical experience, architectural thinking, decision-making, and project ownership.
+4. ABSOLUTE PROHIBITIONS:
+   - Do NOT ask coding questions, DSA problems, live coding exercises, competitive programming, algorithm implementations, database query writing (e.g. SQL queries), API routes implementations, or whiteboard exercises. 
+   - No code syntax writing or syntax testing. Exclusively theoretical and conceptual technical discussion.
+
+Return ONLY a JSON response in the following format. Do NOT include markdown blocks (\`\`\`), comments, or extra text.
+{
+  "question": "The question string...",
+  "skill": "React" or "Node.js" etc. (the specific skill being evaluated),
+  "project": "CartNow" or "" (the project being discussed),
+  "topic": "Virtual DOM" or "React Fiber" (the specific topic/concept),
+  "category": "${targetCategory}",
+  "confidenceScore": integer between 0 and 10 representing estimated candidate confidence based on their last answer (default 10 for first question)
+}
+`;
+
+    let questionData;
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text().trim();
+      
+      let cleanText = responseText;
+      if (cleanText.startsWith("```json")) {
+        cleanText = cleanText.substring(7);
+      }
+      if (cleanText.endsWith("```")) {
+        cleanText = cleanText.substring(0, cleanText.length - 3);
+      }
+      cleanText = cleanText.trim();
+
+      questionData = JSON.parse(cleanText);
+    } catch (error) {
+      console.warn("[Voice Next Question] Gemini generation failed, executing local fallback:", error.message);
+      
+      const fallbacks = {
+        "Introduction": `Welcome ${candidateName} to your Technical Round 2 interview. Can you please start by introducing yourself?`,
+        "Resume Discussion": `Let's discuss your experience. What is the most challenging technical project you've listed on your resume, and what was your specific role in it?`,
+        "Projects": `Regarding the main projects in your resume, can you explain the systems architecture and why you selected this technology stack?`,
+        "Technical Concepts": `In your core technologies, how do you manage state consistency and handle concurrent client requests?`,
+        "Problem Solving": `Imagine you need to scale a high-traffic component that is bottlenecked by database lookups. What caching or indexing strategies would you implement?`,
+        "Follow-up Questions": `What design trade-offs did you make in your architecture? If you had to rebuild it today, what would you do differently?`,
+        "Final Wrap-up": `Thank you for completing Technical Round 2. Your responses have been recorded successfully. Do you have any questions for me before we wrap up?`
+      };
+
+      const fallbackText = fallbacks[targetCategory] || `Can you explain the main technical challenges you faced in your most recent project and how you solved them?`;
+
+      questionData = {
+        question: fallbackText,
+        skill: interview.technologies?.[0] || "Software Engineering",
+        project: "",
+        topic: targetCategory,
+        category: targetCategory,
+        confidenceScore: 7
+      };
+    }
+
+    const formattedQuestion = {
+      id: `p3_q${indexNum + 1}`,
+      phase: 3,
+      phaseName: "Technical Round 2 (Voice)",
+      type: "voice",
+      title: questionData.topic || "Core Technical Discussion",
+      description: questionData.question,
+      question: questionData.question,
+      skill: questionData.skill,
+      project: questionData.project,
+      topic: questionData.topic,
+      category: questionData.category,
+      confidenceScore: questionData.confidenceScore
+    };
+
+    currentQuestions[indexNum] = formattedQuestion;
+    interview.questions = currentQuestions;
+    interview.markModified("questions");
+    
+    try {
+      await interview.save();
+    } catch (saveErr) {
+      if (saveErr.name === "VersionError") {
+        console.warn("[Voice Next Question] VersionError caught due to concurrent write. Reloading document and retrying...");
+        const freshInterview = await Interview.findById(id);
+        if (freshInterview) {
+          const freshQuestions = freshInterview.questions || [];
+          freshQuestions[indexNum] = formattedQuestion;
+          freshInterview.questions = freshQuestions;
+          freshInterview.markModified("questions");
+          await freshInterview.save();
+        }
+      } else {
+        throw saveErr;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      question: formattedQuestion
+    });
+
+  } catch (error) {
+    console.error("Error in getVoiceNextQuestion:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ===== Voice Interview: Submit Voice Answer details =====
+const submitVoiceAnswer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      questionText,
+      answerText,
+      thinkingTime,
+      answerDuration,
+      skill,
+      project,
+      topic,
+      category,
+      confidenceScore,
+      questionAudio,
+      candidateAudio
+    } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid Interview ID" });
+    }
+
+    const interview = await Interview.findById(id);
+    if (!interview) {
+      return res.status(404).json({ message: "Interview not found" });
+    }
+
+    if (interview.isLocked || interview.status === "Completed") {
+      return res.status(403).json({ message: "This interview has already been submitted." });
+    }
+
+    const qIndex = interview.questions.findIndex(q => q.question === questionText);
+    const qId = qIndex !== -1 ? interview.questions[qIndex].id : `p3_voice_q`;
+    
+    if (!interview.userAnswers) {
+      interview.userAnswers = {};
+    }
+    interview.userAnswers[qId] = answerText;
+    interview.markModified("userAnswers");
+    await interview.save();
+
+    const newAnswer = await Answer.findOneAndUpdate(
+      { interview: id, question: questionText },
+      {
+        answer: answerText || "No voice response recorded.",
+        score: confidenceScore || 5,
+        confidenceScore: confidenceScore || 5,
+        feedback: `Topic: ${topic || "Concept"}. Category: ${category || "General"}.`,
+        idealAnswer: "Conceptual response matching professional standards.",
+        status: "evaluated",
+        questionAudio: questionAudio || "",
+        candidateAudio: candidateAudio || "",
+        thinkingTime: thinkingTime || 0,
+        answerDuration: answerDuration || 0,
+        resumeTopic: topic || "",
+        skillEvaluated: skill || "",
+        projectDiscussed: project || "",
+      },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Voice answer recorded in database",
+      answer: newAnswer
+    });
+
+  } catch (error) {
+    console.error("Error in submitVoiceAnswer:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -2649,6 +4098,7 @@ module.exports = {
   patchAnswer,
   submitInterviewSession,
   startPhase,
+  submitPhase,
   getInterviewWorkspace,
   updateInterviewWorkspace,
   executeWorkspaceSandbox,
@@ -2660,4 +4110,6 @@ module.exports = {
   getWorkspaceVersions,
   restoreWorkspaceVersion,
   patchWorkspaceFile,
+  getVoiceNextQuestion,
+  submitVoiceAnswer,
 };

@@ -52,18 +52,18 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="w-full rounded-xl border border-white/10 bg-slate-950/90 p-5 sm:p-6 backdrop-blur-xl shadow-xl space-y-5"
+      className="w-full rounded-xl border border-brand-border bg-brand-card p-5 sm:p-6 shadow-xl space-y-5 text-brand-text"
     >
       {/* Step Header */}
-      <div className="border-b border-white/10 pb-2.5 flex items-center justify-between">
+      <div className="border-b border-brand-border pb-2.5 flex items-center justify-between">
         <div>
-          <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-violet-400 block mb-0.5">
+          <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-violet-500 dark:text-violet-400 block mb-0.5">
             Step 4 of 4 • Interview Lobby
           </span>
-          <h2 className="text-lg font-black text-white tracking-tight">
+          <h2 className="text-lg font-black text-brand-text tracking-tight">
             Interview Waiting Room
           </h2>
-          <p className="text-[11px] text-slate-400 mt-0.5">
+          <p className="text-[11px] text-brand-secondary mt-0.5">
             Review your interview roadmap and verify hardware before starting.
           </p>
         </div>
@@ -89,54 +89,54 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
         <div className="space-y-3 relative pl-3.5 border-l-2 border-indigo-500/30 my-1">
           {/* Phase 1 */}
           <div className="relative pl-3">
-            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-cyan-400 ring-2 ring-slate-950" />
+            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-cyan-400 ring-2 ring-white dark:ring-slate-950" />
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-white">
+              <h4 className="text-xs font-extrabold text-brand-text">
                 Phase 1: Aptitude Assessment
               </h4>
-              <span className="text-[10px] font-mono font-bold text-cyan-300">15 Mins</span>
+              <span className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-300">15 Mins</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">
+            <p className="text-[10px] text-brand-secondary mt-0.5">
               Quantitative, logical reasoning, and data interpretation logic assessment.
             </p>
           </div>
 
           {/* Phase 2 */}
           <div className="relative pl-3">
-            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-indigo-400 ring-2 ring-slate-950" />
+            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-indigo-400 ring-2 ring-white dark:ring-slate-950" />
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-white">
+              <h4 className="text-xs font-extrabold text-brand-text">
                 Phase 2: Technical Interview - Round 1 (Core Concepts)
               </h4>
-              <span className="text-[10px] font-mono font-bold text-indigo-300">20 Mins</span>
+              <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-300">20 Mins</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">
+            <p className="text-[10px] text-brand-secondary mt-0.5">
               Core language fundamentals, architecture, and tech stack evaluation.
             </p>
           </div>
 
           {/* Phase 3 */}
           <div className="relative pl-3">
-            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-violet-400 ring-2 ring-slate-950" />
+            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-violet-400 ring-2 ring-white dark:ring-slate-950" />
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-white">
+              <h4 className="text-xs font-extrabold text-brand-text">
                 Phase 3: Technical Interview - Round 2 (Coding & Problem Solving)
               </h4>
-              <span className="text-[10px] font-mono font-bold text-violet-300">30 Mins</span>
+              <span className="text-[10px] font-mono font-bold text-violet-600 dark:text-violet-300">30 Mins</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">
+            <p className="text-[10px] text-brand-secondary mt-0.5">
               Live code implementation, algorithm solving, and system scenario round.
             </p>
           </div>
         </div>
 
         {/* Estimated Total Time */}
-        <div className="flex items-center justify-between rounded-lg bg-white/5 p-3 border border-white/5">
-          <div className="flex items-center gap-1.5 text-slate-300 text-xs font-bold">
-            <Clock className="h-3.5 w-3.5 text-blue-400" />
+        <div className="flex items-center justify-between rounded-lg bg-slate-100 dark:bg-white/5 p-3 border border-brand-border">
+          <div className="flex items-center gap-1.5 text-brand-secondary text-xs font-bold">
+            <Clock className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
             <span>Estimated Total Time</span>
           </div>
-          <span className="text-xs font-black text-white font-mono">65 Minutes</span>
+          <span className="text-xs font-black text-brand-text font-mono">65 Minutes</span>
         </div>
       </div>
 
@@ -217,12 +217,12 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex items-center justify-between pt-3 border-t border-white/10 gap-2">
+      <div className="flex items-center justify-between pt-3 border-t border-brand-border gap-2">
         <button
           type="button"
           onClick={onBack}
           disabled={isStarting}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-white/10 bg-slate-900 text-xs font-bold text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-brand-border bg-slate-100 dark:bg-slate-900 text-xs font-bold text-brand-text dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           <span>Back</span>
@@ -232,7 +232,7 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
           type="button"
           onClick={handleStartInterview}
           disabled={isStarting}
-          className="flex-1 max-w-xs relative flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-xs font-black text-white shadow-md hover:brightness-110 active:scale-98 transition duration-150 cursor-pointer overflow-hidden"
+          className="flex-1 max-w-xs relative flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-black text-white shadow-md active:scale-98 transition duration-150 cursor-pointer overflow-hidden"
         >
           <Play className="h-3.5 w-3.5 shrink-0 fill-white" />
           <span>{isStarting ? "Initializing..." : "Start Interview"}</span>

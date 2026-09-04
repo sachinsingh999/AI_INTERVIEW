@@ -97,6 +97,10 @@ const interviewSchema = new mongoose.Schema(
       type: String,
       default: "In Progress",
     },
+    workspacePath: {
+      type: String,
+      default: null,
+    },
     workspaceFiles: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
@@ -135,6 +139,18 @@ const interviewSchema = new mongoose.Schema(
     activePhases: {
       type: [String],
       default: ["phase1"],
+    },
+    currentPhase: {
+      type: String,
+      default: "phase1",
+    },
+    interviewBlueprint: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    phasesState: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
     },
   },
   {

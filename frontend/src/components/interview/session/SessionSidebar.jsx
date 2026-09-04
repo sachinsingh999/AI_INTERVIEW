@@ -28,17 +28,17 @@ export default function SessionSidebar({
 
   if (isCollapsed) {
     return (
-      <aside className="w-full lg:w-12 shrink-0 flex flex-col items-center py-3 px-1.5 bg-slate-950/90 border border-white/10 rounded-xl space-y-4">
+      <aside className="w-full lg:w-12 shrink-0 flex flex-col items-center py-3 px-1.5 bg-brand-card border border-brand-border rounded-xl space-y-4">
         <button
           type="button"
           onClick={() => setIsCollapsed(false)}
-          className="p-2 rounded-lg bg-slate-900 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
+          className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-brand-border text-brand-text hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
           title="Expand Sidebar"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        <div className="text-center font-mono text-[10px] font-black text-blue-400 rotate-90 py-6 tracking-widest uppercase">
+        <div className="text-center font-mono text-[10px] font-black text-blue-505 dark:text-blue-400 rotate-90 py-6 tracking-widest uppercase">
           Sidebar
         </div>
 
@@ -57,9 +57,9 @@ export default function SessionSidebar({
   return (
     <aside className="w-full lg:w-64 shrink-0 space-y-3 font-sans text-left">
       {/* Collapse Toggle Header */}
-      <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-white/10 bg-slate-950/90">
-        <span className="text-[10px] font-mono uppercase font-bold text-slate-400 flex items-center gap-1.5">
-          <Sliders className="h-3.5 w-3.5 text-blue-400" />
+      <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-brand-border bg-brand-card">
+        <span className="text-[10px] font-mono uppercase font-bold text-brand-secondary flex items-center gap-1.5">
+          <Sliders className="h-3.5 w-3.5 text-blue-505 dark:text-blue-400" />
           <span>Session Navigator</span>
         </span>
         <button
@@ -73,50 +73,50 @@ export default function SessionSidebar({
       </div>
 
       {/* Candidate Info Compact */}
-      <div className="rounded-lg border border-white/10 bg-slate-950/90 p-3 space-y-2">
+      <div className="rounded-lg border border-brand-border bg-brand-card p-3 space-y-2">
         <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
-          <div className="bg-slate-900/80 p-1.5 rounded border border-white/5">
-            <span className="text-[8px] font-bold uppercase text-slate-500 block">Role</span>
-            <span className="font-extrabold text-white text-[11px] truncate block">{role || "Dev"}</span>
+          <div className="bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded border border-brand-border">
+            <span className="text-[8px] font-bold uppercase text-brand-secondary block">Role</span>
+            <span className="font-extrabold text-brand-text text-[11px] truncate block">{role || "Dev"}</span>
           </div>
-          <div className="bg-slate-900/80 p-1.5 rounded border border-white/5">
-            <span className="text-[8px] font-bold uppercase text-slate-500 block">Exp</span>
-            <span className="font-extrabold text-white text-[11px] truncate block">{experience || "1-3Y"}</span>
+          <div className="bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded border border-brand-border">
+            <span className="text-[8px] font-bold uppercase text-brand-secondary block">Exp</span>
+            <span className="font-extrabold text-brand-text text-[11px] truncate block">{experience || "1-3Y"}</span>
           </div>
-          <div className="bg-slate-900/80 p-1.5 rounded border border-white/5">
-            <span className="text-[8px] font-bold uppercase text-slate-500 block">Diff</span>
-            <span className="font-extrabold text-emerald-400 text-[11px] truncate block">{difficulty || "Med"}</span>
+          <div className="bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded border border-brand-border">
+            <span className="text-[8px] font-bold uppercase text-brand-secondary block">Diff</span>
+            <span className="font-extrabold text-emerald-500 dark:text-emerald-400 text-[11px] truncate block">{difficulty || "Med"}</span>
           </div>
         </div>
       </div>
 
       {/* Phase Progress */}
-      <div className="rounded-lg border border-white/10 bg-slate-950/90 p-3 space-y-1.5">
+      <div className="rounded-lg border border-brand-border bg-brand-card p-3 space-y-1.5">
         <div className="flex items-center justify-between text-[10px] font-mono">
-          <span className="font-bold text-slate-400 uppercase">Progress</span>
-          <span className="font-bold text-blue-400">{progressPercent}%</span>
+          <span className="font-bold text-brand-secondary uppercase">Progress</span>
+          <span className="font-bold text-blue-505 dark:text-blue-400">{progressPercent}%</span>
         </div>
-        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-white/5">
+        <div className="w-full bg-slate-200 dark:bg-slate-900 rounded-full h-1.5 overflow-hidden border border-brand-border">
           <div
-            className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full transition-all duration-300"
+            className="bg-blue-600 h-full transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-        <span className="text-[9px] text-slate-400 block text-right font-mono">
+        <span className="text-[9px] text-brand-secondary block text-right font-mono">
           {answeredCount} / {questions.length} Done
         </span>
       </div>
 
       {/* Question Navigator Grid */}
-      <div className="rounded-lg border border-white/10 bg-slate-950/90 p-3 space-y-2">
-        <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block border-b border-white/5 pb-1">
+      <div className="rounded-lg border border-brand-border bg-brand-card p-3 space-y-2">
+        <span className="text-[10px] font-mono uppercase font-bold text-brand-secondary block border-b border-brand-border pb-1">
           Questions ({questions.length})
         </span>
 
         {/* Compact Legend */}
-        <div className="grid grid-cols-2 gap-1 text-[9px] font-medium text-slate-400">
+        <div className="grid grid-cols-2 gap-1 text-[9px] font-medium text-brand-secondary">
           <div className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-slate-800 border border-white/10" />
+            <span className="h-2 w-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-brand-border" />
             <span>Not Visited</span>
           </div>
           <div className="flex items-center gap-1">
@@ -141,7 +141,7 @@ export default function SessionSidebar({
             const isVisited = !!visitedQuestions[q.id];
             const isCurrent = currentIndex === idx;
 
-            let stateClass = "bg-slate-900 border-white/10 text-slate-500";
+            let stateClass = "bg-slate-100 dark:bg-slate-900 border-brand-border text-slate-400 dark:text-slate-500";
             if (isFlagged) {
               stateClass = "bg-rose-500 text-white border-rose-400 shadow-sm";
             } else if (isAnswered) {
@@ -156,7 +156,7 @@ export default function SessionSidebar({
                 type="button"
                 onClick={() => onSelectQuestion(idx)}
                 className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-mono font-bold border transition duration-150 cursor-pointer ${stateClass} ${
-                  isCurrent ? "ring-2 ring-white ring-offset-1 ring-offset-slate-950 scale-105" : ""
+                  isCurrent ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-950 scale-105" : ""
                 }`}
               >
                 {idx + 1}
@@ -167,11 +167,11 @@ export default function SessionSidebar({
       </div>
 
       {/* Large Timer Card */}
-      <div className="rounded-lg border border-white/10 bg-slate-950/90 p-3 text-center space-y-0.5">
-        <span className="text-[9px] font-mono uppercase font-bold text-slate-500 block">
+      <div className="rounded-lg border border-brand-border bg-brand-card p-3 text-center space-y-0.5">
+        <span className="text-[9px] font-mono uppercase font-bold text-brand-secondary block">
           Phase Timer
         </span>
-        <div className="text-xl font-black font-mono text-white tracking-wider">
+        <div className="text-xl font-black font-mono text-brand-text tracking-wider">
           {formatTime(timeLeftSeconds)}
         </div>
       </div>
@@ -180,7 +180,7 @@ export default function SessionSidebar({
       <button
         type="button"
         onClick={onSubmit}
-        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-extrabold text-white shadow-md hover:brightness-110 active:scale-98 transition duration-150 cursor-pointer"
+        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-extrabold text-white shadow-md active:scale-98 transition duration-150 cursor-pointer"
       >
         <Send className="h-3.5 w-3.5" />
         <span>Submit Assessment</span>

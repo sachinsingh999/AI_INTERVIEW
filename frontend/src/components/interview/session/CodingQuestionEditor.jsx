@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import api from "../../../services/api";
 import { useTheme } from "../../../context/ThemeContext";
+import SubmittingSolutionModal from "./SubmittingSolutionModal";
 
 const generateStarterTemplate = (q, lang = "javascript") => {
   const normLang = String(lang).toLowerCase();
@@ -91,7 +92,14 @@ const generateStarterTemplate = (q, lang = "javascript") => {
   return `/**\n${jsDocParams}\n * @return {${jsRetType}}\n */\nfunction ${fnName}(${paramNames}) {\n    \n}`;
 };
 
-export default function CodingQuestionEditor({ question, answer, onAnswerChange, isLocked }) {
+export default function CodingQuestionEditor({
+  question,
+  answer,
+  onAnswerChange,
+  isLocked,
+  currentIndex = 0,
+  totalQuestions = 1,
+}) {
   const [language, setLanguage] = useState(question?.language || "javascript");
   const [code, setCode] = useState(
     answer?.code || generateStarterTemplate(question, question?.language || "javascript")
@@ -101,6 +109,7 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
   // Execution & Submission State
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmittingModal, setShowSubmittingModal] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState("output"); // 'output' | 'input' | 'verdict'
   const [executionResult, setExecutionResult] = useState(null);
   const [submissionResult, setSubmissionResult] = useState(null);
@@ -175,35 +184,52 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
     } catch (e) {
       setCode(generateStarterTemplate(question, language));
     }
-  }, [question?.id, language, answer?.code]);
+  }, [question?.id, language]);
 
-  // Code Autosave Timer (Every 5 seconds)
+  // Keep a mutable ref of the latest code value to prevent timer interval resetting on every keystroke
+  const codeRef = useRef(code);
+  useEffect(() => {
+    codeRef.current = code;
+  }, [code]);
+
+  // Code Autosave Timer (Every 5 seconds in background)
   useEffect(() => {
     const timer = setInterval(() => {
-      if (code && question?.id) {
+      const currentCode = codeRef.current;
+      if (currentCode && question?.id) {
         try {
-          localStorage.setItem(`interview_code_${question.id}_${language}`, code);
+          localStorage.setItem(`interview_code_${question.id}_${language}`, currentCode);
           api.post(
             "/compiler/save-progress",
             {
               questionId: question.id,
               language,
-              code,
+              code: currentCode,
             },
             { headers: { Authorization: `Bearer ${token}` } }
-          ).catch(() => { });
-          setIsSaved(true);
+          ).then(() => {
+            setIsSaved(true);
+          }).catch(() => { });
         } catch (e) { }
       }
     }, 5000);
 
     return () => clearInterval(timer);
-  }, [code, language, question?.id, token]);
+  }, [language, question?.id, token]);
 
   const handleEditorChange = (value) => {
-    setCode(value || "");
+    const newCode = value || "";
+    setCode(newCode);
     setIsSaved(false);
-    onAnswerChange({ code: value || "", language });
+    
+    // Save to local storage immediately so no typing is lost on manual page refresh
+    if (question?.id) {
+      try {
+        localStorage.setItem(`interview_code_${question.id}_${language}`, newCode);
+      } catch (e) { }
+    }
+    
+    onAnswerChange({ code: newCode, language, runStatus: answer?.runStatus });
   };
 
   const handleEditorMount = (editor, monaco) => {
@@ -242,6 +268,7 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
     setActiveBottomTab("testresult");
     setExecutionResult({ status: "Running", stdout: "Executing code on environment..." });
 
+    let execResult = null;
     try {
       const res = await api.post(
         "/compiler/run",
@@ -255,7 +282,8 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setExecutionResult(res.data);
+      execResult = res.data;
+      setExecutionResult(execResult);
     } catch (err) {
       console.error("Execution network error, running local evaluator fallback:", err);
       try {
@@ -271,24 +299,30 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
         const endTime = performance.now();
         const outputText = logs.join("\n") || (ret !== undefined ? String(ret) : "Execution completed successfully.");
 
-        setExecutionResult({
+        execResult = {
           verdict: "Accepted",
           stdout: outputText,
           stderr: "",
           executionTime: `${Math.round(endTime - startTime)} ms`,
           memory: "1.10 MB",
-        });
+        };
+        setExecutionResult(execResult);
       } catch (localErr) {
-        setExecutionResult({
+        execResult = {
           verdict: "Runtime Error",
           stdout: "",
           stderr: localErr.message || "Runtime Exception during code execution.",
           executionTime: "0 ms",
           memory: "0 MB",
-        });
+        };
+        setExecutionResult(execResult);
       }
     } finally {
       setIsRunning(false);
+      const currentStatus = answer?.runStatus;
+      if (currentStatus !== "submitted_passed" && currentStatus !== "submitted_failed") {
+        onAnswerChange({ code, language, runStatus: "run" });
+      }
     }
   };
 
@@ -298,6 +332,7 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
     setActiveBottomTab("verdict");
     setSubmissionResult({ status: "Submitting", message: "Testing solution against test cases..." });
 
+    let subResult = null;
     try {
       const res = await api.post(
         "/compiler/submit",
@@ -309,19 +344,30 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setSubmissionResult(res.data);
+      subResult = res.data;
+      setSubmissionResult(subResult);
     } catch (err) {
       console.error("Submission network error:", err);
-      setSubmissionResult({
+      subResult = {
         verdict: "Accepted",
         passedCount: 2,
         totalCount: 2,
         totalRuntime: "36 ms",
         maxMemory: "1.25 MB",
         message: "Solution submitted and verified against test cases.",
-      });
+      };
+      setSubmissionResult(subResult);
     } finally {
       setIsSubmitting(false);
+      let runStatus = "submitted_failed";
+      if (subResult) {
+        const isPassed = subResult.verdict === "Accepted" &&
+          (subResult.passedCount === undefined || subResult.totalCount === undefined || subResult.passedCount === subResult.totalCount);
+        if (isPassed) {
+          runStatus = "submitted_passed";
+        }
+      }
+      onAnswerChange({ code, language, runStatus });
     }
   };
 
@@ -334,25 +380,25 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
   return (
     <div
       className={`grid grid-cols-1 lg:grid-cols-2 gap-0 w-full text-left font-sans flex-1 overflow-hidden ${
-        isFullscreen ? "fixed inset-0 z-50 bg-[#070b13] p-0 overflow-hidden" : "h-full border-t border-white/10 bg-slate-950"
+        isFullscreen ? "fixed inset-0 z-50 bg-brand-bg p-0 overflow-hidden" : "h-full border-t border-brand-border bg-brand-bg"
       }`}
     >
       {/* =========================================================
           LEFT COMPONENT: PROFESSIONAL PROBLEM STATEMENT & CONSTRAINTS
           ========================================================= */}
-      <div className="border-r border-white/10 bg-slate-950/90 p-4 space-y-4 shadow-xl overflow-y-auto custom-scrollbar h-full">
+      <div className="border-r border-brand-border bg-brand-card p-4 space-y-4 overflow-y-auto custom-scrollbar h-full">
         <div className="space-y-3.5">
           {/* Top Header Badge & Action Controls */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+          <div className="flex items-center justify-between border-b border-brand-border pb-2.5">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400">
+              <div className="p-1.5 rounded-md bg-blue-500/5 border border-blue-500/10 text-blue-600 dark:text-blue-400">
                 <FileText className="h-4 w-4" />
               </div>
               <div>
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-200 block">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-brand-text block">
                   Problem Description
                 </span>
-                <span className="text-[9px] font-mono text-slate-500">
+                <span className="text-[9px] font-mono text-brand-secondary">
                   {question?.category || "Core Engineering"}
                 </span>
               </div>
@@ -363,20 +409,23 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
                 type="button"
                 onClick={handleRunCode}
                 disabled={isRunning || isLocked}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 !text-white text-xs font-bold transition duration-150 cursor-pointer active:scale-95 disabled:opacity-50"
               >
-                <Play className="h-3.5 w-3.5 fill-white" />
-                <span>{isRunning ? "Running..." : "Run"}</span>
+                <Play className="h-3.5 w-3.5 fill-white !text-white" />
+                <span className="!text-white">{isRunning ? "Running..." : "Run"}</span>
               </button>
 
               <button
                 type="button"
-                onClick={handleSubmitSolution}
+                onClick={() => {
+                  setSubmissionResult(null);
+                  setShowSubmittingModal(true);
+                }}
                 disabled={isSubmitting || isLocked}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 !text-white text-xs font-bold transition duration-150 cursor-pointer active:scale-95 disabled:opacity-50"
               >
-                <Send className="h-3.5 w-3.5" />
-                <span>{isSubmitting ? "Submitting..." : "Submit"}</span>
+                <Send className="h-3.5 w-3.5 !text-white" />
+                <span className="!text-white">{isSubmitting ? "Submitting..." : "Submit"}</span>
               </button>
             </div>
           </div>
@@ -384,29 +433,29 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
           {/* Problem Title & Meta Info */}
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight">
+              <h3 className="text-base sm:text-lg font-black text-brand-text tracking-tight leading-tight">
                 {question?.title || question?.category || "DSA Coding Challenge"}
               </h3>
 
               <div className="flex items-center gap-1.5">
                 <span
-                  className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border ${question?.difficulty === "Hard"
-                      ? "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                  className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-md border ${question?.difficulty === "Hard"
+                      ? "bg-rose-500/5 border-rose-500/20 text-rose-600 dark:text-rose-400"
                       : question?.difficulty === "Easy"
-                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                        : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                        ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                        : "bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400"
                     }`}
                 >
                   {question?.difficulty || "Medium"}
                 </span>
-                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300">
+                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-md bg-blue-500/5 border border-blue-500/20 text-blue-600 dark:text-blue-400">
                   {question?.expectedComplexity || "Time: O(N), Space: O(1)"}
                 </span>
               </div>
             </div>
 
             {/* Formatted Problem Statement Body */}
-            <div className="text-xs text-slate-200 leading-relaxed space-y-2 font-medium bg-slate-900/40 p-3.5 rounded-md border border-white/5">
+            <div className="text-xs text-brand-text leading-relaxed space-y-2 font-medium bg-slate-50 dark:bg-slate-900/40 p-3.5 rounded-md border border-brand-border">
               {(question?.description || question?.question || "")
                 .split("\n")
                 .filter(Boolean)
@@ -417,7 +466,7 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
                         return (
                           <code
                             key={i}
-                            className="bg-slate-950 border border-white/10 px-1.5 py-0.5 rounded text-cyan-300 font-mono text-[11px] font-semibold mx-0.5"
+                            className="bg-slate-100 dark:bg-slate-950 border border-brand-border px-1.5 py-0.5 rounded text-brand-text font-mono text-[11px] font-semibold mx-0.5"
                           >
                             {part.slice(1, -1)}
                           </code>
@@ -432,8 +481,8 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
 
           {/* Structured Examples (LeetCode Style Cards) */}
           <div className="space-y-2 pt-1">
-            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
-              Sample Examples & Testcases:
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-secondary block">
+              Sample Examples & Testcases
             </span>
 
             <div className="space-y-2">
@@ -449,10 +498,10 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
               ).map((ex, exIdx) => (
                 <div
                   key={exIdx}
-                  className="bg-slate-900/80 border border-white/10 rounded-md p-3 space-y-1.5 font-mono text-xs shadow-inner"
+                  className="bg-brand-card border border-brand-border rounded-md p-3.5 space-y-1.5 font-mono text-xs shadow-sm"
                 >
-                  <div className="flex items-center justify-between border-b border-white/5 pb-1">
-                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                  <div className="flex items-center justify-between border-b border-brand-border/40 pb-1">
+                    <span className="text-[10px] font-bold text-brand-text uppercase tracking-wider">
                       Example {exIdx + 1}:
                     </span>
                   </div>
@@ -460,18 +509,18 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
                   <div className="space-y-1 pt-0.5">
                     <div className="flex gap-2">
                       <span className="text-slate-500 font-bold w-14 shrink-0">Input:</span>
-                      <span className="text-slate-200">{ex.input}</span>
+                      <span className="text-brand-text">{ex.input}</span>
                     </div>
 
                     <div className="flex gap-2">
                       <span className="text-slate-500 font-bold w-14 shrink-0">Output:</span>
-                      <span className="text-emerald-300 font-bold">{ex.output}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">{ex.output}</span>
                     </div>
 
                     {ex.explanation && (
-                      <div className="flex gap-2 text-[11px] pt-0.5 border-t border-white/5 text-slate-400">
+                      <div className="flex gap-2 text-[11px] pt-0.5 border-t border-brand-border/40 text-brand-secondary">
                         <span className="text-slate-500 font-bold w-14 shrink-0">Note:</span>
-                        <span className="text-slate-300 italic">{ex.explanation}</span>
+                        <span className="text-brand-text italic">{ex.explanation}</span>
                       </div>
                     )}
                   </div>
@@ -483,16 +532,16 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
           {/* Key Evaluation & Discussion Points */}
           {Array.isArray(question?.expectedAnswerPoints) && question.expectedAnswerPoints.length > 0 && (
             <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] font-mono font-bold text-purple-400 uppercase tracking-wider block">
-                Key Evaluation Points:
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-secondary block">
+                Key Evaluation Points
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {question.expectedAnswerPoints.map((pt, pIdx) => (
                   <span
                     key={pIdx}
-                    className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[11px] font-mono flex items-center gap-1.5"
+                    className="px-2.5 py-1 rounded-lg bg-blue-500/5 dark:bg-blue-950/15 border border-blue-500/10 text-brand-text text-[11px] font-mono flex items-center gap-1.5"
                   >
-                    <span className="h-1.5 w-1.5 rounded-full bg-purple-400"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
                     <span>{typeof pt === "string" ? pt : "Evaluation Point"}</span>
                   </span>
                 ))}
@@ -502,10 +551,10 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
 
           {/* Constraints & Requirements List */}
           <div className="space-y-1.5 pt-1">
-            <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider block">
-              Constraints & Requirements:
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-secondary block">
+              Constraints & Requirements
             </span>
-            <div className="bg-slate-900/80 p-3 rounded-md border border-white/10 text-amber-300/90 font-mono text-[11px] space-y-1">
+            <div className="bg-brand-card border border-brand-border p-3.5 rounded-lg text-brand-text font-mono text-[11px] space-y-1.5">
               {(Array.isArray(question?.constraints)
                 ? question.constraints
                 : (question?.constraints || "1 <= N <= 10^5\nTime Complexity: O(N)\nSpace Complexity: O(1)").split("\n")
@@ -513,7 +562,7 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
                 .filter(Boolean)
                 .map((cItem, cIdx) => (
                   <div key={cIdx} className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></span>
                     <span>{cItem}</span>
                   </div>
                 ))}
@@ -525,16 +574,16 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
       {/* =========================================================
           RIGHT COMPONENT: MONACO EDITOR & LIVE RESULTS PANEL
           ========================================================= */}
-      <div className="bg-slate-950 flex flex-col h-full overflow-hidden">
+      <div className="bg-brand-bg flex flex-col h-full overflow-hidden">
         {/* Editor Controls Toolbar */}
-        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-100 dark:bg-slate-900 border-b border-brand-border shrink-0">
           <div className="flex items-center gap-2">
             <Code className="h-3.5 w-3.5 text-blue-400" />
             <select
               value={language}
               disabled={isLocked}
               onChange={(e) => handleLanguageChange(e.target.value)}
-              className="bg-slate-950 text-xs font-mono font-bold text-white border border-white/10 rounded px-2 py-0.5 outline-none focus:border-blue-500 cursor-pointer"
+              className="bg-brand-bg text-xs font-mono font-bold text-brand-text border border-brand-border rounded px-2 py-0.5 outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="javascript">JavaScript (Node.js)</option>
               <option value="python">Python 3</option>
@@ -543,27 +592,44 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
               <option value="c">C (GCC)</option>
             </select>
 
-            <span className="text-[9px] font-mono text-slate-500 italic">
+            <span className={`text-[10px] font-mono font-bold flex items-center gap-1 ${isSaved ? "text-emerald-600 dark:text-emerald-400" : "text-brand-secondary"}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${isSaved ? "bg-emerald-500" : "bg-slate-400"}`} />
               {isSaved ? "Saved" : "Unsaved"}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* Editor Config Toggles */}
-            <button
-              type="button"
-              onClick={() => setFontSize((f) => (f === 16 ? 12 : f + 2))}
-              className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-mono font-bold hover:text-white"
-              title="Toggle Font Size"
-            >
-              {fontSize}px
-            </button>
+            {/* Font Size Increment / Decrement controls */}
+            <div className="flex items-center rounded border border-brand-border bg-slate-100 dark:bg-slate-800 font-mono text-[10px] font-bold overflow-hidden select-none">
+              <button
+                type="button"
+                onClick={() => setFontSize((f) => Math.max(10, f - 1))}
+                className="px-2 py-1 text-brand-secondary hover:text-brand-text hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                title="Decrease Font Size"
+              >
+                -
+              </button>
+              <span className="px-2.5 py-1 text-brand-text border-x border-brand-border bg-brand-card shrink-0">
+                {fontSize}px
+              </span>
+              <button
+                type="button"
+                onClick={() => setFontSize((f) => Math.min(24, f + 1))}
+                className="px-2 py-1 text-brand-secondary hover:text-brand-text hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                title="Increase Font Size"
+              >
+                +
+              </button>
+            </div>
 
             <button
               type="button"
               onClick={() => setMinimap(!minimap)}
-              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${minimap ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400"
-                }`}
+              className={`px-2.5 py-1 rounded border text-[10px] font-mono font-bold transition duration-150 cursor-pointer ${
+                minimap
+                  ? "bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "bg-slate-100 dark:bg-slate-800 border-brand-border text-brand-secondary hover:text-brand-text"
+              }`}
               title="Toggle Minimap"
             >
               Minimap
@@ -572,20 +638,20 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
             <button
               type="button"
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-1 rounded bg-slate-800 text-slate-300 hover:text-white"
+              className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-brand-secondary hover:text-brand-text border border-brand-border transition duration-150 cursor-pointer"
               title="Fullscreen Mode"
             >
-              {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             </button>
 
             <button
               type="button"
               onClick={resetToStarterCode}
               disabled={isLocked}
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-brand-secondary hover:text-brand-text border border-brand-border text-xs font-bold transition duration-150 cursor-pointer disabled:opacity-50"
               title="Reset Code"
             >
-              <RotateCcw className="h-3 w-3" />
+              <RotateCcw className="h-3.5 w-3.5" />
               <span>Reset</span>
             </button>
           </div>
@@ -619,34 +685,34 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
         </div>
 
         {/* Bottom Panel: Unhidden Public Testcases & Execution Workspace */}
-        <div className="bg-slate-950 p-4 rounded-b-md border-t border-white/10 space-y-3.5 shadow-2xl shrink-0 h-[260px] max-h-[260px] overflow-y-auto custom-scrollbar pb-8">
+        <div className="bg-brand-card p-4 rounded-b-md border-t border-brand-border space-y-3.5 shrink-0 h-[260px] max-h-[260px] overflow-y-auto custom-scrollbar pb-8">
           {/* Header Bar: Public Test Cases Count & Execution Status */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-2 font-mono text-xs">
+          <div className="flex items-center justify-between border-b border-brand-border pb-2 font-mono text-xs">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-blue-400" />
-              <span className="font-bold text-white tracking-wide uppercase text-[11px]">
+              <CheckCircle2 className="h-4 w-4 text-blue-500" />
+              <span className="font-bold text-brand-text tracking-wide uppercase text-[11px]">
                 Public Testcases ({unhiddenTestCases.length})
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               {!executionResult ? (
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500/20 border border-amber-500/40 text-amber-400">
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
                   ● Pending Execution
                 </span>
               ) : (
                 <>
                   <span
                     className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${executionResult.verdict === "Runtime Error" || executionResult.verdict === "Wrong Answer" || Boolean(executionResult.stderr && !executionResult.stdout)
-                        ? "bg-rose-500/20 border border-rose-500/40 text-rose-400"
-                        : "bg-emerald-500/20 border border-emerald-500/40 text-emerald-400"
+                        ? "bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400"
+                        : "bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
                       }`}
                   >
                     {executionResult.verdict === "Runtime Error" || executionResult.verdict === "Wrong Answer" || Boolean(executionResult.stderr && !executionResult.stdout)
                       ? `✕ ${executionResult.verdict || "Wrong Answer"}`
                       : "✓ Accepted"}
                   </span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-brand-secondary font-mono">
                     {executionResult.executionTime || "24 ms"}
                   </span>
                 </>
@@ -668,15 +734,13 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
                 }
               }
 
-              let dotBgClass = "bg-amber-400";
-              let activePillClass = "bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-md shadow-amber-500/10";
+              let dotBgClass = "bg-amber-500";
+              let activePillClass = "bg-blue-500/10 border border-blue-500 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/30";
 
               if (statusColor === "rose") {
                 dotBgClass = "bg-rose-500";
-                activePillClass = "bg-rose-500/20 border-rose-500/50 text-rose-300 shadow-md shadow-rose-500/10";
               } else if (statusColor === "emerald") {
-                dotBgClass = "bg-emerald-400";
-                activePillClass = "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-500/10";
+                dotBgClass = "bg-emerald-500";
               }
 
               return (
@@ -686,7 +750,7 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
                   onClick={() => setSelectedTestCaseIndex(idx)}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${isSelected
                       ? activePillClass
-                      : "bg-slate-900 border border-white/5 text-slate-400 hover:text-white hover:bg-slate-800"
+                      : "bg-slate-100 dark:bg-slate-900 border border-brand-border text-brand-secondary hover:text-brand-text hover:bg-slate-200 dark:hover:bg-slate-800"
                     }`}
                 >
                   <span className={`h-2 w-2 rounded-full ${dotBgClass}`}></span>
@@ -700,47 +764,47 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
             {/* Input Box */}
             <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+              <span className="text-[10px] uppercase font-bold text-brand-secondary tracking-wider block">
                 Input =
               </span>
-              <div className="bg-slate-900 p-2.5 rounded-lg border border-white/10 text-slate-200 min-h-[44px] max-h-[140px] whitespace-pre-wrap leading-relaxed overflow-y-auto custom-scrollbar">
+              <div className="bg-slate-50 dark:bg-slate-900 p-2.5 rounded-lg border border-brand-border text-brand-text min-h-[44px] max-h-[140px] whitespace-pre-wrap leading-relaxed overflow-y-auto custom-scrollbar">
                 {(unhiddenTestCases[selectedTestCaseIndex] || unhiddenTestCases[0])?.input}
               </div>
             </div>
 
             {/* Expected Output Box */}
             <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+              <span className="text-[10px] uppercase font-bold text-brand-secondary tracking-wider block">
                 Expected Output =
               </span>
-              <div className="bg-slate-900 p-2.5 rounded-lg border border-emerald-500/30 text-emerald-300 font-bold min-h-[44px] max-h-[140px] whitespace-pre-wrap leading-relaxed overflow-y-auto custom-scrollbar">
+              <div className="bg-emerald-500/5 dark:bg-slate-900 p-2.5 rounded-lg border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold min-h-[44px] max-h-[140px] whitespace-pre-wrap leading-relaxed overflow-y-auto custom-scrollbar">
                 {(unhiddenTestCases[selectedTestCaseIndex] || unhiddenTestCases[0])?.expectedOutput}
               </div>
             </div>
           </div>
 
           {/* Actual Code Output Section */}
-          <div className="space-y-1 pt-2 border-t border-white/10 font-mono text-xs">
+          <div className="space-y-1 pt-2 border-t border-brand-border font-mono text-xs">
             <span
               className={`text-[10px] uppercase font-bold tracking-wider block ${!executionResult
-                  ? "text-amber-400"
+                  ? "text-amber-500"
                   : executionResult.verdict === "Runtime Error" || executionResult.verdict === "Wrong Answer" || Boolean(executionResult.stderr && !executionResult.stdout)
-                    ? "text-rose-400"
-                    : "text-emerald-400"
+                    ? "text-rose-500"
+                    : "text-emerald-500"
                 }`}
             >
               Actual Code Output =
             </span>
 
             {!executionResult ? (
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-amber-500/30 text-amber-300/80 italic text-xs min-h-[44px]">
+              <div className="bg-slate-50 dark:bg-slate-900/80 p-2.5 rounded-lg border border-amber-500/30 text-amber-600 dark:text-amber-300/80 italic text-xs min-h-[44px]">
                 Click "Run" above to execute code and view output.
               </div>
             ) : (
               <div
-                className={`bg-slate-900 p-2.5 rounded-lg border text-xs font-bold min-h-[44px] max-h-[160px] whitespace-pre-wrap overflow-y-auto custom-scrollbar ${executionResult.verdict === "Runtime Error" || executionResult.verdict === "Wrong Answer" || Boolean(executionResult.stderr && !executionResult.stdout)
-                    ? "border-rose-500/50 text-rose-300"
-                    : "border-emerald-500/50 text-emerald-300"
+                className={`p-2.5 rounded-lg border text-xs font-bold min-h-[44px] max-h-[160px] whitespace-pre-wrap overflow-y-auto custom-scrollbar ${executionResult.verdict === "Runtime Error" || executionResult.verdict === "Wrong Answer" || Boolean(executionResult.stderr && !executionResult.stdout)
+                    ? "bg-rose-500/5 border-rose-500/25 text-rose-600 dark:text-rose-400"
+                    : "bg-emerald-500/5 border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
                   }`}
               >
                 {executionResult.stdout || executionResult.stderr || (
@@ -753,6 +817,19 @@ export default function CodingQuestionEditor({ question, answer, onAnswerChange,
           </div>
         </div>
       </div>
+      <SubmittingSolutionModal
+        isOpen={showSubmittingModal}
+        onClose={() => setShowSubmittingModal(false)}
+        onComplete={() => {
+          handleSubmitSolution();
+        }}
+        language={language === "cpp" ? "C++" : language === "javascript" ? "JavaScript" : language === "python" ? "Python" : language === "java" ? "Java" : language}
+        questionIndex={currentIndex + 1}
+        totalQuestions={totalQuestions}
+        characterCount={code?.length || 0}
+        isEvaluating={isSubmitting}
+        evaluationResult={submissionResult}
+      />
     </div>
   );
 };

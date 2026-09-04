@@ -72,6 +72,34 @@ const answerSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
+    questionAudio: {
+      type: String,
+      default: "",
+    },
+    candidateAudio: {
+      type: String,
+      default: "",
+    },
+    thinkingTime: {
+      type: Number,
+      default: 0,
+    },
+    answerDuration: {
+      type: Number,
+      default: 0,
+    },
+    resumeTopic: {
+      type: String,
+      default: "",
+    },
+    skillEvaluated: {
+      type: String,
+      default: "",
+    },
+    projectDiscussed: {
+      type: String,
+      default: "",
+    },
     status: {
       type: String,
       enum: ["pending", "evaluated"],

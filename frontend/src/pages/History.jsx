@@ -44,7 +44,6 @@ function History() {
       });
       navigate(`/interview/${res.data._id}`);
     } catch (error) {
-      // Offline fallback creation
       const mockId = `demo-${Date.now()}`;
       const fallbackInterview = {
         ...interview,
@@ -89,100 +88,113 @@ function History() {
     currentPage * itemsPerPage
   );
 
-  return (
-    <div className="min-h-screen bg-brand-bg relative overflow-hidden text-brand-text">
-      {/* Background ambient mesh */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-200/15 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-100/15 blur-[120px]" />
-        <div className="absolute top-[35%] right-[20%] w-[35%] h-[35%] rounded-full bg-blue-200/10 blur-[100px]" />
-      </div>
+  // Overall Stats
+  const totalSessions = interviews.length;
+  const completedSessions = interviews.filter(i => (i.answeredCount || 0) >= (i.questionCount || i.questions?.length || 1)).length;
 
+  return (
+    <div className="min-h-screen bg-brand-bg relative overflow-hidden text-brand-text font-sans">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Past performance</p>
-            <h1 className="text-3xl font-black tracking-tight text-brand-text leading-none mt-2">Interview History</h1>
-            <p className="text-xs text-brand-secondary font-semibold mt-1">Review your results, access detailed AI analysis, and retry rounds.</p>
+      <main className="w-full max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+        
+        {/* Header Block */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="space-y-2 max-w-xl">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm border border-[#F59E0B]/30 bg-[#F59E0B]/10 text-[#F59E0B] text-[10px] font-black uppercase tracking-wider select-none">
+              ⚡ Performance Analytics & Records
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-800 dark:text-white">
+              Interview History & Archives
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+              Review your past assessment sessions, access detailed AI metrics, and reattempt technical rounds.
+            </p>
           </div>
-          <span className="shrink-0 rounded-full bg-brand-card border border-brand-border px-3.5 py-1 text-xs font-black text-brand-secondary shadow-sm">
-            {filteredInterviews.length} sessions filtered
-          </span>
+
+          {/* Quick Summary Badges */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="px-3.5 py-2 rounded-sm bg-slate-50 dark:bg-[#070b13] border border-slate-200 dark:border-slate-800 text-center">
+              <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Total Sessions</span>
+              <span className="text-sm font-black text-slate-800 dark:text-white">{totalSessions}</span>
+            </div>
+            <div className="px-3.5 py-2 rounded-sm bg-slate-50 dark:bg-[#070b13] border border-slate-200 dark:border-slate-800 text-center">
+              <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Completed</span>
+              <span className="text-sm font-black text-[#F59E0B]">{completedSessions}</span>
+            </div>
+          </div>
         </div>
 
-
-
-        {/* Search, Filter, Sort Controls */}
-        <section className="mb-8 rounded-2xl border border-brand-border bg-brand-card/80 backdrop-blur-md p-5 shadow-sm">
-          <div className="grid gap-4 md:grid-cols-4">
-            {/* Search Input */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search by role or language..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full rounded-xl border border-brand-border bg-brand-bg/50 px-4 py-2.5 text-sm font-semibold outline-none transition focus:border-blue-500 focus:bg-brand-card focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            {/* Type Filter */}
-            <select
-              value={selectedType}
+        {/* Filter Controls Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          
+          {/* Search Bar */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by role or language..."
+              value={searchTerm}
               onChange={(e) => {
-                setSelectedType(e.target.value);
+                setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="rounded-xl border border-brand-border bg-brand-bg/50 px-4 py-2.5 text-sm font-semibold outline-none transition focus:border-blue-500 focus:bg-brand-card focus:ring-4 focus:ring-blue-100"
-            >
-              <option value="all">All Types</option>
-              <option value="standard">Standard (Text)</option>
-              <option value="video">Video (Speech-to-Text)</option>
-              <option value="code">Code (Monaco IDE)</option>
-              <option value="design">System Design (Canvas)</option>
-            </select>
-
-            {/* Difficulty Filter */}
-            <select
-              value={selectedDifficulty}
-              onChange={(e) => {
-                setSelectedDifficulty(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="rounded-xl border border-brand-border bg-brand-bg/50 px-4 py-2.5 text-sm font-semibold outline-none transition focus:border-blue-500 focus:bg-brand-card focus:ring-4 focus:ring-blue-100"
-            >
-              <option value="all">All Difficulties</option>
-              <option value="Easy">Easy</option>
-              <option value="Medium">Medium</option>
-              <option value="Hard">Hard</option>
-            </select>
-
-            {/* Sort Dropdown */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="rounded-xl border border-brand-border bg-brand-bg/50 px-4 py-2.5 text-sm font-semibold outline-none transition focus:border-blue-500 focus:bg-brand-card focus:ring-4 focus:ring-blue-100"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="role">Role Alphabetical</option>
-              <option value="progress">Most Answered First</option>
-            </select>
+              className="w-full bg-slate-50 dark:bg-[#070b13] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold rounded-sm px-3.5 py-2.5 focus:outline-none focus:border-[#F59E0B] transition-colors"
+            />
           </div>
-        </section>
 
+          {/* Type Filter */}
+          <select
+            value={selectedType}
+            onChange={(e) => {
+              setSelectedType(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full bg-slate-50 dark:bg-[#070b13] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold rounded-sm px-3.5 py-2.5 focus:outline-none focus:border-[#F59E0B] transition-colors cursor-pointer"
+          >
+            <option value="all">All Round Types</option>
+            <option value="standard">Standard Text Round</option>
+            <option value="video">AI Speech / Video Round</option>
+            <option value="code">DSA Coding Workspace</option>
+            <option value="design">System Design Architecture</option>
+          </select>
+
+          {/* Difficulty Filter */}
+          <select
+            value={selectedDifficulty}
+            onChange={(e) => {
+              setSelectedDifficulty(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full bg-slate-50 dark:bg-[#070b13] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold rounded-sm px-3.5 py-2.5 focus:outline-none focus:border-[#F59E0B] transition-colors cursor-pointer"
+          >
+            <option value="all">All Difficulties</option>
+            <option value="Easy">Easy Level</option>
+            <option value="Medium">Medium Level</option>
+            <option value="Hard">Hard Level</option>
+          </select>
+
+          {/* Sort Dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full bg-slate-50 dark:bg-[#070b13] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold rounded-sm px-3.5 py-2.5 focus:outline-none focus:border-[#F59E0B] transition-colors cursor-pointer"
+          >
+            <option value="newest">Sort by Newest</option>
+            <option value="oldest">Sort by Oldest</option>
+            <option value="role">Sort by Role Name</option>
+            <option value="progress">Sort by Most Progress</option>
+          </select>
+        </div>
+
+        {/* Sessions Content Section */}
         {loading ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-border border-t-indigo-600" />
+            <div className="h-8 w-8 animate-spin rounded-sm border-2 border-slate-200 border-t-[#F59E0B]" />
           </div>
         ) : paginatedInterviews.length > 0 ? (
-          <>
-            {/* Grid of interviews */}
+          <div className="space-y-6">
+            
+            {/* Grid of Session Cards */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {paginatedInterviews.map((interview) => {
                 const total = interview.questionCount || interview.questions?.length || 0;
@@ -192,90 +204,98 @@ function History() {
                 return (
                   <div
                     key={interview._id}
-                    className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-brand-border bg-brand-card/80 backdrop-blur-md shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+                    className="flex flex-col justify-between rounded-sm border border-slate-200 dark:border-slate-800 bg-brand-card p-5 shadow-sm transition-all duration-200 hover:border-[#F59E0B]/50 hover:shadow-md space-y-4"
                   >
-                    <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500" />
-                    
-                    <div className="p-6 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="mb-4 flex items-center justify-between">
-                          <span className="rounded-lg bg-indigo-50 border border-indigo-200/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-indigo-700">
-                            {interview.interviewType || "Standard"}
-                          </span>
-                          <span className="text-xs font-bold text-brand-secondary">
-                            {answered}/{total} Answered
-                          </span>
-                        </div>
+                    <div className="space-y-3">
+                      
+                      {/* Top Badges Row */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-sm bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/20">
+                          {interview.interviewType || "Standard"}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {answered}/{total} Answered
+                        </span>
+                      </div>
 
-                        <h3 className="line-clamp-2 text-xl font-black tracking-tight text-brand-text group-hover:text-indigo-650 transition-colors">
+                      {/* Title & Info */}
+                      <div>
+                        <h3 className="line-clamp-1 text-sm font-black text-slate-800 dark:text-white tracking-tight">
                           {interview.role}
                         </h3>
-                        <p className="mt-1 text-xs font-bold text-brand-secondary">
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {interview.difficulty} {interview.language ? `· ${interview.language}` : ""}
                         </p>
+                      </div>
 
-                        {/* Progress Bar */}
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-[10px] font-bold text-brand-secondary mb-1">
-                            <span>Completion</span>
-                            <span>{progressPct}%</span>
-                          </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-brand-bg">
-                            <div
-                              className="h-full rounded-full bg-emerald-500 transition-all duration-300"
-                              style={{ width: `${progressPct}%` }}
-                            />
-                          </div>
+                      {/* Progress Bar */}
+                      <div className="space-y-1 pt-1">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                          <span>Completion</span>
+                          <span className="text-[#F59E0B]">{progressPct}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-sm bg-slate-100 dark:bg-[#070b13] border border-slate-200/50 dark:border-slate-800/50">
+                          <div
+                            className="h-full rounded-sm bg-[#F59E0B] transition-all duration-300"
+                            style={{ width: `${progressPct}%` }}
+                          />
                         </div>
                       </div>
-
-                      <div className="mt-6 grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => navigate(`/interview/${interview._id}/responses`)}
-                          className="rounded-xl border border-brand-border bg-brand-card px-4 py-2.5 text-xs font-black text-brand-text transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:scale-[1.03] active:scale-95 duration-100"
-                        >
-                          Review Report
-                        </button>
-                        <button
-                          onClick={() => handleReattempt(interview)}
-                          className="rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white transition hover:bg-indigo-650 hover:scale-[1.03] active:scale-95 duration-100"
-                        >
-                          Reattempt
-                        </button>
-                      </div>
                     </div>
+
+                    {/* Card Actions */}
+                    <div className="pt-2 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => navigate(`/interview/${interview._id}/responses`)}
+                        className="w-full py-2 rounded-sm border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#070b13] text-[#0F172A] dark:text-slate-200 text-xs font-black uppercase tracking-wider hover:border-slate-400 transition-colors cursor-pointer text-center"
+                      >
+                        Review
+                      </button>
+                      <button
+                        onClick={() => handleReattempt(interview)}
+                        className="w-full py-2 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] text-xs font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
+                      >
+                        Reattempt
+                      </button>
+                    </div>
+
                   </div>
                 );
               })}
             </div>
 
-            {/* Pagination Controls */}
+            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-3 pt-4">
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                  className="rounded-lg border border-brand-border bg-brand-card px-3.5 py-2 text-xs font-black text-brand-secondary transition hover:bg-brand-bg disabled:pointer-events-none disabled:opacity-40 hover:scale-[1.02] active:scale-95 duration-100"
+                  className="px-4 py-2 rounded-sm border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#070b13] text-xs font-black text-slate-700 dark:text-slate-300 disabled:opacity-40 cursor-pointer"
                 >
                   Previous
                 </button>
-                <span className="text-xs font-bold text-brand-secondary">
+                <span className="text-xs font-bold text-slate-500">
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                  className="rounded-lg border border-brand-border bg-brand-card px-3.5 py-2 text-xs font-black text-brand-secondary transition hover:bg-brand-bg disabled:pointer-events-none disabled:opacity-40 hover:scale-[1.02] active:scale-95 duration-100"
+                  className="px-4 py-2 rounded-sm border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#070b13] text-xs font-black text-slate-700 dark:text-slate-300 disabled:opacity-40 cursor-pointer"
                 >
                   Next
                 </button>
               </div>
             )}
-          </>
+
+          </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-250 bg-brand-card/40 p-12 text-center">
-            <h3 className="text-lg font-black text-slate-800">No interviews match your filters</h3>
-            <p className="mt-2 text-xs text-brand-secondary">Try adjusting your keywords, interview types, or difficulties.</p>
+          <div className="py-16 text-center space-y-3">
+            <h3 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-wider">
+              No matching interview sessions found
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold max-w-sm mx-auto">
+              Try adjusting your search terms or clearing your selected filters.
+            </p>
             <button
               onClick={() => {
                 setSearchTerm("");
@@ -283,9 +303,9 @@ function History() {
                 setSelectedDifficulty("all");
                 setCurrentPage(1);
               }}
-              className="mt-4 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-600/10 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 duration-100"
+              className="px-4 py-2.5 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] text-xs font-black uppercase tracking-wider cursor-pointer transition-all"
             >
-              Clear filters
+              Clear Filters
             </button>
           </div>
         )}

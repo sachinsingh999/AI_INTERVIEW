@@ -12,8 +12,10 @@ const codeRoutes = require("./routes/codeRoutes");
 const compilerRoutes = require("./routes/compilerRoutes");
 const potdRoutes = require("./routes/potdRoutes");
 const aptitudeRoutes = require("./routes/aptitudeRoutes");
+const roadmapRoutes = require("./routes/roadmapRoutes");
 
 // ===== Database =====
+
 const connectDB = require("./config/db");
 connectDB();
 
@@ -77,6 +79,7 @@ app.use("/api/code", codeRoutes);
 app.use("/api/compiler", compilerRoutes);
 app.use("/api/potd", potdRoutes);
 app.use("/api/aptitude", aptitudeRoutes);
+app.use("/api/roadmap", roadmapRoutes);
 
 // Error logging middleware
 app.use((err, req, res, next) => {

@@ -5,9 +5,6 @@ import Navbar from "../components/Navbar";
 import { useTheme } from "../context/ThemeContext";
 import Message from "../components/Message";
 import api from "../services/api";
-import { 
-  demoInterviews 
-} from "../utils/demoData";
 import {
   ResponsiveContainer,
   RadarChart,
@@ -57,7 +54,7 @@ function Dashboard() {
   const token = localStorage.getItem("token");
 
   const user = JSON.parse(localStorage.getItem("user")) || null;
-  const userDisplayName = user?.name || "Aman";
+  const userDisplayName = user?.name || "User";
 
   useEffect(() => {
     const fetchHistoryData = async () => {
@@ -67,7 +64,7 @@ function Dashboard() {
       } catch (error) {
         if (error.response?.status === 401) return;
         const localHistory = JSON.parse(sessionStorage.getItem("localInterviews") || "[]");
-        setInterviews([...localHistory, ...demoInterviews]);
+        setInterviews(localHistory);
       }
     };
 
@@ -148,10 +145,10 @@ function Dashboard() {
     ? Math.round(scoredInterviews.reduce((sum, iv) => sum + (iv.score || 0), 0) / scoredInterviews.length)
     : 0; 
 
-  const placementReadiness = overallScore > 0 ? overallScore : 85;
-  const userStreak = streak > 0 ? streak : 12;
-  const currentRating = interviews.length > 0 ? 1200 + overallScore * 5 : 1680;
-  const currentRanking = placementReadiness >= 85 ? "Top 5%" : placementReadiness >= 75 ? "Top 15%" : "Top 25%";
+  const placementReadiness = overallScore;
+  const userStreak = streak;
+  const currentRating = interviews.length > 0 ? 1200 + overallScore * 5 : 0;
+  const currentRanking = interviews.length > 0 ? (placementReadiness >= 85 ? "Top 5%" : placementReadiness >= 75 ? "Top 15%" : "Top 25%") : "Unranked";
 
   // Skill indicators from history
   const dsaCount = interviews.filter(iv => iv.interviewType === "code").length;
@@ -159,10 +156,10 @@ function Dashboard() {
   const systemCount = interviews.filter(iv => (iv.role || "").toLowerCase().includes("backend") || (iv.role || "").toLowerCase().includes("system")).length;
   const standardCount = interviews.filter(iv => iv.interviewType === "standard").length;
 
-  const dsaScore = dsaCount > 0 ? Math.min(70 + dsaCount * 8, 98) : 78;
-  const commScore = videoCount > 0 ? Math.min(65 + videoCount * 10, 98) : 82;
-  const systemDesignScore = systemCount > 0 ? Math.min(60 + systemCount * 12, 98) : 74;
-  const confidenceScore = standardCount > 0 ? Math.min(68 + standardCount * 8, 98) : 80;
+  const dsaScore = dsaCount > 0 ? Math.min(70 + dsaCount * 8, 98) : 0;
+  const commScore = videoCount > 0 ? Math.min(65 + videoCount * 10, 98) : 0;
+  const systemDesignScore = systemCount > 0 ? Math.min(60 + systemCount * 12, 98) : 0;
+  const confidenceScore = standardCount > 0 ? Math.min(68 + standardCount * 8, 98) : 0;
   const problemSolvingScore = Math.round((dsaScore + systemDesignScore) / 2);
   const technicalKnowledgeScore = Math.round((dsaScore + commScore) / 2);
 
@@ -188,20 +185,107 @@ function Dashboard() {
   const hasBackend = activeParent?.phasesMetadata?.tech2?.cleared || false;
   const hasSystemDesign = activeParent?.phasesMetadata?.hr?.cleared || false;
 
+  // Generate active recruitment pipeline nodes dynamically
+  const roadmapNodes = [
+    { key: "oa", label: "OA Round" },
+    { key: "tech1", label: "Technical 1" },
+    { key: "tech2", label: "Technical 2" },
+    { key: "hr", label: "HR Round" }
+  ].map((phase, idx, arr) => {
+    const meta = activeParent?.phasesMetadata?.[phase.key];
+    const completed = meta?.completed || false;
+    const cleared = meta?.cleared || false;
+    
+    let isCurrent = false;
+    if (!completed) {
+      if (idx === 0) {
+        isCurrent = true;
+      } else {
+        const prevKey = arr[idx - 1].key;
+        const prevMeta = activeParent?.phasesMetadata?.[prevKey];
+        if (prevMeta?.cleared) {
+          isCurrent = true;
+        }
+      }
+    }
+    
+    const active = activeParent ? (idx === 0 || activeParent.phasesMetadata?.[arr[idx - 1].key]?.cleared) : false;
+    
+    let status = "Upcoming";
+    if (completed) {
+      status = cleared ? "Passed" : "Failed";
+    } else if (isCurrent && activeParent) {
+      status = "Current";
+    }
+
+    return {
+      label: phase.label,
+      status,
+      active,
+      cleared,
+      current: isCurrent && !!activeParent
+    };
+  });
+
+  // Calculate activeParent completed rounds count and completion percentage dynamically
+  let completedRoundsCount = 0;
+  if (activeParent?.phasesMetadata) {
+    if (activeParent.phasesMetadata.oa?.completed) completedRoundsCount++;
+    if (activeParent.phasesMetadata.tech1?.completed) completedRoundsCount++;
+    if (activeParent.phasesMetadata.tech2?.completed) completedRoundsCount++;
+    if (activeParent.phasesMetadata.hr?.completed) completedRoundsCount++;
+  }
+  const completionPercentage = activeParent ? Math.min(Math.max(completedRoundsCount * 25, 10), 100) : 0;
+
+  // Dynamic recommendations based on user scores
+  const getDynamicRecommendations = () => {
+    const recs = [];
+    if (dsaScore < 75) {
+      recs.push({
+        title: "Focus on Algorithms & DSA",
+        desc: "Your recursion and algorithm competency indices can be improved. Practice binary trees, DFS/BFS and sorting algorithms.",
+        badge: "DSA Practice"
+      });
+    }
+    if (systemDesignScore < 75) {
+      recs.push({
+        title: "Study Scalable Architectures",
+        desc: "Learn load balancer configurations, CDN caching patterns, microservices and relational vs non-relational database design.",
+        badge: "Scalability"
+      });
+    }
+    if (commScore < 75) {
+      recs.push({
+        title: "Practice Behavioral Scenarios",
+        desc: "Build structured answers using the STAR method (Situation, Task, Action, Result) for leadership and behavioral mock scenarios.",
+        badge: "Communication"
+      });
+    }
+    // Fallback default recommendations if scores are high or no interviews taken yet
+    if (recs.length < 3) {
+      recs.push({
+        title: "Configure Next Mock Interview",
+        desc: "Setup and configure a new assessment session targeting your desired role profile to refresh metrics.",
+        badge: "System"
+      });
+    }
+    return recs.slice(0, 3);
+  };
+
   return (
     <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col font-sans antialiased selection:bg-blue-500/20 selection:text-blue-300 transition-colors duration-200">
       
       {/* Smart Navbar Component */}
       <Navbar />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8 mt-2">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 md:space-y-8 mt-2">
         
         {/* SECTION 2 — HERO WELCOME PANEL */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 items-stretch">
                    {/* Left Panel: Welcomer & Stats Cards */}
-          <section className="relative overflow-hidden rounded-lg border border-brand-border bg-brand-card/85 backdrop-blur-md p-6 md:p-7 shadow-sm flex flex-col justify-between">
+          <section className="relative overflow-hidden rounded-sm border border-brand-border bg-brand-card/85 backdrop-blur-md p-6 md:p-7 shadow-sm flex flex-col justify-between">
             {/* Ambient glows */}
-            <div className="absolute top-0 left-0 -ml-16 -mt-16 w-60 h-60 rounded-full bg-blue-500/10 blur-[80px] pointer-events-none" />
+            <div className="absolute top-0 left-0 -ml-16 -mt-16 w-60 h-60 rounded-full bg-amber-500/10 blur-[80px] pointer-events-none" />
             <div className="absolute bottom-0 right-0 -mr-16 -mb-16 w-60 h-60 rounded-full bg-purple-500/10 blur-[80px] pointer-events-none" />
 
             <div className="relative z-10 space-y-4">
@@ -211,22 +295,21 @@ function Dashboard() {
 
               <div>
                 <h1 className="text-3xl md:text-3.5xl font-black tracking-tight text-brand-text">
-                  Welcome Back, <span className="bg-gradient-to-r from-blue-550 via-indigo-500 to-violet-500 dark:from-blue-400 dark:via-indigo-200 dark:to-violet-400 bg-clip-text text-transparent">{userDisplayName}</span> 👏
+                  Welcome Back, <span className="text-amber-600 dark:text-amber-400">{userDisplayName}</span> 👏
                 </h1>
                 <p className="text-xs sm:text-sm text-brand-secondary font-medium mt-1.5 max-w-lg leading-relaxed">
                   Continue building your interview readiness and career growth journey.
                 </p>
               </div>
-
-              {/* Status metric cards row (4 cards) */}
+                            {/* Status metric cards row (4 cards) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
                 {[
                   { title: "Current Rank", value: currentRanking, icon: <Award className="w-4 h-4 text-amber-500" />, trend: true },
-                  { title: "Current Rating", value: currentRating, icon: <Trophy className="w-4 h-4 text-indigo-400" />, trend: true },
+                  { title: "Current Rating", value: currentRating, icon: <Trophy className="w-4 h-4 text-amber-500" />, trend: true },
                   { title: "Daily Streak", value: `${userStreak} Days`, icon: <Zap className="w-4 h-4 text-orange-400" />, trend: true },
-                  { title: "Status", value: "Interview Ready", icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />, trend: false, highlight: true }
+                  { title: "Status", value: interviews.length > 0 ? "Interview Ready" : "Getting Started", icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />, trend: false, highlight: interviews.length > 0 }
                 ].map((card, idx) => (
-                  <div key={idx} className="bg-brand-bg/85 border border-brand-border/60 rounded-md p-3 flex flex-col justify-between h-22.5 shadow-sm hover:border-brand-border/90 transition-all duration-300">
+                  <div key={idx} className="bg-brand-bg/85 border border-brand-border/60 rounded-sm p-3 flex flex-col justify-between h-22.5 shadow-sm hover:border-brand-border/90 transition-all duration-300">
                     <div className="flex items-center justify-between">
                       <div className="p-1 rounded-sm bg-brand-card border border-brand-border/40 text-slate-400">
                         {card.icon}
@@ -238,7 +321,7 @@ function Dashboard() {
                         <span className={`text-[12px] font-black tracking-tight leading-none ${card.highlight ? "text-emerald-500" : "text-brand-text"}`}>
                           {card.value}
                         </span>
-                        {card.trend && (
+                        {card.trend && interviews.length > 0 && (
                           <span className="text-[10px] font-black text-emerald-500 leading-none">↑</span>
                         )}
                       </div>
@@ -248,13 +331,13 @@ function Dashboard() {
               </div>
 
               {/* AI Insight Card */}
-              <div className="bg-brand-bg/45 hover:bg-brand-bg/80 border border-brand-border/50 hover:border-brand-border rounded-md p-3.5 flex items-center justify-between gap-4 transition-all duration-300 group cursor-pointer">
+              <div className="bg-brand-bg/45 hover:bg-brand-bg/80 border border-brand-border/50 hover:border-brand-border rounded-sm p-3.5 flex items-center justify-between gap-4 transition-all duration-300 group cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-500 shrink-0 shadow-[0_0_12px_rgba(139,92,246,0.1)] group-hover:scale-105 transition-transform">
+                  <div className="h-9 w-9 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.1)] group-hover:scale-105 transition-transform">
                     <Sparkles className="w-4.5 h-4.5" />
                   </div>
                   <div>
-                    <span className="text-[8px] font-black text-violet-500 dark:text-violet-400 uppercase tracking-widest block">AI Insight</span>
+                    <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest block">AI Insight</span>
                     <p className="text-[10.5px] font-black text-brand-text mt-0.5">
                       You're outperforming {placementReadiness}% of candidates this week.
                     </p>
@@ -271,7 +354,7 @@ function Dashboard() {
             <div className="flex flex-wrap items-center gap-2.5 mt-4 pt-1 relative z-10">
               <button
                 onClick={() => navigate("/practice")}
-                className="px-4 py-2.5 rounded-md bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-black text-[11px] flex items-center gap-2 transition duration-200 shadow-md shadow-indigo-650/10 hover:shadow-indigo-600/20 active:scale-95 cursor-pointer"
+                className="px-4 py-2.5 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] font-black text-[11px] flex items-center gap-2 transition duration-200 shadow-md cursor-pointer"
               >
                 <Compass className="w-4 h-4" />
                 Continue Interview Journey ➔
@@ -279,7 +362,7 @@ function Dashboard() {
               
               <button
                 onClick={() => navigate("/analytics")}
-                className="px-4 py-2.5 rounded-md bg-brand-bg hover:bg-brand-bg/85 text-brand-text hover:text-white border border-brand-border/80 hover:border-brand-border font-black text-[11px] flex items-center gap-2 transition duration-200 active:scale-95 cursor-pointer"
+                className="px-4 py-2.5 rounded-sm bg-brand-bg hover:bg-brand-bg/85 text-brand-text hover:text-white border border-brand-border/80 hover:border-brand-border font-black text-[11px] flex items-center gap-2 transition duration-200 active:scale-95 cursor-pointer"
               >
                 <Activity className="w-4 h-4" />
                 View Analytics
@@ -346,10 +429,12 @@ function Dashboard() {
                       </linearGradient>
                     </defs>
                   </svg>
-                  <div className="absolute flex flex-col items-center justify-center">
+                  <div className="absolute flex flex-col items-center justify-center text-center px-1">
                     <span className="text-2.5xl font-black text-brand-text leading-none">{placementReadiness}%</span>
                     <span className="text-[8px] font-black text-emerald-500 mt-0.5 uppercase tracking-widest">Ready</span>
-                    <span className="text-[7.5px] font-bold text-emerald-500 mt-1 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">↑ 12% this week</span>
+                    {interviews.length > 0 && (
+                      <span className="text-[7.5px] font-bold text-emerald-500 mt-1 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">↑ active</span>
+                    )}
                   </div>
                 </div>
 
@@ -374,66 +459,67 @@ function Dashboard() {
               </div>
 
               {/* Recruitment Stage tracker card */}
-              <div className="border-t border-brand-border/40 pt-3.5 space-y-3">
-                <div className="flex items-center justify-center gap-1.5 text-brand-secondary text-[9px] font-black uppercase tracking-wider">
-                  <Layers className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Current Recruitment Stage</span>
-                </div>
-                <div className="text-center space-y-0.5">
-                  <h4 className="text-base font-black bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 dark:from-blue-400 dark:via-indigo-200 dark:to-violet-400 bg-clip-text text-transparent">
-                    {activeParent ? activeParent.role : "Frontend Developer"}
-                  </h4>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-blue-500/10 border border-blue-500/20 text-blue-500">
-                    Technical Round 1 ⊙
-                  </span>
-                </div>
-
-                {/* Progress bar slider */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[8px] font-black text-brand-secondary uppercase tracking-wider">
-                    <span>Round 2 of 4</span>
-                    <span>65% Completed</span>
+              {activeParent ? (
+                <div className="border-t border-brand-border/40 pt-3.5 space-y-3">
+                  <div className="flex items-center justify-center gap-1.5 text-brand-secondary text-[9px] font-black uppercase tracking-wider">
+                    <Layers className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Current Recruitment Stage</span>
                   </div>
-                  <div className="w-full bg-brand-bg border border-brand-border/40 rounded-full h-1.5">
-                    <div className="bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 h-full rounded-full transition-all duration-1000" style={{ width: "65%" }} />
+                  <div className="text-center space-y-0.5">
+                    <h4 className="text-base font-black text-indigo-600 dark:text-indigo-400 truncate max-w-full">
+                      {activeParent.role}
+                    </h4>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-blue-500/10 border border-blue-500/20 text-blue-500">
+                      Round {completedRoundsCount + 1} ⊙
+                    </span>
+                  </div>
+
+                  {/* Progress bar slider */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[8px] font-black text-brand-secondary uppercase tracking-wider">
+                      <span>Round {completedRoundsCount} of 4</span>
+                      <span>{completionPercentage}% Completed</span>
+                    </div>
+                    <div className="w-full bg-brand-bg border border-brand-border/40 rounded-full h-1.5">
+                      <div className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-1000" style={{ width: `${completionPercentage}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Horizontal stage roadmap dots */}
+                  <div className="grid grid-cols-4 gap-1 relative pt-1.5">
+                    {/* connector bar */}
+                    <div className="absolute top-[13px] left-6 right-6 h-0.5 bg-brand-border/40 z-0" />
+                    {roadmapNodes.map((node, i) => {
+                      let nodeStyle = "bg-brand-bg border-brand-border/40 text-slate-500";
+                      let statusColor = "text-slate-500";
+                      
+                      if (node.cleared) {
+                        nodeStyle = "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.3)]";
+                        statusColor = "text-emerald-555 dark:text-emerald-400 font-bold";
+                      } else if (node.current) {
+                        nodeStyle = "bg-brand-bg border-2 border-indigo-500 text-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)] animate-pulse";
+                        statusColor = "text-indigo-550 dark:text-indigo-400 font-black";
+                      }
+                      
+                      return (
+                        <div key={i} className="flex flex-col items-center text-center relative z-10 space-y-1">
+                          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[8.5px] ${nodeStyle}`}>
+                            {node.cleared ? "✓" : i + 1}
+                          </div>
+                          <div>
+                            <h5 className="text-[8px] font-black text-brand-text truncate max-w-[65px] sm:max-w-none leading-none">{node.label}</h5>
+                            <span className={`text-[7.5px] font-black uppercase tracking-wider block mt-0.5 ${statusColor}`}>{node.status}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-
-                {/* Horizontal stage roadmap dots */}
-                <div className="grid grid-cols-4 gap-1 relative pt-1.5">
-                  {/* connector bar */}
-                  <div className="absolute top-[13px] left-6 right-6 h-0.5 bg-brand-border/40 z-0" />
-                  {[
-                    { label: "OA Round", status: "Passed", active: true, cleared: true, current: false },
-                    { label: "Technical 1", status: "Passed", active: true, cleared: true, current: false },
-                    { label: "Technical 2", status: "Current", active: true, cleared: false, current: true },
-                    { label: "HR Round", status: "Upcoming", active: false, cleared: false, current: false }
-                  ].map((node, i) => {
-                    let nodeStyle = "bg-brand-bg border-brand-border/40 text-slate-500";
-                    let statusColor = "text-slate-500";
-                    
-                    if (node.cleared) {
-                      nodeStyle = "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.3)]";
-                      statusColor = "text-emerald-555 dark:text-emerald-400 font-bold";
-                    } else if (node.current) {
-                      nodeStyle = "bg-brand-bg border-2 border-indigo-500 text-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)] animate-pulse";
-                      statusColor = "text-indigo-500 font-black";
-                    }
-                    
-                    return (
-                      <div key={i} className="flex flex-col items-center text-center relative z-10 space-y-1">
-                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[8.5px] ${nodeStyle}`}>
-                          {node.cleared ? "✓" : i + 1}
-                        </div>
-                        <div>
-                          <h5 className="text-[8px] font-black text-brand-text truncate max-w-[65px] sm:max-w-none leading-none">{node.label}</h5>
-                          <span className={`text-[7.5px] font-black uppercase tracking-wider block mt-0.5 ${statusColor}`}>{node.status}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+              ) : (
+                <div className="border-t border-brand-border/40 pt-3.5 text-center py-4">
+                  <span className="text-[10px] text-brand-secondary font-medium">No active recruitment pipeline</span>
                 </div>
-              </div>
+              )}
             </div>
           </section>
         </div>
@@ -443,35 +529,35 @@ function Dashboard() {
           {[
             { 
               title: "Questions Solved", 
-              metric: totalAnswered > 0 ? totalAnswered : 42, 
-              trend: "+8% vs last week", 
+              metric: totalAnswered, 
+              trend: interviews.length > 0 ? `+${Math.max(1, Math.round(totalAnswered * 0.1))} solved recently` : "No solved questions", 
               icon: <Code2 className="w-4 h-4 text-emerald-500" />,
               color: "green",
-              sparkPoints: "M0 25 C10 20, 20 10, 30 22 C40 34, 50 5, 60 18 C70 31, 80 8, 90 20 L100 12" 
+              sparkPoints: interviews.length > 0 ? "M0 25 C10 20, 20 10, 30 22 C40 34, 50 5, 60 18 C70 31, 80 8, 90 20 L100 12" : "M0 15 L100 15" 
             },
             { 
               title: "Sessions Completed", 
-              metric: completedInterviews > 0 ? completedInterviews : 8, 
-              trend: "+3 vs last month", 
+              metric: completedInterviews, 
+              trend: interviews.length > 0 ? `+${completedInterviews} completed` : "No sessions completed", 
               icon: <Video className="w-4 h-4 text-blue-500" />,
               color: "blue",
-              sparkPoints: "M0 15 C15 5, 25 25, 45 10 C60 5, 70 30, 85 15 L100 28" 
+              sparkPoints: interviews.length > 0 ? "M0 15 C15 5, 25 25, 45 10 C60 5, 70 30, 85 15 L100 28" : "M0 15 L100 15" 
             },
             { 
               title: "Current Rating", 
               metric: currentRating, 
-              trend: "+45 pts today", 
+              trend: interviews.length > 0 ? `+${Math.round(overallScore * 0.5)} rating points` : "Rating inactive", 
               icon: <Trophy className="w-4 h-4 text-purple-500" />,
               color: "purple",
-              sparkPoints: "M0 30 C20 28, 40 15, 60 22 C70 5, 80 12, 90 2 L100 5" 
+              sparkPoints: interviews.length > 0 ? "M0 30 C20 28, 40 15, 60 22 C70 5, 80 12, 90 2 L100 5" : "M0 15 L100 15" 
             },
             { 
               title: "Current Ranking", 
               metric: currentRanking, 
-              trend: "+1.8% rank gain", 
+              trend: interviews.length > 0 ? `Active in ${currentRanking}` : "Unranked", 
               icon: <Activity className="w-4 h-4 text-amber-500" />,
               color: "yellow",
-              sparkPoints: "M0 5 C15 15, 30 22, 50 8 C65 25, 80 10, 95 20 L100 15" 
+              sparkPoints: interviews.length > 0 ? "M0 5 C15 15, 30 22, 50 8 C65 25, 80 10, 95 20 L100 15" : "M0 15 L100 15" 
             }
           ].map((card, i) => (
             <div 
@@ -556,34 +642,34 @@ function Dashboard() {
                 desc: "Configure and launch a custom practice round.", 
                 icon: <Zap className="w-5 h-5 text-blue-500 group-hover:rotate-12 transition-transform duration-300" />, 
                 path: "/create-interview",
-                color: "from-blue-600/10 via-indigo-600/5 to-transparent border-blue-500/15 hover:border-blue-500/45 dark:from-blue-650/15 dark:via-indigo-650/10 dark:to-transparent"
+                color: "bg-blue-500/5 border-blue-500/15 hover:border-blue-500/45 dark:bg-blue-950/15 dark:border-blue-900/35"
               },
               { 
                 title: "Continue Last Session", 
                 desc: interviews[0] ? `Resume preparation for ${interviews[0].role.substring(0, 12)}...` : "Jump back to active practice.", 
                 icon: <Clock className="w-5 h-5 text-indigo-500 group-hover:-rotate-12 transition-transform" />, 
                 path: "/practice",
-                color: "from-indigo-600/10 via-purple-600/5 to-transparent border-indigo-500/15 hover:border-indigo-500/45 dark:from-indigo-650/15 dark:via-purple-650/10 dark:to-transparent"
+                color: "bg-indigo-500/5 border-indigo-500/15 hover:border-indigo-500/45 dark:bg-indigo-950/15 dark:border-indigo-900/35"
               },
               { 
                 title: "AI Career Coach", 
                 desc: "Analyze resume feedback, insights and scoring logs.", 
                 icon: <Sparkles className="w-5 h-5 text-violet-500" />, 
                 path: "/practice",
-                color: "from-violet-600/10 via-purple-600/5 to-transparent border-violet-500/15 hover:border-violet-500/45 dark:from-violet-650/15 dark:via-purple-650/10 dark:to-transparent"
+                color: "bg-violet-500/5 border-violet-500/15 hover:border-violet-500/45 dark:bg-violet-950/15 dark:border-violet-900/35"
               },
               { 
                 title: "Performance Report", 
                 desc: "Review comprehensive radar charts and AI feedback reports.", 
                 icon: <Activity className="w-5 h-5 text-pink-500" />, 
                 path: "/analytics",
-                color: "from-pink-600/10 via-red-600/5 to-transparent border-pink-500/15 hover:border-pink-500/45 dark:from-pink-650/15 dark:via-red-650/10 dark:to-transparent"
+                color: "bg-pink-500/5 border-pink-500/15 hover:border-pink-500/45 dark:bg-pink-950/15 dark:border-pink-900/35"
               }
             ].map((action, i) => (
               <button
                 key={i}
                 onClick={() => navigate(action.path)}
-                className={`p-5 rounded-md border text-left bg-gradient-to-br ${action.color} flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-1 hover:shadow-sm group cursor-pointer relative overflow-hidden`}
+                className={`p-5 rounded-md border text-left ${action.color} flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-1 hover:shadow-sm group cursor-pointer relative overflow-hidden`}
               >
                 <div className="p-2 rounded bg-brand-bg/85 border border-brand-border/40 w-fit shadow-sm">
                   {action.icon}
@@ -682,12 +768,12 @@ function Dashboard() {
             <h3 className="text-sm font-black text-brand-text mb-4">Achievements</h3>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { title: `${interviews.length} Completed`, label: "Interviews Completed", desc: "Total prep sessions", color: "from-blue-500/10 to-indigo-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20" },
-                { title: `${completedInterviews} Cleared`, label: "Rounds Cleared", desc: "100% submission rate", color: "from-emerald-500/10 to-teal-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20" },
-                { title: "Top 15%", label: "Top Ranking", desc: "Global ranking", color: "from-purple-500/10 to-pink-500/10 text-purple-500 dark:text-purple-400 border-purple-500/20" },
-                { title: `${userStreak} Days`, label: "Longest Streak", desc: "Daily practice streak", color: "from-amber-500/10 to-orange-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" }
+                { title: `${interviews.length} Completed`, label: "Interviews Completed", desc: "Total prep sessions", color: "bg-blue-500/5 text-blue-600 dark:text-blue-400 border-blue-500/20" },
+                { title: `${completedInterviews} Cleared`, label: "Rounds Cleared", desc: "100% submission rate", color: "bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
+                { title: currentRanking, label: "Top Ranking", desc: "Global ranking", color: "bg-purple-500/5 text-purple-600 dark:text-purple-400 border-purple-500/20" },
+                { title: `${userStreak} Days`, label: "Longest Streak", desc: "Daily practice streak", color: "bg-amber-500/5 text-amber-600 dark:text-amber-400 border-amber-500/20" }
               ].map((ach, idx) => (
-                <div key={idx} className={`bg-gradient-to-br ${ach.color} border p-3 rounded-md flex flex-col justify-between h-26 shadow-sm`}>
+                <div key={idx} className={`bg-brand-card ${ach.color} border p-3 rounded-md flex flex-col justify-between h-26 shadow-sm`}>
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-black tracking-tight">{ach.title}</span>
                     <Award className="w-4 h-4 opacity-75" />
@@ -712,23 +798,7 @@ function Dashboard() {
             </div>
 
             <div className="space-y-3.5 my-4">
-              {[
-                { 
-                  title: "Focus on Dynamic Programming", 
-                  desc: "Your recursion and state-memoization indices were slightly lower on target algorithms.", 
-                  badge: "DSA Practice" 
-                },
-                { 
-                  title: "Improve System Design Fundamentals", 
-                  desc: "Learn load balancer configurations, reverse proxy, and CDN caching patterns.", 
-                  badge: "Scalability" 
-                },
-                { 
-                  title: "Practice Behavioral Mock Scenarios", 
-                  desc: "Incorporate Amazon's Leadership Principles in communication answer sequences.", 
-                  badge: "Communication" 
-                }
-              ].map((rec, i) => (
+              {getDynamicRecommendations().map((rec, i) => (
                 <div key={i} className="flex gap-3 bg-brand-bg/45 p-3 rounded-md border border-brand-border/40 hover:border-brand-border transition duration-200">
                   <div className="h-6 w-6 rounded bg-violet-500/10 flex items-center justify-center shrink-0 border border-violet-500/20 text-violet-500 font-bold text-xs">
                     {i + 1}
@@ -746,7 +816,7 @@ function Dashboard() {
 
             <button 
               onClick={() => navigate("/practice")}
-              className="w-full py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white rounded-md font-black text-xs transition duration-150 cursor-pointer shadow-md shadow-indigo-650/15"
+               className="w-full py-2 bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] rounded-sm font-black text-xs transition duration-150 cursor-pointer shadow-md"
             >
               Start Recommended Action ➔
             </button>
@@ -768,13 +838,13 @@ function Dashboard() {
               { name: "Microsoft", offset: 2, focus: "OOP & Architecture", gap: "Thread safety", color: "border-cyan-500/25 hover:border-cyan-500 bg-cyan-500/5" },
               { name: "Netflix", offset: -12, focus: "Scalability & Design", gap: "HLS video streaming", color: "border-rose-500/25 hover:border-rose-500 bg-rose-500/5" }
             ].map((comp, idx) => {
-              const compScore = overallScore > 0 ? Math.min(Math.max(overallScore + comp.offset, 30), 99) : 80 + comp.offset;
+              const compScore = overallScore > 0 ? Math.min(Math.max(overallScore + comp.offset, 0), 99) : 0;
               return (
-                <div key={idx} className={`bg-brand-card border ${comp.color} rounded-md p-4.5 flex flex-col justify-between h-48 transition-all duration-300 hover:-translate-y-1 hover:shadow-sm group`}>
+                <div key={idx} className={`bg-brand-card border ${comp.color} rounded-sm p-4.5 flex flex-col justify-between h-48 transition-all duration-300 hover:-translate-y-1 hover:shadow-sm group`}>
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="text-[9px] font-black text-brand-secondary uppercase tracking-widest">{comp.name}</h4>
-                      <h3 className="text-xs.5 sm:text-xs font-black text-brand-text mt-1 group-hover:text-blue-500 transition-colors">{comp.focus}</h3>
+                      <h3 className="text-xs.5 sm:text-xs font-black text-brand-text mt-1 group-hover:text-amber-500 transition-colors">{comp.focus}</h3>
                     </div>
                     <div className="text-right">
                       <span className="text-[8px] text-brand-secondary font-black uppercase tracking-wider block">Score</span>
@@ -789,7 +859,7 @@ function Dashboard() {
                   
                   <button
                     onClick={startNewInterview}
-                    className="w-full py-2 bg-brand-bg/80 hover:bg-indigo-600 text-brand-text hover:text-white border border-brand-border/40 hover:border-indigo-600 rounded-md font-black text-[10px] transition-all cursor-pointer shadow-sm active:scale-95"
+                    className="w-full py-2 bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] border border-[#F59E0B]/30 rounded-sm font-black text-[10px] transition-all cursor-pointer shadow-sm active:scale-95"
                   >
                     Start Mock Interview
                   </button>
@@ -800,92 +870,112 @@ function Dashboard() {
         </section>
 
         {/* SECTION 9 — ACTIVE RECRUITMENT PIPELINE */}
-        <section className="bg-brand-card border border-brand-border rounded-lg p-6 shadow-sm transition-all duration-300">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h3 className="text-sm font-black text-brand-text">
-                {activeParent ? `Active Recruitment Pipeline: ${activeParent.role}` : "Active Recruitment Pipeline: Frontend Developer"}
-              </h3>
-              <p className="text-[11px] text-brand-secondary font-medium mt-0.5">
-                Track your recruitment progression, review round evaluations, and resume outstanding stages.
-              </p>
-            </div>
-            {activeParent && (
-              <button
-                onClick={() => navigate(`/interview/${activeParent._id}/lobby`)}
-                className="px-4 py-2 rounded-md bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-650 hover:from-blue-550 hover:to-violet-550 text-white font-black text-xs transition duration-150 shadow-md shadow-indigo-650/15 cursor-pointer self-start sm:self-center"
-              >
-                Resume Interview Journey ➔
-              </button>
-            )}
-          </div>
+        <section className="bg-brand-card border border-brand-border rounded-sm p-6 shadow-sm transition-all duration-300">
+          {activeParent ? (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-sm font-black text-brand-text">
+                    Active Recruitment Pipeline: {activeParent.role}
+                  </h3>
+                  <p className="text-[11px] text-brand-secondary font-medium mt-0.5">
+                    Track your recruitment progression, review round evaluations, and resume outstanding stages.
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate(`/interview/${activeParent._id}/lobby`)}
+                  className="px-4 py-2 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] font-black text-xs transition duration-150 shadow-md cursor-pointer self-start sm:self-center"
+                >
+                  Resume Interview Journey ➔
+                </button>
+              </div>
 
-          <div className="relative pt-2 pb-6">
-            {/* Animated horizontal connecter */}
-            <div className="hidden md:block absolute top-[23px] left-12 right-12 h-1 bg-brand-bg border-t border-b border-brand-border/45 z-0 rounded-full" />
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
-              {[
-                { key: "oa", label: "1. OA Round", desc: "Written Cognitive & Coding" },
-                { key: "tech1", label: "2. Technical Round 1", desc: "DSA & Interactive Live IDE" },
-                { key: "tech2", label: "3. Technical Round 2", desc: "System Design & Architecture" },
-                { key: "hr", label: "4. HR Round", desc: "Behavioral & Culture Fit" }
-              ].map((round, idx) => {
-                const metadata = activeParent?.phasesMetadata?.[round.key] || { completed: false, cleared: false, pending: false, score: 0 };
+              <div className="relative pt-2 pb-6">
+                {/* Animated horizontal connecter */}
+                <div className="hidden md:block absolute top-[23px] left-12 right-12 h-1 bg-brand-bg border-t border-b border-brand-border/45 z-0 rounded-full" />
                 
-                // Lock logic
-                let unlocked = false;
-                if (round.key === "oa") unlocked = true;
-                else if (round.key === "tech1") unlocked = activeParent?.phasesMetadata?.oa?.cleared || false;
-                else if (round.key === "tech2") unlocked = activeParent?.phasesMetadata?.tech1?.cleared || false;
-                else if (round.key === "hr") unlocked = activeParent?.phasesMetadata?.tech2?.cleared || false;
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
+                  {[
+                    { key: "oa", label: "1. OA Round", desc: "Written Cognitive & Coding" },
+                    { key: "tech1", label: "2. Technical Round 1", desc: "DSA & Interactive Live IDE" },
+                    { key: "tech2", label: "3. Technical Round 2", desc: "System Design & Architecture" },
+                    { key: "hr", label: "4. HR Round", desc: "Behavioral & Culture Fit" }
+                  ].map((round, idx) => {
+                    const metadata = activeParent?.phasesMetadata?.[round.key] || { completed: false, cleared: false, pending: false, score: 0 };
+                    
+                    // Lock logic
+                    let unlocked = false;
+                    if (round.key === "oa") unlocked = true;
+                    else if (round.key === "tech1") unlocked = activeParent?.phasesMetadata?.oa?.cleared || false;
+                    else if (round.key === "tech2") unlocked = activeParent?.phasesMetadata?.tech1?.cleared || false;
+                    else if (round.key === "hr") unlocked = activeParent?.phasesMetadata?.tech2?.cleared || false;
 
-                let badgeColor = "text-slate-500 bg-brand-bg/40 border border-brand-border/40";
-                let stateText = "Locked 🔒";
-                let checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-500";
+                    let badgeColor = "text-slate-500 bg-brand-bg/40 border border-brand-border/40";
+                    let stateText = "Locked 🔒";
+                    let checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-500";
 
-                if (!unlocked) {
-                  stateText = "Locked 🔒";
-                  badgeColor = "text-slate-500 bg-brand-bg/40 border border-brand-border/40";
-                  checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-500";
-                } else if (metadata.completed) {
-                  if (metadata.pending) {
-                    stateText = "Under Review ⏳";
-                    badgeColor = "text-amber-500 bg-amber-500/10 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.05)]";
-                    checkGlow = "border-amber-500/30 bg-amber-500/10 text-amber-500";
-                  } else if (metadata.cleared) {
-                    stateText = round.key === "hr" ? "Hired 🎉" : "Passed ✓";
-                    badgeColor = "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.05)]";
-                    checkGlow = "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 animate-pulse";
-                  } else {
-                    stateText = "Failed ❌";
-                    badgeColor = "text-rose-500 bg-rose-500/10 border border-rose-500/20";
-                    checkGlow = "border-rose-500/30 bg-rose-500/10 text-rose-500";
-                  }
-                } else {
-                  stateText = "Available 📅";
-                  badgeColor = "text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 shadow-[0_0_8px_rgba(99,102,241,0.05)]";
-                  checkGlow = "border-indigo-500/30 bg-indigo-500/10 text-indigo-550 dark:text-indigo-400 animate-bounce";
-                }
+                    if (!unlocked) {
+                      stateText = "Locked 🔒";
+                      badgeColor = "text-slate-500 bg-brand-bg/40 border border-brand-border/40";
+                      checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-500";
+                    } else if (metadata.completed) {
+                      if (metadata.pending) {
+                        stateText = "Under Review ⏳";
+                        badgeColor = "text-amber-500 bg-amber-500/10 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.05)]";
+                        checkGlow = "border-amber-500/30 bg-amber-500/10 text-amber-500";
+                      } else if (metadata.cleared) {
+                        stateText = round.key === "hr" ? "Hired 🎉" : "Passed ✓";
+                        badgeColor = "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.05)]";
+                        checkGlow = "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 animate-pulse";
+                      } else {
+                        stateText = "Failed ❌";
+                        badgeColor = "text-rose-500 bg-rose-500/10 border border-rose-500/20";
+                        checkGlow = "border-rose-500/30 bg-rose-500/10 text-rose-500";
+                      }
+                    } else {
+                      stateText = "Available 📅";
+                      badgeColor = "text-amber-600 bg-amber-500/10 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.05)]";
+                      checkGlow = "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-bounce";
+                    }
 
-                return (
-                  <div key={idx} className="flex flex-col items-center text-center space-y-3 bg-brand-bg/45 p-4.5 rounded-md border border-brand-border/40">
-                    {/* Ring timeline connector node */}
-                    <div className={`h-11 w-11 rounded-full flex items-center justify-center border shadow-sm shrink-0 z-10 ${checkGlow}`}>
-                      <span className="text-xs font-black">{idx + 1}</span>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-brand-text">{round.label}</h4>
-                      <p className="text-[9px] text-brand-secondary font-semibold mt-0.5 leading-tight">{round.desc}</p>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[8.5px] font-black uppercase tracking-wider mt-2.5 ${badgeColor}`}>
-                        {stateText}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                    return (
+                      <div key={idx} className="flex flex-col items-center text-center space-y-3 bg-brand-bg/45 p-4.5 rounded-sm border border-brand-border/40">
+                        {/* Ring timeline connector node */}
+                        <div className={`h-11 w-11 rounded-full flex items-center justify-center border shadow-sm shrink-0 z-10 ${checkGlow}`}>
+                          <span className="text-xs font-black">{idx + 1}</span>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-brand-text">{round.label}</h4>
+                          <p className="text-[9px] text-brand-secondary font-semibold mt-0.5 leading-tight">{round.desc}</p>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[8.5px] font-black uppercase tracking-wider mt-2.5 ${badgeColor}`}>
+                            {stateText}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="py-8 text-center max-w-md mx-auto space-y-3">
+              <div className="h-10 w-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mx-auto">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-brand-text">No Active Recruitment Pipeline</h3>
+                <p className="text-xs text-brand-secondary font-medium leading-relaxed">
+                  Start an interview assessment to automatically generate and track your recruitment timeline here.
+                </p>
+              </div>
+              <button
+                onClick={startNewInterview}
+                className="px-4 py-2 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] font-black text-xs transition duration-150 shadow-md cursor-pointer"
+              >
+                Configure Interview Assessment
+              </button>
             </div>
-          </div>
+          )}
         </section>
 
         {/* SECTION 10 — RECENT INTERVIEWS FEED */}
@@ -895,7 +985,7 @@ function Dashboard() {
             <p className="text-xs text-brand-secondary font-medium mt-0.5">Review history of standard sessions, score reports and evaluations.</p>
           </div>
           
-          <div className="overflow-hidden rounded-md border border-brand-border bg-brand-card p-1 shadow-sm">
+          <div className="overflow-hidden rounded-sm border border-brand-border bg-brand-card p-1 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
@@ -929,14 +1019,14 @@ function Dashboard() {
                       <tr key={iv._id || idx} className="hover:bg-brand-bg/30 transition-colors font-medium">
                         <td className="py-3 px-4 font-bold text-brand-text flex items-center gap-2">
                           <div className="h-6 w-6 rounded-sm bg-brand-bg border border-brand-border/40 flex items-center justify-center shrink-0">
-                            <Code2 className="w-3.5 h-3.5 text-blue-500" />
+                            <Code2 className="w-3.5 h-3.5 text-amber-500" />
                           </div>
                           {iv.role}
                         </td>
                         <td className="py-3 px-4 text-brand-secondary font-bold uppercase text-[10px] tracking-wider">{iv.difficulty}</td>
                         <td className="py-3 px-4 text-brand-secondary font-bold">{formatDate(iv.createdAt)}</td>
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider ${statusColor}`}>
+                          <span className={`px-2 py-0.5 rounded-sm text-[8.5px] font-black uppercase tracking-wider ${statusColor}`}>
                             {status}
                           </span>
                         </td>
@@ -945,7 +1035,7 @@ function Dashboard() {
                           {isCompleted ? (
                             <button
                               onClick={() => navigate(`/interview/${iv._id}/responses`)}
-                              className="px-3.5 py-1.5 bg-brand-bg hover:bg-brand-bg/85 text-brand-text rounded border border-brand-border/40 transition-colors cursor-pointer"
+                              className="px-3.5 py-1.5 bg-brand-bg hover:bg-brand-bg/85 text-brand-text rounded-sm border border-brand-border/40 transition-colors cursor-pointer"
                             >
                               View Analysis
                             </button>
@@ -958,7 +1048,7 @@ function Dashboard() {
                                   navigate(`/interview/${iv._id}`);
                                 }
                               }}
-                              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors cursor-pointer shadow-sm shadow-indigo-650/15"
+                              className="px-3.5 py-1.5 bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] font-bold rounded-sm transition-colors cursor-pointer shadow-sm"
                             >
                               Resume
                             </button>
@@ -984,7 +1074,7 @@ function Dashboard() {
 
       {/* SECTION 11 — FOOTER */}
       <footer className="bg-brand-bg border-t border-brand-border px-6.5 py-6 mt-12 transition-colors duration-150">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] font-black uppercase tracking-wider text-brand-secondary">
+        <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] font-black uppercase tracking-wider text-brand-secondary">
           <p>© 2026 Evalora AI. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="#" className="hover:text-brand-text transition-colors">Privacy Policy</a>

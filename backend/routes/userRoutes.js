@@ -7,6 +7,7 @@ const {
   registerUser,
   loginUser,
   getProfile,
+  updateProfileController,
   analyzeResumeController,
   getAllUsers,
   getSystemStats,
@@ -24,7 +25,9 @@ router.post("/login", loginUser);
 
 // ===== Protected Routes =====
 router.get("/profile", protect, getProfile);
+router.put("/profile", protect, updateProfileController);
 router.post("/analyze-resume", protect, analyzeResumeController);
+
 router.get("/notifications", protect, getUserNotifications);
 router.put("/notifications/:id/read", protect, markNotificationRead);
 

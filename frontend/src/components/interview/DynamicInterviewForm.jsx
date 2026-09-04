@@ -336,9 +336,8 @@ export default function DynamicInterviewForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full relative flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-sm font-black text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:shadow-[0_0_40px_rgba(99,102,241,0.6)] hover:scale-[1.01] active:scale-98 transition duration-200 cursor-pointer overflow-hidden group"
+          className="w-full relative flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-sm font-black text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:scale-[1.01] active:scale-98 transition duration-200 cursor-pointer overflow-hidden group"
         >
-          <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out" />
           <Send className="h-4 w-4 shrink-0 group-hover:rotate-12 transition-transform duration-300" />
           <span>Generate Interview</span>
         </button>

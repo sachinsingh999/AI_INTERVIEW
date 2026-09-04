@@ -110,8 +110,7 @@ export default function AptitudeDashboard() {
 
   // Open Analysis Modal
   const openAnalysis = (session) => {
-    setSelectedSessionForModal(session);
-    setShowAnalysisModal(true);
+    navigate(`/practice/aptitude/${session._id}`);
   };
 
   const activeSessions = sessions.filter(s => s.status === "ongoing");
@@ -121,7 +120,7 @@ export default function AptitudeDashboard() {
     <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col font-sans transition-colors duration-200">
       <Navbar />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         {/* Header Block */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-brand-border pb-6">

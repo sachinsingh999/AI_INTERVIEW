@@ -1,49 +1,80 @@
 @import "tailwindcss";
 
-@variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #F8FAFC;
   --foreground: #0F172A;
   --card: #FFFFFF;
+  --card-elevated: #F1F5F9;
+  --sidebar: #FFFFFF;
+  --input-bg: #F1F5F9;
   --border: #E2E8F0;
-  --primary: #2563EB;
-  --secondary-text: #64748B;
-  --table-zebra: #F1F5F9;
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --secondary: #7C3AED;
+  --body-text: #334155;
+  --muted-text: #64748B;
+  --disabled-text: #94A3B8;
 
   --bg-color: var(--background);
   --card-color: var(--card);
   --border-color: var(--border);
   --primary-color: var(--primary);
   --text-primary: var(--foreground);
-  --text-secondary: var(--secondary-text);
+  --text-secondary: var(--muted-text);
   
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-thumb: #CBD5E1;
+  --scrollbar-thumb-hover: #94A3B8;
 }
 
 .dark {
-  --background: #070b13;
-  --foreground: #FFFFFF;
-  --card: #020617;
-  --border: #1F2937;
-  --primary: #3B82F6;
-  --secondary-text: #94A3B8;
-  --table-zebra: #161F30;
-  
-  --scrollbar-thumb: #334155;
+  --background: #0B1120;
+  --foreground: #F8FAFC;
+  --card: #111827;
+  --card-elevated: #172033;
+  --sidebar: #0F172A;
+  --input-bg: #0F172A;
+  --border: #1E293B;
+  --primary: #6366F1;
+  --primary-hover: #818CF8;
+  --secondary: #8B5CF6;
+  --body-text: #CBD5E1;
+  --muted-text: #94A3B8;
+  --disabled-text: #475569;
+
+  --bg-color: var(--background);
+  --card-color: var(--card);
+  --border-color: var(--border);
+  --primary-color: var(--primary);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-text);
+
+  --scrollbar-thumb: #1E293B;
   --scrollbar-thumb-hover: #475569;
 }
 
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-outfit: "Outfit", sans-serif;
   --color-brand-bg: var(--background);
   --color-brand-card: var(--card);
+  --color-brand-elevated: var(--card-elevated);
+  --color-brand-sidebar: var(--sidebar);
+  --color-brand-input: var(--input-bg);
   --color-brand-border: var(--border);
   --color-brand-primary: var(--primary);
+  --color-brand-primary-hover: var(--primary-hover);
+  --color-brand-secondary: var(--secondary);
   --color-brand-text: var(--foreground);
-  --color-brand-secondary: var(--secondary-text);
-  --color-brand-zebra: var(--table-zebra);
+  --color-brand-body: var(--body-text);
+  --color-brand-muted: var(--muted-text);
+  --color-brand-disabled: var(--disabled-text);
+}
+
+.font-brand-logo {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.025em;
 }
 
 body {
@@ -60,8 +91,9 @@ body {
 body,
 #root {
   color-scheme: light;
-  background-color: #F8FAFC;
-  color: #0F172A;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  overflow-x: hidden;
 }
 
 /* DARK MODE GLOBAL RULES */
@@ -69,8 +101,8 @@ body,
 :root.dark body,
 :root.dark #root {
   color-scheme: dark;
-  background-color: #070b13;
-  color: #FFFFFF;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
 }
 
 ::selection {
@@ -148,7 +180,7 @@ body,
   height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: var(--color-brand-bg);
+  background: transparent;
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -158,3 +190,45 @@ body,
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Responsive Wizard/Setup Card Elements Overrides */
+.bg-brand-card input:not([type="checkbox"]):not([type="radio"]),
+.bg-brand-card textarea {
+  border-color: var(--border-color) !important;
+  background-color: var(--bg-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.bg-brand-card .border-white\/10,
+.bg-brand-card .border-white\/5 {
+  border-color: var(--border-color) !important;
+}
+
+.bg-brand-card .bg-slate-900\/65,
+.bg-brand-card .bg-slate-900\/60,
+.bg-brand-card .bg-slate-900\/50,
+.bg-brand-card .bg-slate-900\/40,
+.bg-brand-card .bg-slate-900 {
+  background-color: var(--bg-color) !important;
+}
+
+.bg-brand-card .text-white,
+.bg-brand-card .text-slate-200 {
+  color: var(--text-primary) !important;
+}
+
+.bg-brand-card .text-slate-300,
+.bg-brand-card .text-slate-400 {
+  color: var(--secondary-text) !important;
+}
+
+

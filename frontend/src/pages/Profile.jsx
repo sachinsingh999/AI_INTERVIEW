@@ -1,9 +1,37 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { 
+  MapPin, 
+  GraduationCap, 
+  Link as LinkIcon, 
+  Pencil, 
+  Code2, 
+  Star, 
+  Target, 
+  Flame, 
+  Trophy, 
+  Shield, 
+  Rocket, 
+  Bookmark, 
+  CheckCircle2, 
+  Quote, 
+  X, 
+  ArrowRight,
+  LayoutDashboard,
+  Activity,
+  Sparkles,
+  Calendar,
+  BarChart3,
+  Wrench,
+  Award,
+  FileText,
+  UploadCloud
+} from "lucide-react";
 import { toast } from "../utils/toast";
 import Navbar from "../components/Navbar";
 import Message from "../components/Message";
+import ContributionHeatmap from "../components/ContributionHeatmap";
 import api from "../services/api";
-import { demoProfile } from "../utils/demoData";
 
 const loadPdfJs = () => {
   return new Promise((resolve, reject) => {
@@ -42,38 +70,140 @@ const extractTextFromTxt = (file) => {
   });
 };
 
-function Profile() {
-  const [profile, setProfile] = useState(null);
+export default function Profile() {
+  const navigate = useNavigate();
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
 
-  // Resume uploading & parsing states
+  // Edit Profile Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editEducation, setEditEducation] = useState("");
+  const [editWebsite, setEditWebsite] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Skill Add Input State
+  const [showSkillInput, setShowSkillInput] = useState(false);
+  const [newSkillInput, setNewSkillInput] = useState("");
+
+  // Resume Analyzer States
   const [dragActive, setDragActive] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [parsedResume, setParsedResume] = useState(null);
   const [resumeText, setResumeText] = useState("");
   const [analysisMode, setAnalysisMode] = useState("upload");
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await api.get("/users/profile");
-        setProfile(res.data);
-        if (res.data.user?.resumeAnalysis) {
-          setParsedResume(res.data.user.resumeAnalysis);
+  // Fetch complete profile from API
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/users/profile");
+      if (res.data) {
+        setProfileData(res.data);
+        const u = res.data.user || {};
+        setEditName(u.name || "");
+        setEditUsername(u.username || "");
+        setEditBio(u.bio || "");
+        setEditLocation(u.location || "");
+        setEditEducation(u.education || "");
+        setEditWebsite(u.website || "");
+
+        if (u.resumeAnalysis) {
+          setParsedResume(u.resumeAnalysis);
         }
-        if (res.data.user?.resumeText) {
-          setResumeText(res.data.user.resumeText);
+        if (u.resumeText) {
+          setResumeText(u.resumeText);
         }
-      } catch (error) {
-        if (error.response?.status === 401) return;
-        setProfile(demoProfile);
-        toast.warning("Showing simulated leaderboards since the backend is offline.", "Demo Mode Active");
       }
-    };
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+      toast.error("Could not fetch latest user profile.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProfile();
   }, []);
 
+  // Save Profile Details
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setIsSavingProfile(true);
+    try {
+      const res = await api.put("/users/profile", {
+        name: editName,
+        username: editUsername,
+        bio: editBio,
+        location: editLocation,
+        education: editEducation,
+        website: editWebsite
+      });
+
+      if (res.data) {
+        toast.success("Profile details updated successfully!");
+        setShowEditModal(false);
+        fetchProfile();
+      }
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      toast.error("Failed to update profile.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Skill Management (Add & Remove)
+  const handleAddSkill = async (e) => {
+    e.preventDefault();
+    if (!newSkillInput.trim() || !profileData?.user) return;
+    const currentSkills = profileData.user.skills || [];
+    if (currentSkills.includes(newSkillInput.trim())) {
+      toast.info("Skill already exists in your profile.");
+      setNewSkillInput("");
+      return;
+    }
+
+    const updatedSkills = [...currentSkills, newSkillInput.trim()];
+    try {
+      await api.put("/users/profile", { skills: updatedSkills });
+      setProfileData(prev => ({
+        ...prev,
+        user: { ...prev.user, skills: updatedSkills }
+      }));
+      setNewSkillInput("");
+      setShowSkillInput(false);
+      toast.success(`Added ${newSkillInput.trim()} to your skills!`);
+    } catch (err) {
+      console.error("Error adding skill:", err);
+      toast.error("Failed to add skill.");
+    }
+  };
+
+  const handleRemoveSkill = async (skillToRemove) => {
+    if (!profileData?.user) return;
+    const currentSkills = profileData.user.skills || [];
+    const updatedSkills = currentSkills.filter(s => s !== skillToRemove);
+    try {
+      await api.put("/users/profile", { skills: updatedSkills });
+      setProfileData(prev => ({
+        ...prev,
+        user: { ...prev.user, skills: updatedSkills }
+      }));
+      toast.success(`Removed ${skillToRemove}`);
+    } catch (err) {
+      console.error("Error removing skill:", err);
+      toast.error("Failed to remove skill.");
+    }
+  };
+
+  // Resume Parsing Handlers
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -88,7 +218,6 @@ function Profile() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       processResume(e.dataTransfer.files[0]);
     }
@@ -100,376 +229,920 @@ function Profile() {
     }
   };
 
-  const analyzeResumeText = async (text) => {
-    if (!text || !text.trim()) {
-      toast.warning("Please provide resume text content to analyze.", "Input Required");
+  const processResume = async (file) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'pdf' && ext !== 'txt') {
+      toast.warning("Supported formats are PDF and TXT.", "Format Warning");
       return;
     }
 
     setUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(20);
     try {
-      setUploadProgress(30);
-      let data;
-      try {
-        const res = await api.post("/users/analyze-resume", { resumeText: text });
-        data = res.data;
-      } catch (err) {
-        if (err.response?.status === 401) throw err;
-        console.warn("Backend offline or request failed, parsing locally in demo mode.");
-        
-        // Simple client side keyword match
-        const lower = text.toLowerCase();
-        const skills = [];
-        if (lower.includes("react")) skills.push("React");
-        if (lower.includes("javascript") || lower.includes("js")) skills.push("JavaScript");
-        if (lower.includes("typescript") || lower.includes("ts")) skills.push("TypeScript");
-        if (lower.includes("node")) skills.push("Node.js");
-        if (lower.includes("python")) skills.push("Python");
-        if (lower.includes("sql") || lower.includes("postgres")) skills.push("SQL");
-        if (lower.includes("mongo")) skills.push("MongoDB");
-        if (lower.includes("docker")) skills.push("Docker");
-        if (lower.includes("aws")) skills.push("AWS");
-
-        if (skills.length === 0) {
-          skills.push("Software Engineering", "Problem Solving");
-        }
-
-        const roleMatched = skills.includes("React") 
-          ? "Frontend Software Engineer" 
-          : skills.includes("Node.js") 
-          ? "Backend Node.js Developer" 
-          : "Software Engineer";
-
-        const missingKeywords = [];
-        if (!skills.includes("Docker")) missingKeywords.push("Docker Containerization");
-        if (!skills.includes("AWS")) missingKeywords.push("Cloud Infrastructure (AWS/GCP)");
-        if (!skills.includes("TypeScript")) missingKeywords.push("TypeScript Static Typing");
-        if (missingKeywords.length === 0) missingKeywords.push("System Design Architecture", "CI/CD Pipelines");
-
-        data = {
-          resumeText: text,
-          resumeAnalysis: {
-            matchPercentage: Math.min(65 + skills.length * 5, 98),
-            roleMatched,
-            skillsDetected: skills.slice(0, 10),
-            missingKeywords: missingKeywords.slice(0, 4),
-            suggestions: "Highlight system engineering metrics and quantify details on scaling achievements."
-          }
-        };
-        await new Promise(resolve => setTimeout(resolve, 800));
+      let text = "";
+      if (ext === 'pdf') {
+        setUploadProgress(40);
+        text = await extractTextFromPdf(file);
+      } else {
+        setUploadProgress(40);
+        text = await extractTextFromTxt(file);
       }
+      setUploadProgress(60);
+      setResumeText(text);
 
-      setUploadProgress(80);
-      setParsedResume(data.resumeAnalysis);
-      
-      setProfile(prev => ({
-        ...prev,
-        user: {
-          ...prev.user,
-          resumeText: data.resumeText,
-          resumeAnalysis: data.resumeAnalysis
-        }
-      }));
+      const res = await api.post("/users/analyze-resume", { resumeText: text });
       setUploadProgress(100);
-      toast.success("Resume analyzed successfully by AI!", "Analysis Ready");
-    } catch (error) {
-      console.error("Resume analysis error:", error);
-      toast.error(error.response?.data?.message || "Failed to analyze resume. Please try again.", "Analysis Failed");
+      if (res.data && res.data.resumeAnalysis) {
+        setParsedResume(res.data.resumeAnalysis);
+        toast.success("Resume analyzed successfully!");
+        fetchProfile();
+      }
+    } catch (err) {
+      console.error("Resume error:", err);
+      toast.error("Failed to parse resume.");
     } finally {
       setTimeout(() => setUploading(false), 500);
     }
   };
 
-  const processResume = async (file) => {
-    setResumeFile(file);
-    setParsedResume(null);
-    
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (ext !== 'pdf' && ext !== 'txt') {
-      toast.warning(
-        "Supported file formats are PDF and TXT. For Word documents, please copy-paste your text directly using the Paste panel.",
-        "Unsupported Format"
-      );
-      return;
-    }
-
-    setUploading(true);
-    setUploadProgress(15);
-    
-    try {
-      let text = "";
-      if (ext === 'pdf') {
-        setUploadProgress(30);
-        text = await extractTextFromPdf(file);
-      } else {
-        setUploadProgress(30);
-        text = await extractTextFromTxt(file);
-      }
-      
-      setUploadProgress(50);
-      setResumeText(text);
-      await analyzeResumeText(text);
-    } catch (err) {
-      console.error("Text extraction failed:", err);
-      toast.error(err.message || "Failed to extract text from the file.", "Parser Error");
-      setUploading(false);
-    }
-  };
-
-  if (!profile) {
+  // Skeleton Loader
+  if (loading) {
     return (
-      <div className="min-h-screen bg-brand-bg">
-        <div className="flex h-screen items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-border border-t-indigo-600" />
-        </div>
+      <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col font-sans">
+        <Navbar />
+        <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-5 space-y-4">
+          <div className="bg-brand-card border border-brand-border rounded-sm p-5 shadow-sm animate-pulse space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-brand-elevated" />
+              <div className="space-y-2 flex-1">
+                <div className="h-6 w-48 bg-brand-elevated rounded-sm" />
+                <div className="h-4 w-32 bg-brand-elevated rounded-sm" />
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
+  const user = profileData?.user || {};
+  const stats = profileData?.stats || {
+    problemsSolved: profileData?.summary?.totalAnswered || 532,
+    contestRating: 1640,
+    mockInterviewsCompleted: 42,
+    currentStreak: 136
+  };
+  const diff = profileData?.difficultyBreakdown || {
+    easy: { solved: 312, total: 450 },
+    medium: { solved: 180, total: 350 },
+    hard: { solved: 40, total: 200 }
+  };
+  const activities = profileData?.recentActivities || [
+    { id: "act-1", type: "Problem", title: "Solved Two Sum", subtitle: "2 hours ago", badge: "Easy", iconType: "check", badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+    { id: "act-2", type: "Contest", title: "Participated in Weekly Contest 408", subtitle: "1 day ago", badge: "Contest", iconType: "trophy", badgeColor: "bg-brand-primary/15 text-brand-primary" },
+    { id: "act-3", type: "Interview", title: "Completed a Mock Interview (Arrays)", subtitle: "2 days ago", badge: "Interview", iconType: "target", badgeColor: "bg-brand-secondary/15 text-brand-secondary" },
+    { id: "act-4", type: "Problem", title: "Solved Binary Tree Maximum Path Sum", subtitle: "3 days ago", badge: "Hard", iconType: "check", badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+    { id: "act-5", type: "Bookmark", title: "Bookmarked System Design Notes", subtitle: "4 days ago", badge: "Resource", iconType: "bookmark", badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400" }
+  ];
+
+  const achievementBadges = [
+    { id: "ach-1", title: "100 Problems", Icon: Shield, earned: true, color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" },
+    { id: "ach-2", title: "30 Day Streak", Icon: Flame, earned: true, color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" },
+    { id: "ach-3", title: "5 Contests", Icon: Trophy, earned: true, color: "bg-brand-primary/10 text-brand-primary border-brand-primary/30" },
+    { id: "ach-4", title: "Interview Pro", Icon: Target, earned: true, color: "bg-brand-secondary/10 text-brand-secondary border-brand-secondary/30" },
+    { id: "ach-5", title: "DSA Master", Icon: Star, earned: true, color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" },
+    { id: "ach-6", title: "Early Adopter", Icon: Rocket, earned: true, color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30" }
+  ];
+
+  const renderActivityIcon = (iconType) => {
+    if (iconType === "trophy") return <Trophy className="w-3.5 h-3.5" />;
+    if (iconType === "target") return <Target className="w-3.5 h-3.5" />;
+    if (iconType === "bookmark") return <Bookmark className="w-3.5 h-3.5" />;
+    return <CheckCircle2 className="w-3.5 h-3.5" />;
+  };
+
   return (
-    <div className="min-h-screen bg-brand-bg relative overflow-hidden text-brand-text">
-      {/* Background ambient mesh */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-200/15 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-100/15 blur-[120px]" />
-        <div className="absolute top-[35%] right-[20%] w-[35%] h-[35%] rounded-full bg-blue-200/10 blur-[100px]" />
-      </div>
+    <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col font-sans transition-colors duration-200">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-5 space-y-4">
 
-
-        {/* Profile header card banner */}
-        <section className="mb-8 overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-955 text-white shadow-xl relative">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 blur-3xl pointer-events-none" />
-          <div className="p-6 sm:p-8 relative z-10">
-            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-              <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-2xl font-black uppercase shadow-lg shadow-blue-500/20">
-                  {(profile.user?.name || "U").charAt(0)}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-indigo-300">
-                    Candidate Profile
-                  </p>
-                  <h1 className="mt-2 text-3xl font-black tracking-tight sm:truncate sm:text-4xl">
-                    {profile.user?.name || "Candidate"}
-                  </h1>
-                  <p className="mt-2 truncate text-sm font-semibold text-slate-350">
-                    {profile.user?.email}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 grid-cols-3">
-                <div className="rounded-xl border border-brand-border bg-brand-card/5 px-4 py-3.5 backdrop-blur-sm">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">Fields</p>
-                  <p className="mt-1 text-2xl font-black">{profile.summary?.categories || 0}</p>
-                </div>
-                <div className="rounded-xl border border-brand-border bg-brand-card/5 px-4 py-3.5 backdrop-blur-sm">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">Answers</p>
-                  <p className="mt-1 text-2xl font-black">{profile.summary?.totalAnswered || 0}</p>
-                </div>
-                <div className="rounded-xl border border-brand-border bg-brand-card/5 px-4 py-3.5 backdrop-blur-sm">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">Best Rank</p>
-                  <p className="mt-1 text-2xl font-black">{profile.summary?.bestRank ? `#${profile.summary.bestRank}` : "-"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Profile content layout */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px] items-start">
+        {/* 1. PROFILE HEADER CARD WITH COVER BANNER */}
+        <section className="bg-white dark:bg-[#0B1120] border border-[#E2E8F0] dark:border-slate-800/80 rounded-sm shadow-xs overflow-hidden space-y-0">
           
-          {/* Left Column: Rankings leaderboard */}
-          <section className="space-y-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-brand-secondary">Leaderboard standings</p>
-                <h2 className="text-2xl font-black tracking-tight text-brand-text">Category Standings</h2>
+          {/* COVER BANNER */}
+          <div className="h-44 sm:h-48 lg:h-52 bg-[#0B1120] relative flex items-start justify-between px-6 sm:px-10 pt-5 sm:pt-6 overflow-hidden select-none">
+            
+            {/* Left Banner Branding (Placed in top-left inline row with clean clearance) */}
+            <div className="flex flex-wrap items-center gap-3 z-10">
+              <div className="flex items-center gap-2.5">
+                <img src="/logo.png" alt="CodeForge Logo" className="h-8 w-auto object-contain shrink-0 filter drop-shadow-md" />
+                <span className="text-white text-xl sm:text-2xl font-black tracking-wider font-sans">
+                  CODEFORGE
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-white/10 text-white/90 text-xs font-semibold backdrop-blur-md border border-white/15">
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <span>DEVELOPER</span>
               </div>
             </div>
 
-            {profile.rankings?.length ? (
-              <div className="grid gap-5 sm:grid-cols-2">
-                {profile.rankings.map((item) => (
-                  <div
-                    key={item.role}
-                    className="rounded-2xl border border-brand-border bg-brand-card/80 backdrop-blur-md p-5 shadow-sm hover:shadow-md transition-all duration-200"
-                  >
-                    <div className="mb-4 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-lg font-black text-brand-text">{item.role}</h3>
-                        <p className="mt-1 text-xs font-semibold text-brand-secondary">{item.answeredCount} answers submitted</p>
-                      </div>
-                      <span className="rounded-lg bg-indigo-50 border border-indigo-200/50 px-2.5 py-1 text-xs font-black text-indigo-700">
-                        #{item.rank}/{item.totalUsers}
-                      </span>
-                    </div>
-
-                    <div className="grid gap-3 grid-cols-2">
-                      <div className="rounded-lg bg-brand-bg/50 border border-brand-border p-3">
-                        <p className="text-[10px] font-bold text-brand-secondary uppercase">Avg Score</p>
-                        <p className="mt-1 text-lg font-black text-brand-text">{item.averageScore}</p>
-                      </div>
-                      <div className="rounded-lg bg-emerald-50/40 border border-emerald-150 p-3">
-                        <p className="text-[10px] font-bold text-emerald-700 uppercase">Leader</p>
-                        <p className="mt-1 truncate text-xs font-black text-emerald-950">{item.leaderName}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Message type="info" title="Ready to practice">
-                Complete mock interviews to view your rank placement.
-              </Message>
-            )}
-          </section>
-          {/* Right Column: AI Resume Parser */}
-          <section className="rounded-2xl border border-brand-border bg-brand-card/80 backdrop-blur-md p-6 shadow-sm space-y-5">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-650">Resume intelligence</p>
-              <h2 className="mt-1 text-xl font-black tracking-tight text-brand-text">AI Resume Analyzer</h2>
-              <p className="mt-1 text-xs text-brand-secondary font-semibold leading-relaxed">
-                Upload your engineering resume or paste details to calculate skill keywords matching and career gap analytics.
+            {/* Center Banner Script Slogan */}
+            <div className="hidden md:block absolute left-1/2 -translate-x-1/2 text-center pointer-events-none z-10">
+              <p className="font-serif italic text-slate-400/60 text-lg sm:text-xl tracking-widest leading-snug">
+                Build. Solve. Grow.
               </p>
             </div>
 
-            {/* Mode selection toggles */}
-            <div className="flex bg-brand-bg/80 border border-brand-border p-0.5 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setAnalysisMode("upload")}
-                className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${
-                  analysisMode === "upload" ? "bg-brand-card text-indigo-700 shadow-sm" : "text-slate-550 hover:text-slate-800"
-                }`}
-              >
-                File Upload (PDF/TXT)
-              </button>
-              <button
-                type="button"
-                onClick={() => setAnalysisMode("paste")}
-                className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${
-                  analysisMode === "paste" ? "bg-brand-card text-indigo-700 shadow-sm" : "text-slate-555 hover:text-slate-800"
-                }`}
-              >
-                Paste Resume Text
-              </button>
+            {/* Right Banner Mountain Silhouette & Moon Illustration */}
+            <div className="relative z-10 flex items-center gap-6">
+              {/* Slogan Text on Far Right */}
+              <div className="text-right hidden sm:block">
+                <p className="text-slate-300/80 text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase leading-relaxed">
+                  BETTER DEVELOPERS
+                  <br />
+                  BRIGHTER FUTURES
+                </p>
+                <div className="w-12 h-[2px] bg-indigo-500/80 ml-auto mt-1.5 rounded-full" />
+              </div>
+
+              {/* Glowing Purple Moon & Mountain Graphic (Blended) */}
+              <div className="w-36 h-36 sm:w-44 sm:h-44 relative shrink-0 overflow-hidden pointer-events-none -mr-2">
+                <div className="absolute inset-0 bg-indigo-600/30 rounded-full blur-3xl pointer-events-none" />
+                <svg className="w-full h-full relative z-10" viewBox="0 0 200 200" fill="none">
+                  {/* Glowing Purple Moon */}
+                  <circle cx="140" cy="65" r="35" fill="url(#moonGlow)" />
+                  {/* Layered Mountains */}
+                  <path d="M-20 200 L60 120 L130 180 L220 100 L240 200 Z" fill="#1E1B4B" opacity="0.7" />
+                  <path d="M30 200 L120 90 L170 145 L220 200 Z" fill="#171435" opacity="0.9" />
+                  <path d="M70 200 L140 75 L210 200 Z" fill="#0B1120" />
+                  {/* Hiker Silhouette on Peak */}
+                  <circle cx="138" cy="68" r="3" fill="#E0E7FF" />
+                  <path d="M138 71 L138 79 M138 74 L134 78 M138 74 L142 77 M138 79 L135 85 M138 79 L141 85" stroke="#E0E7FF" strokeWidth="1.5" strokeLinecap="round" />
+                  
+                  <defs>
+                    <radialGradient id="moonGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(140 65) rotate(90) scale(35)">
+                      <stop stopColor="#A855F7" />
+                      <stop offset="0.7" stopColor="#6366F1" />
+                      <stop offset="1" stopColor="#312E81" stopOpacity="0.8" />
+                    </radialGradient>
+                  </defs>
+                </svg>
+              </div>
             </div>
 
-            {/* Drag & Drop Zone */}
-            {analysisMode === "upload" && (
-              <div
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-                className={`relative rounded-xl border-2 border-dashed p-6 text-center transition ${
-                  dragActive ? "border-indigo-650 bg-indigo-50/50" : "border-slate-250 bg-brand-bg/30"
+            {/* Background Ambient Gradient Layer */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0B1120] via-[#1E1B4B]/80 to-[#312E81]/60 pointer-events-none" />
+          </div>
+
+          {/* PROFILE IDENTITY & EDIT BUTTON ROW */}
+          <div className="px-6 sm:px-10 pb-6 pt-0 relative space-y-6">
+            
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
+              
+              {/* Avatar & User Details */}
+              <div className="flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-6">
+                
+                {/* Circular Avatar (Only Avatar has negative top margin to overlap banner) */}
+                <div className="relative shrink-0 w-36 h-36 sm:w-40 sm:h-40 rounded-full border-[5px] border-white dark:border-[#0B1120] shadow-lg bg-gradient-to-br from-[#4F46E5] via-[#7C3AED] to-[#312E81] text-white flex items-center justify-center text-5xl sm:text-6xl font-extrabold overflow-hidden -mt-16 sm:-mt-20 z-20">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    (user.name || "T").charAt(0).toUpperCase()
+                  )}
+                  {/* Green Online Indicator */}
+                  <span 
+                    className="absolute bottom-2 right-2 w-5 h-5 rounded-full bg-emerald-500 border-3 border-white dark:border-[#0B1120] shadow-xs" 
+                    title="Online"
+                  />
+                </div>
+
+                {/* User Info Column (Starts cleanly in white space below banner) */}
+                <div className="space-y-2.5 pt-3 sm:pt-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
+                      {user.name || "test"}
+                    </h1>
+
+                    <span className="px-3 py-1 rounded-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold">
+                      {user.username ? (user.username.startsWith("@") ? user.username : `@${user.username}`) : "@test"}
+                    </span>
+
+                    {/* Dynamic Rank Badge */}
+                    <span className="bg-amber-50 dark:bg-amber-950/40 border border-amber-400/80 text-amber-600 dark:text-amber-400 text-xs font-bold px-3 py-1 rounded-sm flex items-center gap-1.5 shadow-2xs">
+                      <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                      <span>TOP 5% SOLVER</span>
+                    </span>
+                  </div>
+
+                  <p className="text-sm sm:text-base font-normal text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
+                    {user.bio || "Software Engineer passionate about coding, algorithms, and system design."}
+                  </p>
+
+                  {/* Metadata Row */}
+                  <div className="flex flex-wrap items-center gap-5 pt-1 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-[#F43F5E]" />
+                      <span>{user.location || "San Francisco, CA"}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <GraduationCap className="w-4 h-4 text-[#6366F1]" />
+                      <span>{user.education || "B.S. Computer Science"}</span>
+                    </span>
+                    <a
+                      href={(user.website || "github.com").startsWith("http") ? (user.website || "github.com") : `https://${user.website || "github.com"}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 text-[#4F46E5] hover:underline transition-colors"
+                    >
+                      <LinkIcon className="w-4 h-4 text-[#4F46E5]" />
+                      <span>{(user.website || "github.com").replace(/^https?:\/\//, "")}</span>
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Edit Profile Button (Positioned in white space on the right) */}
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="w-full sm:w-auto px-6 py-3 rounded-sm bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-semibold transition-all shadow-md hover:shadow-indigo-500/20 cursor-pointer flex items-center justify-center gap-2 shrink-0 self-stretch sm:self-auto min-w-[160px] mt-4 sm:mt-6"
+              >
+                <Pencil className="w-4 h-4" />
+                <span>Edit Profile</span>
+              </button>
+
+            </div>
+
+            {/* DIVIDER */}
+            <div className="h-[1px] w-full bg-[#E2E8F0] dark:bg-slate-800" />
+
+            {/* STATISTICS SECTION (4 Equal-Width Cards matching reference layout) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* Card 1: Problems Solved */}
+              <div className="p-4 rounded-sm bg-[#F0F5FF] dark:bg-slate-900/80 border border-indigo-100/80 dark:border-slate-800 flex items-center justify-between shadow-2xs group hover:border-indigo-300 transition-all">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-sm bg-[#4F46E5] text-white flex items-center justify-center text-lg font-bold shadow-xs shrink-0">
+                    <Code2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-black text-slate-900 dark:text-white leading-none block">
+                      {stats.problemsSolved}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mt-1">
+                      Problems Solved
+                    </span>
+                  </div>
+                </div>
+                {/* Mini Bar Graph */}
+                <div className="flex items-end gap-1 h-8 opacity-40 group-hover:opacity-75 transition-opacity">
+                  <div className="w-1.5 h-3 bg-[#4F46E5] rounded-xs" />
+                  <div className="w-1.5 h-5 bg-[#4F46E5] rounded-xs" />
+                  <div className="w-1.5 h-4 bg-[#4F46E5] rounded-xs" />
+                  <div className="w-1.5 h-7 bg-[#4F46E5] rounded-xs" />
+                </div>
+              </div>
+
+              {/* Card 2: Contest Rating */}
+              <div className="p-4 rounded-sm bg-[#F7F0FF] dark:bg-slate-900/80 border border-purple-100/80 dark:border-slate-800 flex items-center justify-between shadow-2xs group hover:border-purple-300 transition-all">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-sm bg-[#7C3AED] text-white flex items-center justify-center text-lg font-bold shadow-xs shrink-0">
+                    <Star className="w-6 h-6 fill-white" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-black text-slate-900 dark:text-white leading-none block">
+                      {stats.contestRating}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mt-1">
+                      Contest Rating
+                    </span>
+                  </div>
+                </div>
+                {/* Mini Wave Graph SVG */}
+                <svg className="w-14 h-8 text-[#7C3AED] opacity-40 group-hover:opacity-75 transition-opacity" viewBox="0 0 60 30" fill="none">
+                  <path d="M0 25 C15 25, 20 10, 35 15 C45 20, 50 5, 60 8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  <path d="M0 25 C15 25, 20 10, 35 15 C45 20, 50 5, 60 8 V30 H0 Z" fill="currentColor" opacity="0.2" />
+                </svg>
+              </div>
+
+              {/* Card 3: Mock Interviews */}
+              <div className="p-4 rounded-sm bg-[#FFF0F3] dark:bg-slate-900/80 border border-rose-100/80 dark:border-slate-800 flex items-center justify-between shadow-2xs group hover:border-rose-300 transition-all">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-sm bg-[#F43F5E] text-white flex items-center justify-center text-lg font-bold shadow-xs shrink-0">
+                    <Target className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-black text-slate-900 dark:text-white leading-none block">
+                      {stats.mockInterviewsCompleted}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mt-1">
+                      Mock Interviews
+                    </span>
+                  </div>
+                </div>
+                {/* Mini Wave Graph SVG */}
+                <svg className="w-14 h-8 text-[#F43F5E] opacity-40 group-hover:opacity-75 transition-opacity" viewBox="0 0 60 30" fill="none">
+                  <path d="M0 20 C10 28, 25 5, 40 18 C50 25, 55 10, 60 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  <path d="M0 20 C10 28, 25 5, 40 18 C50 25, 55 10, 60 12 V30 H0 Z" fill="currentColor" opacity="0.2" />
+                </svg>
+              </div>
+
+              {/* Card 4: Day Streak */}
+              <div className="p-4 rounded-sm bg-[#FFF8F0] dark:bg-slate-900/80 border border-amber-100/80 dark:border-slate-800 flex items-center justify-between shadow-2xs group hover:border-amber-300 transition-all">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-sm bg-[#F97316] text-white flex items-center justify-center text-lg font-bold shadow-xs shrink-0">
+                    <Flame className="w-6 h-6 fill-white" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-black text-slate-900 dark:text-white leading-none block">
+                      {stats.currentStreak}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mt-1">
+                      Day Streak
+                    </span>
+                  </div>
+                </div>
+                {/* Mini Bar Graph */}
+                <div className="flex items-end gap-1 h-8 opacity-40 group-hover:opacity-75 transition-opacity">
+                  <div className="w-1.5 h-2 bg-[#F97316] rounded-xs" />
+                  <div className="w-1.5 h-4 bg-[#F97316] rounded-xs" />
+                  <div className="w-1.5 h-6 bg-[#F97316] rounded-xs" />
+                  <div className="w-1.5 h-8 bg-[#F97316] rounded-xs" />
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+        {/* 3. SUB-TAB NAVIGATION */}
+        <div className="flex items-center gap-1.5 p-1 bg-brand-card border border-brand-border rounded-sm overflow-x-auto no-scrollbar shadow-xs">
+          {[
+            { id: "overview", label: "Overview", Icon: LayoutDashboard },
+            { id: "solved", label: "Solved Problems", Icon: Code2 },
+            { id: "contests", label: "Contests", Icon: Trophy },
+            { id: "interviews", label: "Interviews", Icon: Target },
+            { id: "activity", label: "Activity", Icon: Activity },
+            { id: "resume", label: "AI Resume Intelligence", Icon: Sparkles }
+          ].map((tab) => {
+            const TabIcon = tab.Icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-all rounded-xs cursor-pointer shrink-0 flex items-center gap-2 ${
+                  isActive
+                    ? "bg-brand-primary text-white shadow-sm"
+                    : "text-brand-muted hover:text-brand-text hover:bg-brand-elevated/70 font-bold"
                 }`}
               >
-                <input
-                  type="file"
-                  id="file-upload"
-                  onChange={handleFileChange}
-                  accept=".pdf,.txt"
-                  className="hidden"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer block">
-                  <svg className="mx-auto h-8 w-8 text-brand-secondary mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span className="text-xs font-black text-brand-text block">Drag file here, or browse files</span>
-                  <span className="text-[9px] text-brand-secondary block mt-1">Supports PDF, TXT (Max 8MB)</span>
-                </label>
-              </div>
-            )}
+                <TabIcon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-            {/* Paste Text Mode */}
-            {analysisMode === "paste" && (
-              <div className="space-y-3">
-                <textarea
-                  rows={6}
-                  value={resumeText}
-                  onChange={(e) => setResumeText(e.target.value)}
-                  placeholder="Paste complete resume text details here..."
-                  className="w-full rounded-xl border border-brand-border bg-brand-bg/50 p-3.5 text-xs font-semibold leading-relaxed outline-none transition focus:border-indigo-500 focus:bg-brand-card"
-                />
-                <button
-                  type="button"
-                  onClick={() => analyzeResumeText(resumeText)}
-                  disabled={uploading}
-                  className="w-full rounded-xl bg-slate-950 py-3 text-xs font-black text-white hover:bg-indigo-650 hover:scale-[1.02] active:scale-95 duration-100 transition-all shadow-md shadow-indigo-650/10 disabled:opacity-50"
-                >
-                  {uploading ? "Analyzing..." : "Analyze Resume"}
-                </button>
-              </div>
-            )}
+        {/* 4. OVERVIEW TAB GRID */}
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            
+            {/* LEFT COLUMN (SPAN 8) */}
+            <div className="lg:col-span-8 space-y-4">
+              
+              {/* SOLVING ACTIVITY HEATMAP */}
+              <ContributionHeatmap 
+                contributionData={profileData?.contributionHeatmap || {}} 
+                streakCount={stats.currentStreak} 
+              />
 
-            {/* Progress loading screen */}
-            {uploading && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-brand-secondary">
-                  <span>Running AI analysis...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-brand-bg rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-600 transition-all duration-150" style={{ width: `${uploadProgress}%` }} />
-                </div>
-              </div>
-            )}
-
-            {/* Simulated Parsing Results */}
-            {parsedResume && (
-              <div className="rounded-xl border border-indigo-150 bg-indigo-50/20 p-4 space-y-4">
-                <div className="flex items-center justify-between border-b border-indigo-100 pb-2.5">
-                  <div>
-                    <p className="text-[10px] font-black text-indigo-700 uppercase leading-none">Role Match Rating</p>
-                    <p className="mt-1 text-sm font-black text-indigo-950 leading-none">{parsedResume.roleMatched}</p>
-                  </div>
-                  <span className="rounded-lg bg-indigo-100 px-2.5 py-1 text-xs font-black text-indigo-900 shrink-0">
-                    {parsedResume.matchPercentage}% Match
-                  </span>
+              {/* RECENT ACTIVITY FEED */}
+              <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3.5">
+                <div className="flex items-center justify-between border-b border-brand-border pb-3">
+                  <h3 className="text-sm font-black text-brand-text tracking-tight flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-brand-primary" />
+                    <span>Recent Activity</span>
+                  </h3>
+                  <button 
+                    onClick={() => setActiveTab("activity")}
+                    className="text-xs font-bold text-brand-primary hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <span>View All</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
                 </div>
 
                 <div className="space-y-2.5">
-                  <div>
-                    <span className="block text-[9px] font-black uppercase text-brand-secondary">Skills Detected</span>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {parsedResume.skillsDetected.map((s) => (
-                        <span key={s} className="rounded bg-brand-card border border-brand-border px-2 py-0.5 text-[9px] font-black text-brand-text">
-                          {s}
+                  {activities.map((act) => (
+                    <div
+                      key={act.id}
+                      className="flex items-center justify-between p-3.5 rounded-sm bg-brand-elevated border border-brand-border hover:border-brand-primary/30 transition-all gap-3 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <span className="w-8 h-8 rounded-full bg-brand-primary/15 text-brand-primary flex items-center justify-center text-xs font-black shrink-0">
+                          {renderActivityIcon(act.iconType)}
                         </span>
-                      ))}
+                        <div>
+                          <h4 className="text-xs font-black text-brand-text">
+                            {act.title}
+                          </h4>
+                          <p className="text-[10px] font-semibold text-brand-muted mt-0.5">
+                            {act.subtitle}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-bold text-brand-muted hidden sm:inline">
+                          {act.date ? new Date(act.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recently"}
+                        </span>
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${act.badgeColor || "bg-brand-primary/15 text-brand-primary"}`}>
+                          {act.badge}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+            </div>
+
+            {/* RIGHT COLUMN (SPAN 4) */}
+            <div className="lg:col-span-4 space-y-4">
+              
+              {/* CURRENT STATS (DIFFICULTY BREAKDOWN) */}
+              <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-brand-border pb-3">
+                  <h3 className="text-sm font-black text-brand-text tracking-tight flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-brand-primary" />
+                    <span>Current Stats</span>
+                  </h3>
+                  <button 
+                    onClick={() => setActiveTab("solved")}
+                    className="text-xs font-bold text-brand-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>View All</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Easy */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Easy
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-brand-body font-extrabold">
+                          {diff.easy.solved} / {diff.easy.total}
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black">
+                          {Math.round((diff.easy.solved / diff.easy.total) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-brand-input rounded-full overflow-hidden p-0.5 border border-brand-border/40">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.round((diff.easy.solved / diff.easy.total) * 100))}%` }}
+                      />
                     </div>
                   </div>
 
-                  <div>
-                    <span className="block text-[9px] font-black uppercase text-rose-500">Skills Gaps Identified</span>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {parsedResume.missingKeywords.map((s) => (
-                        <span key={s} className="rounded bg-rose-50 border border-rose-150 px-2 py-0.5 text-[9px] font-black text-rose-800">
-                          {s}
+                  {/* Medium */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-brand-primary">
+                        <span className="w-2.5 h-2.5 rounded-full bg-brand-primary" /> Medium
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-brand-body font-extrabold">
+                          {diff.medium.solved} / {diff.medium.total}
                         </span>
-                      ))}
+                        <span className="px-1.5 py-0.2 rounded bg-brand-primary/10 text-brand-primary text-[10px] font-black">
+                          {Math.round((diff.medium.solved / diff.medium.total) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-brand-input rounded-full overflow-hidden p-0.5 border border-brand-border/40">
+                      <div 
+                        className="h-full bg-brand-primary rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.round((diff.medium.solved / diff.medium.total) * 100))}%` }}
+                      />
                     </div>
                   </div>
 
-                  <div className="border-t border-indigo-100/50 pt-2.5">
-                    <span className="block text-[9px] font-black uppercase text-brand-secondary">AI Recommendations</span>
-                    <p className="mt-1 text-xs font-bold leading-relaxed text-brand-secondary">{parsedResume.suggestions}</p>
+                  {/* Hard */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Hard
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-brand-body font-extrabold">
+                          {diff.hard.solved} / {diff.hard.total}
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-black">
+                          {Math.round((diff.hard.solved / diff.hard.total) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-brand-input rounded-full overflow-hidden p-0.5 border border-brand-border/40">
+                      <div 
+                        className="h-full bg-rose-500 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.round((diff.hard.solved / diff.hard.total) * 100))}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
+              </section>
+
+              {/* SKILLS CARD */}
+              <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3.5">
+                <div className="flex items-center justify-between border-b border-brand-border pb-2.5">
+                  <h3 className="text-sm font-black text-brand-text tracking-tight flex items-center gap-2">
+                    <Wrench className="w-4 h-4 text-brand-primary" />
+                    <span>Skills</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowSkillInput(!showSkillInput)}
+                    className="text-xs font-bold text-brand-primary hover:underline cursor-pointer"
+                  >
+                    {showSkillInput ? "Cancel" : "Edit"}
+                  </button>
+                </div>
+
+                {showSkillInput && (
+                  <form onSubmit={handleAddSkill} className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="e.g. C++, Python, System Design..."
+                      value={newSkillInput}
+                      onChange={(e) => setNewSkillInput(e.target.value)}
+                      className="flex-1 bg-brand-input border border-brand-border text-xs font-bold rounded-sm px-3 py-1.5 outline-none focus:border-brand-primary text-brand-text"
+                    />
+                    <button
+                      type="submit"
+                      className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-black uppercase rounded-sm cursor-pointer"
+                    >
+                      Save
+                    </button>
+                  </form>
+                )}
+
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {(user.skills || ["C++", "Python", "Java", "Data Structures", "Algorithms", "System Design", "SQL", "Web Development"]).map((skill) => (
+                    <span
+                      key={skill}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-elevated border border-brand-border hover:border-brand-primary/40 text-xs font-bold text-brand-body shadow-2xs transition-colors"
+                    >
+                      <span>{skill}</span>
+                      <button
+                        onClick={() => handleRemoveSkill(skill)}
+                        className="text-brand-muted hover:text-rose-500 font-bold ml-0.5 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </section>
+
+              {/* ACHIEVEMENTS GRID CARD */}
+              <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3.5">
+                <div className="flex items-center justify-between border-b border-brand-border pb-2.5">
+                  <h3 className="text-sm font-black text-brand-text tracking-tight flex items-center gap-2">
+                    <Award className="w-4 h-4 text-brand-primary" />
+                    <span>Achievements</span>
+                  </h3>
+                  <span className="text-xs font-bold text-brand-primary flex items-center gap-1 cursor-pointer">
+                    <span>View All</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {achievementBadges.map((ach) => {
+                    const IconComp = ach.Icon;
+                    return (
+                      <div
+                        key={ach.id}
+                        className={`p-2.5 rounded-sm border text-center space-y-1.5 transition-all hover:scale-[1.03] shadow-2xs flex flex-col items-center justify-center ${ach.color}`}
+                      >
+                        <IconComp className="w-5 h-5" />
+                        <span className="text-[10px] font-black block leading-tight truncate w-full">
+                          {ach.title}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* GOALS CARD */}
+              <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3.5">
+                <div className="flex items-center justify-between border-b border-brand-border pb-2.5">
+                  <h3 className="text-sm font-black text-brand-text tracking-tight flex items-center gap-2">
+                    <Target className="w-4 h-4 text-brand-primary" />
+                    <span>Goals</span>
+                  </h3>
+                  <span className="text-xs font-bold text-brand-primary cursor-pointer">Edit</span>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-brand-body">
+                      <span>Solve 700 problems</span>
+                      <span className="text-brand-primary font-black">532 / 700 (76%)</span>
+                    </div>
+                    <div className="h-2 w-full bg-brand-input rounded-full overflow-hidden p-0.5 border border-brand-border/40">
+                      <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-[76%]" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-brand-body">
+                      <span>Participate in 5 contests</span>
+                      <span className="text-brand-primary font-black">3 / 5 (60%)</span>
+                    </div>
+                    <div className="h-2 w-full bg-brand-input rounded-full overflow-hidden p-0.5 border border-brand-border/40">
+                      <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-[60%]" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-brand-body">
+                      <span>Complete 10 mock interviews</span>
+                      <span className="text-brand-primary font-black">4 / 10 (40%)</span>
+                    </div>
+                    <div className="h-2 w-full bg-brand-input rounded-full overflow-hidden p-0.5 border border-brand-border/40">
+                      <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-[40%]" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* MOTIVATION QUOTE CARD */}
+              <div className="rounded-sm border border-brand-border bg-gradient-to-br from-brand-elevated via-brand-card to-brand-elevated p-4 space-y-2 shadow-2xs">
+                <Quote className="w-4 h-4 text-brand-primary" />
+                <p className="text-xs font-semibold text-brand-body italic leading-relaxed">
+                  Discipline today creates opportunities tomorrow.
+                </p>
+                <p className="text-[10px] font-black text-brand-muted uppercase tracking-widest">— Keep Building</p>
               </div>
-            )}
+
+            </div>
+
+          </div>
+        )}
+
+        {/* OTHER SUB-TABS */}
+        {activeTab === "solved" && (
+          <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3">
+            <h3 className="text-sm font-black text-brand-text tracking-tight">
+              Solved Problems History
+            </h3>
+            <div className="space-y-2">
+              {[
+                { title: "Two Sum", difficulty: "Easy", topic: "Arrays & Hash Table", date: "2 hours ago" },
+                { title: "Binary Tree Maximum Path Sum", difficulty: "Hard", topic: "Trees & DFS", date: "3 days ago" },
+                { title: "Longest Substring Without Repeating Characters", difficulty: "Medium", topic: "Sliding Window", date: "5 days ago" },
+                { title: "Trapping Rain Water", difficulty: "Hard", topic: "Two Pointers", date: "1 week ago" }
+              ].map((item, idx) => (
+                <div key={idx} className="p-3.5 bg-brand-elevated rounded-sm border border-brand-border flex justify-between items-center">
+                  <div>
+                    <h4 className="text-xs font-black text-brand-text">{item.title}</h4>
+                    <span className="text-[10px] font-bold text-brand-muted">{item.topic}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-sm ${item.difficulty === "Easy" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : item.difficulty === "Medium" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-rose-500/15 text-rose-600 dark:text-rose-400"}`}>
+                      {item.difficulty}
+                    </span>
+                    <span className="text-[10px] font-bold text-brand-muted">{item.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
-        </div>
+        )}
+
+        {activeTab === "contests" && (
+          <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3">
+            <h3 className="text-sm font-black text-brand-text tracking-tight">
+              Contests & Ranking History
+            </h3>
+            <div className="p-4 bg-brand-elevated rounded-sm border border-brand-border flex justify-between items-center">
+              <div>
+                <h4 className="text-xs font-black text-brand-text">Weekly Contest 408</h4>
+                <span className="text-[10px] font-bold text-brand-muted">Rank: #142 / 3,450 · Score: 1640</span>
+              </div>
+              <span className="text-xs font-black text-amber-500">+35 Rating</span>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "interviews" && (
+          <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3">
+            <h3 className="text-sm font-black text-brand-text tracking-tight">
+              Completed Mock Interviews
+            </h3>
+            <div className="p-4 bg-brand-elevated rounded-sm border border-brand-border flex justify-between items-center">
+              <div>
+                <h4 className="text-xs font-black text-brand-text">Full Stack Software Engineer Assessment</h4>
+                <span className="text-[10px] font-bold text-brand-muted">4 / 4 Questions Answered · Average Score: 8.5/10</span>
+              </div>
+              <button 
+                onClick={() => navigate("/history")}
+                className="text-xs font-black text-brand-primary hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>View Report</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "activity" && (
+          <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-3">
+            <h3 className="text-sm font-black text-brand-text tracking-tight">
+              Full Activity Timeline
+            </h3>
+            <div className="space-y-2">
+              {activities.map((act) => (
+                <div key={act.id} className="p-3 bg-brand-elevated rounded-sm border border-brand-border flex justify-between">
+                  <span className="text-xs font-bold text-brand-text">{act.title}</span>
+                  <span className="text-[10px] font-bold text-brand-muted">{act.subtitle}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {activeTab === "resume" && (
+          <section className="bg-brand-card border border-brand-border rounded-sm p-4 sm:p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="text-sm font-black text-brand-text tracking-tight flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-brand-primary" />
+                <span>AI Resume Intelligence</span>
+              </h3>
+              <p className="text-xs text-brand-muted font-semibold mt-0.5">
+                Upload your resume PDF/TXT to analyze skills match rating.
+              </p>
+            </div>
+
+            <div 
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              className={`rounded-sm border-2 border-dashed p-8 text-center transition ${
+                dragActive ? "border-brand-primary bg-brand-primary/5" : "border-brand-border"
+              }`}
+            >
+              <input type="file" id="file-up" onChange={handleFileChange} accept=".pdf,.txt" className="hidden" />
+              <label htmlFor="file-up" className="cursor-pointer block space-y-3">
+                <UploadCloud className="w-10 h-10 text-brand-primary mx-auto" />
+                <span className="text-xs font-black text-brand-text block">Drag PDF/TXT file here or click to browse</span>
+              </label>
+            </div>
+          </section>
+        )}
+
       </main>
+
+      {/* EDIT PROFILE MODAL */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isSavingProfile && setShowEditModal(false)}
+          />
+
+          <div className="relative w-full max-w-lg bg-brand-card border border-brand-border rounded-sm p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-brand-border">
+              <h3 className="text-xs font-black text-brand-text uppercase tracking-wider">
+                Edit Developer Profile
+              </h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-brand-muted hover:text-brand-text transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-brand-muted">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full bg-brand-input border border-brand-border rounded-sm px-3 py-2 text-xs font-bold text-brand-text outline-none focus:border-brand-primary"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-brand-muted">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                    placeholder="@sachin_dev"
+                    className="w-full bg-brand-input border border-brand-border rounded-sm px-3 py-2 text-xs font-bold text-brand-text outline-none focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-brand-muted">
+                  Bio Summary
+                </label>
+                <textarea
+                  rows={3}
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  placeholder="Short bio description..."
+                  className="w-full bg-brand-input border border-brand-border rounded-sm p-3 text-xs font-semibold text-brand-text outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-brand-muted">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    placeholder="India"
+                    className="w-full bg-brand-input border border-brand-border rounded-sm px-3 py-2 text-xs font-bold text-brand-text outline-none focus:border-brand-primary"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-brand-muted">
+                    Education
+                  </label>
+                  <input
+                    type="text"
+                    value={editEducation}
+                    onChange={(e) => setEditEducation(e.target.value)}
+                    placeholder="B.Tech CSE"
+                    className="w-full bg-brand-input border border-brand-border rounded-sm px-3 py-2 text-xs font-bold text-brand-text outline-none focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-brand-muted">
+                  Personal Website / Portfolio
+                </label>
+                <input
+                  type="text"
+                  value={editWebsite}
+                  onChange={(e) => setEditWebsite(e.target.value)}
+                  placeholder="sachinkumar.dev"
+                  className="w-full bg-brand-input border border-brand-border rounded-sm px-3 py-2 text-xs font-bold text-brand-text outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-brand-border">
+                <button
+                  type="button"
+                  disabled={isSavingProfile}
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-sm text-xs font-bold text-brand-muted hover:text-brand-text cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="px-5 py-2.5 rounded-sm bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+                >
+                  {isSavingProfile ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
-export default Profile;

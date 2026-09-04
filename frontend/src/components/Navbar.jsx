@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
+import Logo from "./Logo";
 import api from "../services/api";
 import {
   LayoutDashboard,
@@ -19,7 +20,14 @@ import {
   LogOut,
   Sparkles,
   Layers,
-  Check
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Target,
+  Flame,
+  HelpCircle,
+  Menu
 } from "lucide-react";
 
 function Navbar() {
@@ -31,6 +39,35 @@ function Navbar() {
   const user = JSON.parse(localStorage.getItem("user"));
   const { theme, resolvedTheme, setTheme } = useTheme();
 
+  // Sidebar Collapse State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar-collapsed", String(next));
+      return next;
+    });
+  };
+
+  // Breadcrumbs Helper
+  const getBreadcrumbs = () => {
+    const path = location.pathname;
+    const crumbs = ["CodeForge"];
+    if (path === "/dashboard") crumbs.push("Dashboard");
+    else if (path.startsWith("/practice")) crumbs.push("AI Practice");
+    else if (path.startsWith("/interview") || path.startsWith("/create-interview")) crumbs.push("Assessments");
+    else if (path.startsWith("/history")) crumbs.push("History");
+    else if (path.startsWith("/roadmap")) crumbs.push("Roadmap");
+    else if (path.startsWith("/analytics")) crumbs.push("Analytics");
+    else if (path.startsWith("/settings")) crumbs.push("Settings");
+    else if (path.startsWith("/profile")) crumbs.push("Profile");
+    else crumbs.push("Overview");
+    return crumbs;
+  };
+
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const token = localStorage.getItem("token");
@@ -41,9 +78,6 @@ function Navbar() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef(null);
 
-  // Workspace Switcher State
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const [activeWorkspace, setActiveWorkspace] = useState("Personal Sandbox");
 
   // Notifications API
   useEffect(() => {
@@ -63,18 +97,21 @@ function Navbar() {
     return () => clearInterval(interval);
   }, [token]);
 
-  const handleNotificationClick = async (notif) => {
+  const handleNotificationClick = (notif) => {
     setNotificationsOpen(false);
-    try {
-      if (!notif.read) {
-        await api.put(`/users/notifications/${notif._id}/read`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, read: true } : n));
-      }
-      navigate(`/report/${notif.interview}`);
-    } catch (err) {
-      console.error(err);
+    // Mark as read in background non-blocking
+    if (notif._id && !notif.read && token) {
+      api.put(`/users/notifications/${notif._id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch((err) => console.error("Error marking notification read:", err));
+      setNotifications((prev) => prev.map((n) => (n._id === notif._id ? { ...n, read: true } : n)));
+    }
+
+    const interviewId = notif.interview || notif.interviewId || notif.reportId;
+    if (interviewId) {
+      navigate(`/interview/${interviewId}/responses`);
+    } else {
+      navigate("/history");
     }
   };
 
@@ -93,17 +130,19 @@ function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Cmd+K palette listener
+  // Cmd+K and Ctrl+B keyboard listeners
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setSearchOpen((open) => !open);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
       } else if (e.key === "Escape") {
         setSearchOpen(false);
         setProfileOpen(false);
         setNotificationsOpen(false);
-        setWorkspaceOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -131,7 +170,31 @@ function Navbar() {
     { label: "Analytics", path: "/analytics", icon: <BarChart3 className="w-4 h-4" /> },
   ];
 
+  const mainItems = [
+    { label: "Dashboard", path: "/dashboard", icon: <LayoutDashboard className="w-4.5 h-4.5" /> },
+    { label: "Practice", path: "/practice", icon: <Code2 className="w-4.5 h-4.5" /> },
+    { label: "Interview", path: "/create-interview", icon: <Video className="w-4.5 h-4.5" /> },
+    { label: "Roadmap", path: "/roadmap", icon: <Map className="w-4.5 h-4.5" /> },
+    { label: "History", path: "/history", icon: <History className="w-4.5 h-4.5" /> },
+    { label: "Analytics", path: "/analytics", icon: <BarChart3 className="w-4.5 h-4.5" /> },
+  ];
+
+  const quickAccessItems = [
+    { label: "Bookmarks", path: "/dashboard", icon: <Star className="w-4.5 h-4.5" /> },
+    { label: "Daily Challenge", path: "/practice", icon: <Target className="w-4.5 h-4.5" /> },
+    { label: "Streaks", path: "/dashboard", icon: <Flame className="w-4.5 h-4.5" /> },
+  ];
+
+  const settingsItems = [
+    { label: "Profile", path: "/profile", icon: <User className="w-4.5 h-4.5" /> },
+    { label: "Notifications", path: "/notifications", icon: <Bell className="w-4.5 h-4.5" />, badge: unreadCount > 0 ? unreadCount : 3 },
+    { label: "Help & Support", path: "/dashboard", icon: <HelpCircle className="w-4.5 h-4.5" /> },
+    { label: "Settings", path: "/settings", icon: <SettingsIcon className="w-4.5 h-4.5" /> },
+    { label: "Dark Mode", path: null, icon: <Moon className="w-4.5 h-4.5" />, toggle: true },
+  ];
+
   const commandItems = [
+    { label: "Launch ForgeAI Studio", category: "AI Assistant", shortcut: "G F", action: () => navigate("/forge-ai") },
     { label: "Go to Dashboard", category: "Navigation", shortcut: "G D", action: () => navigate("/dashboard") },
     { label: "Go to Practice Hub", category: "Navigation", shortcut: "G P", action: () => navigate("/practice") },
     { label: "Launch Interview Studio", category: "Navigation", shortcut: "G I", action: () => navigate("/create-interview") },
@@ -198,53 +261,106 @@ function Navbar() {
         }
       `}</style>
 
-      {/* Floating Navbar Wrapper: Compact Height Constraint (68-72px) */}
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-7xl px-4 sm:px-6 lg:px-8 z-40 transition-all duration-300">
-        <div className={`w-full h-[68px] flex items-center rounded-2xl border border-brand-border/40 dark:border-white/10 bg-brand-card/70 dark:bg-[#070b13]/70 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all duration-300 ${isScrolled ? "px-4 border-brand-border/60 dark:border-white/15" : "px-5"
-          }`}>
-          <div className="w-full flex items-center justify-between gap-3">
+      {/* CSS Selector to offset main content and adjust search bar on desktop */}
+      <style>{`
+        @media (min-width: 1024px) {
+          main, footer {
+            margin-left: ${isSidebarCollapsed ? "5rem" : "16rem"} !important;
+            width: calc(100% - ${isSidebarCollapsed ? "5rem" : "16rem"}) !important;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+        }
+      `}</style>
 
-            {/* Left Section: Brand Logo & Readable Subtitle */}
+      {/* Global Top Navbar: spans full-width on all viewports with warm yellowish ambient tone */}
+      <header
+        id="sidebar-nav-desktop-header"
+        className={`fixed top-0 left-0 right-0 w-full h-[76px] z-50 border-b border-brand-border/40 bg-[#FFFDF7]/95 dark:bg-[#0A0D15]/95 backdrop-blur-xl transition-all duration-300 ${isScrolled ? "shadow-md shadow-slate-900/5" : ""}`}
+      >
+        <div className="w-full h-full flex items-center justify-between px-4 sm:px-8">
+          {/* Brand Logo & Breadcrumbs - Aligned far left */}
+          <div className="flex items-center gap-4 shrink-0">
             <button
               onClick={() => navigate("/dashboard")}
-              className="flex items-center gap-3 text-left group cursor-pointer shrink-0"
+              className="flex items-center group cursor-pointer shrink-0"
             >
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-bg/50 dark:bg-slate-900/50 border border-brand-border/60 dark:border-white/10 shadow-lg overflow-hidden animate-logo-glow-soft">
-                <span className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-violet-500/20 to-cyan-500/10" />
-                <svg
-                  viewBox="0 0 24 24"
-                  className="relative h-5.5 w-5.5 text-blue-400 transition-transform duration-350 group-hover:scale-110"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 11.5C21 15.64 16.97 19 12 19C10.5 19 9.09 18.66 7.84 18.06L4 19L5.1 15.54C4.4 14.39 4 13.01 4 11.5C4 7.36 8.03 4 12 4C15.97 4 21 7.36 21 11.5Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="8.5" cy="10" r="1.2" className="fill-blue-400" />
-                  <circle cx="15.5" cy="9.5" r="1.2" className="fill-purple-400" />
-                  <circle cx="12" cy="13" r="1.2" className="fill-cyan-400" />
-                  <line x1="8.5" y1="10" x2="12" y2="13" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" opacity="0.6" />
-                  <line x1="15.5" y1="9.5" x2="12" y2="13" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" opacity="0.6" />
-                  <path d="M9.5 13.5L11.5 15.5L15 11.5" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-
-              <div className="hidden sm:flex flex-col select-none gap-0.5">
-                <span className="text-sm font-black tracking-tight text-brand-text group-hover:text-blue-400 transition-colors duration-300">
-                  MockAI
-                </span>
-                <span className="text-[7.5px] font-black uppercase tracking-[0.08em] text-brand-secondary leading-none">
-                  AI Interview Platform
-                </span>
-              </div>
+              <Logo className="h-16 shrink-0 transition-transform duration-300 group-hover:scale-105" />
             </button>
 
-            {/* Center Section: Navigation Tabs */}
-            <div className="hidden lg:flex items-center gap-0.5 xl:gap-1 bg-brand-bg/50 dark:bg-slate-950/20 border border-brand-border dark:border-white/5 p-1 rounded-2xl shrink">
+
+          </div>
+
+          {/* Desktop Right Side Controls (lg+ viewports) */}
+          <div className="hidden lg:flex items-center gap-3">
+            {/* Search Trigger */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center justify-between rounded-sm border border-brand-border bg-brand-bg/40 px-3 py-2 text-xs text-brand-secondary hover:border-blue-550/30 hover:bg-slate-150 dark:hover:bg-slate-900/60 transition-all duration-200 cursor-pointer w-48 xl:w-56"
+            >
+              <div className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-brand-secondary" />
+                <span className="truncate">Search reports...</span>
+              </div>
+              <span className="rounded-sm bg-slate-200 dark:bg-white/10 border border-brand-border dark:border-white/15 px-1.5 py-0.5 text-[9px] font-black text-brand-secondary dark:text-slate-300 font-mono tracking-tight shrink-0">
+                ⌘K
+              </span>
+            </button>
+
+            {/* Premium ForgeAI CTA */}
+            <button
+              type="button"
+              onClick={() => navigate("/forge-ai")}
+              className="relative inline-flex items-center gap-1.5 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] px-3.5 py-2.5 text-xs font-black text-[#0F172A] shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:shadow-[0_0_22px_rgba(245,158,11,0.55)] transition-all hover:scale-[1.02] active:scale-95 duration-200 cursor-pointer group overflow-hidden"
+            >
+              <Sparkles className="w-4 h-4 text-[#0F172A] shrink-0 group-hover:rotate-12 transition-transform duration-300" />
+              <span>ForgeAI</span>
+            </button>
+          </div>
+
+          {/* Mobile Action Controls (lg- viewports) */}
+          <div className="flex lg:hidden items-center gap-2">
+            <button
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="flex h-9 w-9 items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text transition-all duration-200 cursor-pointer"
+              title="Switch Theme"
+            >
+              {resolvedTheme === "dark" ? <Sun className="w-4 h-4 text-[#F59E0B]" /> : <Moon className="w-4 h-4 text-[#F59E0B]" />}
+            </button>
+
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="flex h-9 w-9 items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text cursor-pointer"
+            >
+              <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                {isMobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Drawer */}
+        {isMobileMenuOpen && (
+          <div className="w-full border-t border-brand-border/40 bg-brand-card p-5 shadow-2xl overflow-y-auto animate-dropdown-in max-h-[80vh] flex flex-col gap-5 lg:hidden">
+            {/* Search shortcut for mobile */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setSearchOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 rounded-sm border border-brand-border bg-brand-bg/40 px-3.5 py-3 text-xs text-brand-secondary"
+            >
+              <Search className="w-4 h-4 text-slate-500" />
+              <span>Search interviews, questions...</span>
+            </button>
+
+            {/* Navigation Items */}
+            <div className="flex flex-col gap-1.5">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.path ||
                   (item.path === "/create-interview" && location.pathname.startsWith("/interview")) ||
@@ -252,389 +368,395 @@ function Navbar() {
                 return (
                   <button
                     key={item.label}
-                    onClick={() => navigate(item.path)}
-                    className={`relative flex items-center gap-1.5 px-2.5 py-2 xl:px-3 xl:py-2 rounded-xl text-[10px] xl:text-[11px] 2xl:text-xs font-black uppercase tracking-wider transition-all duration-300 cursor-pointer group/nav ${isActive
-                        ? "bg-white/15 dark:bg-white/5 text-blue-500 dark:text-blue-400 border border-brand-border dark:border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] dark:shadow-[0_0_15px_rgba(59,130,246,0.15)]"
-                        : "text-brand-secondary hover:text-brand-text hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      navigate(item.path);
+                    }}
+                    className={`flex items-center gap-3 rounded-sm px-4 py-3 text-xs font-black uppercase tracking-wider transition-all duration-200 text-left w-full cursor-pointer ${isActive
+                        ? "bg-[#F59E0B]/15 text-amber-700 dark:text-amber-400 border border-[#F59E0B]/30"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white"
                       }`}
                   >
-                    <span className={`transition-transform duration-200 group-hover/nav:scale-110 ${isActive ? "text-blue-400" : "text-slate-500 group-hover/nav:text-slate-300"}`}>
+                    <span className={isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-500"}>
                       {item.icon}
                     </span>
-                    <span className="hidden xl:inline">{item.label}</span>
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/5 h-[2px] bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)] animate-pulse" />
-                    )}
+                    <span>{item.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Center Search Input (Shown only on larger screens to prevent overflow) */}
-            <div className="hidden 2xl:flex items-center relative w-48 3xl:w-60 shrink-0">
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="w-full flex items-center justify-between rounded-2xl border border-brand-border bg-brand-bg/40 px-3 py-2 text-xs text-brand-secondary hover:border-blue-500/30 hover:bg-slate-100 dark:hover:bg-slate-900/40 transition-all duration-200 cursor-pointer shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]"
-              >
-                <div className="flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5 text-brand-secondary" />
-                  <span className="truncate">Search reports...</span>
-                </div>
-                <span className="rounded bg-slate-200 dark:bg-white/10 border border-brand-border dark:border-white/15 px-1.5 py-0.5 text-[9px] font-black text-brand-secondary dark:text-slate-300 font-mono tracking-tight shrink-0">
-                  ⌘K
-                </span>
-              </button>
-            </div>
+            {/* Premium ForgeAI for mobile */}
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                navigate("/forge-ai");
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] py-3 text-xs font-black text-[#0F172A] shadow-lg cursor-pointer"
+            >
+              <Sparkles className="w-4.5 h-4.5" />
+              <span>Launch ForgeAI</span>
+            </button>
 
-            {/* Premium AI Copilot CTA */}
-            <div className="hidden sm:block shrink-0">
-              <button
-                type="button"
-                onClick={() => navigate("/practice")}
-                className="relative inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-3 py-2 xl:px-4 xl:py-2.5 text-xs font-black text-white shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:shadow-[0_0_22px_rgba(99,102,241,0.5)] transition-all hover:scale-[1.02] active:scale-95 duration-200 cursor-pointer group overflow-hidden animate-copilot-hover"
-              >
-                <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out" />
-                <Sparkles className="w-4 h-4 text-white shrink-0 group-hover:rotate-12 transition-transform duration-300" />
-                <span className="hidden 2xl:inline">AI Copilot</span>
-              </button>
-            </div>
+            <div className="border-t border-white/5" />
 
-            {/* Right Section: Workspace, Notifications & User Dropdown */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-
-              {/* Workspace Switcher */}
-              <div className="relative hidden lg:block">
-                <button
-                  onClick={() => setWorkspaceOpen(!workspaceOpen)}
-                  className="flex items-center gap-1.5 rounded-xl border border-brand-border bg-brand-bg/40 hover:bg-slate-150 dark:hover:bg-slate-900/60 transition-all duration-200 px-2.5 py-2 cursor-pointer select-none text-brand-secondary hover:text-brand-text"
-                  title="Switch Workspace"
-                >
-                  <Layers className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                  <span className="text-[10px] font-black tracking-wide text-brand-text truncate max-w-[80px] hidden 2xl:inline">
-                    {activeWorkspace}
-                  </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-brand-secondary transition-transform duration-200 hidden 2xl:inline ${workspaceOpen ? "rotate-180" : ""}`} />
-                </button>
-
-                {workspaceOpen && (
-                  <div className="absolute right-0 top-12 w-56 overflow-hidden rounded-2xl border border-brand-border bg-brand-card p-2.5 shadow-2xl z-50 animate-dropdown-in">
-                    <span className="text-[9px] font-black text-brand-secondary uppercase tracking-widest block px-2.5 mb-1.5">Switch Workspace</span>
-                    {["Personal Sandbox", "TalentAI Pro"].map((ws) => (
-                      <button
-                        key={ws}
-                        onClick={() => {
-                          setActiveWorkspace(ws);
-                          setWorkspaceOpen(false);
-                        }}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-black transition-all cursor-pointer ${activeWorkspace === ws
-                            ? "bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500/10"
-                            : "text-brand-secondary hover:bg-slate-100 dark:hover:bg-white/5 hover:text-brand-text border border-transparent"
-                          }`}
-                      >
-                        <span>{ws}</span>
-                        {activeWorkspace === ws && <Check className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
+            {/* Profile card */}
+            <div className="flex items-center gap-2.5 rounded-sm bg-brand-bg/40 p-3.5 border border-brand-border">
+              <span className="flex h-9.5 w-9.5 items-center justify-center rounded-sm bg-[#F59E0B] text-xs font-black uppercase text-[#0F172A] shadow-sm shrink-0">
+                {(user?.name || "U").charAt(0)}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold text-brand-text">
+                  {user?.name || "Candidate"}
+                </p>
+                <p className="truncate text-[9px] font-bold text-brand-secondary mt-0.5">
+                  {user?.email || "Account Workspace"}
+                </p>
               </div>
-
-              {/* Compact Search trigger for smaller screens */}
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="flex xl:hidden h-9 w-9 items-center justify-center rounded-xl border border-brand-border bg-brand-bg/40 hover:bg-slate-150 dark:hover:bg-slate-900/60 text-brand-secondary hover:text-brand-text transition-all duration-200 cursor-pointer"
-                title="Search (⌘K)"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-
-              {/* Theme Toggle Button: Matched height and styling */}
-              <button
-                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-border bg-brand-bg/40 hover:bg-slate-150 dark:hover:bg-slate-900/60 text-brand-secondary hover:text-brand-text transition-all duration-200 cursor-pointer"
-                title={`Switch to ${resolvedTheme === "dark" ? "Light" : "Dark"} Mode`}
-              >
-                {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </button>
-
-              {/* Notification Bell Dropdown: Pulsing Badge */}
-              {token && (
-                <div className="relative">
-                  <button
-                    onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-brand-border bg-brand-bg/40 hover:bg-slate-150 dark:hover:bg-slate-900/60 text-brand-secondary hover:text-brand-text transition-all duration-200 cursor-pointer"
-                  >
-                    <Bell className="w-4 h-4" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[8px] font-black text-white ring-2 ring-brand-card animate-bell-badge-pulse">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </button>
-
-                  {notificationsOpen && (
-                    <div className="absolute right-0 top-12 w-80 overflow-hidden rounded-2xl border border-brand-border bg-brand-card p-2.5 shadow-2xl z-50 animate-dropdown-in">
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-brand-border mb-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-brand-text">Notifications</span>
-                        {unreadCount > 0 && (
-                          <span className="text-[9px] font-extrabold text-blue-400">{unreadCount} unread</span>
-                        )}
-                      </div>
-
-                      <div className="max-h-64 overflow-y-auto space-y-1">
-                        {notifications.length === 0 ? (
-                          <div className="py-8 text-center text-[10px] text-slate-500 font-semibold">
-                            No notifications yet.
-                          </div>
-                        ) : (
-                          notifications.map((notif) => (
-                            <button
-                              key={notif._id}
-                              onClick={() => handleNotificationClick(notif)}
-                              className={`w-full text-left rounded-xl p-3 border transition active:scale-98 duration-100 cursor-pointer flex gap-3 ${notif.read
-                                  ? "border-transparent bg-transparent hover:bg-white/5"
-                                  : "border-blue-500/10 bg-blue-500/5 hover:bg-blue-500/10"
-                                }`}
-                            >
-                              <div className={`h-7.5 w-7.5 rounded-full shrink-0 flex items-center justify-center ${notif.eligible
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                  : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                                }`}>
-                                {notif.eligible ? "✓" : "⚡"}
-                              </div>
-
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[11px] font-semibold text-slate-300 leading-relaxed">
-                                  {notif.message}
-                                </p>
-                                <span className="text-[9px] text-slate-500 font-bold mt-1.5 block">
-                                  {new Date(notif.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {notif.eligible ? "Eligible" : "Reviewed"}
-                                </span>
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Profile Section: Premium User Card */}
-              <div className="relative">
-                <button
-                  onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2 rounded-xl border border-brand-border bg-brand-bg/40 hover:bg-slate-150 dark:hover:bg-slate-900/60 transition-all duration-200 p-1 cursor-pointer pr-2.5 relative select-none"
-                >
-                  <div className="relative h-7.5 w-7.5 shrink-0 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-600 to-violet-600 flex items-center justify-center text-xs font-black uppercase text-white shadow-md">
-                    {(user?.name || "U").charAt(0)}
-                    {/* Glowing online indicator */}
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                  </div>
-                  <span className="hidden 2xl:inline-block text-[10px] font-black text-brand-text leading-none max-w-[80px] truncate">
-                    {user?.name || "Candidate"}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-brand-secondary" />
-                </button>
-
-                {profileOpen && (
-                  <div className="absolute right-0 top-12 w-64 overflow-hidden rounded-2xl border border-brand-border bg-brand-card p-2.5 shadow-2xl animate-dropdown-in z-50">
-                    <div className="mb-2 flex items-center gap-2.5 rounded-xl bg-brand-bg/60 p-3 border border-brand-border">
-                      <span className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-black uppercase text-white shadow-sm shrink-0">
-                        {(user?.name || "U").charAt(0)}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-bold text-brand-text">
-                          {user?.name || "Candidate"}
-                        </p>
-                        <p className="truncate text-[9px] font-bold text-brand-secondary mt-0.5">
-                          {user?.email || "Account Profile"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setProfileOpen(false);
-                        navigate("/profile");
-                      }}
-                      className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-black text-brand-secondary hover:bg-slate-100 dark:hover:bg-white/5 hover:text-brand-text transition-all cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-brand-secondary" />
-                        Profile & Ranks
-                      </span>
-                      <span className="text-[8px] font-black text-brand-secondary bg-brand-bg border border-brand-border px-2 py-0.5 rounded">Ranks</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setProfileOpen(false);
-                        navigate("/settings");
-                      }}
-                      className="mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-black text-brand-secondary hover:bg-slate-100 dark:hover:bg-white/5 hover:text-brand-text transition-all cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2">
-                        <SettingsIcon className="w-4 h-4 text-brand-secondary" />
-                        Settings
-                      </span>
-                      <span className="text-[8px] font-black text-brand-secondary bg-brand-bg border border-brand-border px-2 py-0.5 rounded">Setup</span>
-                    </button>
-
-                    <div className="border-t border-brand-border my-1.5" />
-
-                    <button
-                      onClick={logout}
-                      className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-black text-rose-450 dark:text-rose-400 hover:bg-rose-500/10 active:scale-95 duration-100 transition-all cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2">
-                        <LogOut className="w-4 h-4 text-rose-450" />
-                        Logout Account
-                      </span>
-                      <span className="text-[8px] font-black text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded">Exit</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Mobile Menu Toggle */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text lg:hidden cursor-pointer"
-              >
-                <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  {isMobileMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                  )}
-                </svg>
-              </button>
-
             </div>
 
-          </div>
-        </div>
-
-        {/* Mobile Navigation Drawer */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden w-full border border-brand-border bg-brand-card rounded-[24px] mt-2 p-5 shadow-2xl overflow-y-auto animate-dropdown-in max-h-[80vh]">
-            <div className="flex flex-col gap-5">
-
-              {/* Search shortcut for mobile */}
+            <div className="grid grid-cols-2 gap-2">
               <button
-                type="button"
                 onClick={() => {
                   setIsMobileMenuOpen(false);
-                  setSearchOpen(true);
+                  navigate("/profile");
                 }}
-                className="w-full flex items-center gap-2.5 rounded-2xl border border-brand-border bg-brand-bg/40 px-3.5 py-3 text-xs text-brand-secondary"
+                className="flex flex-col items-center justify-center gap-1.5 rounded-sm border border-brand-border bg-brand-bg/40 p-3 hover:bg-slate-100 dark:hover:bg-white/5 transition-all duration-205"
               >
-                <Search className="w-4 h-4 text-slate-500" />
-                <span>Search interviews, questions...</span>
+                <User className="w-4.5 h-4.5 text-brand-secondary" />
+                <span className="text-[9px] font-black text-brand-secondary">Profile & Ranks</span>
               </button>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  navigate("/settings");
+                }}
+                className="flex flex-col items-center justify-center gap-1.5 rounded-sm border border-brand-border bg-brand-bg/40 p-3 hover:bg-slate-100 dark:hover:bg-white/5 transition-all duration-205"
+              >
+                <SettingsIcon className="w-4.5 h-4.5 text-brand-secondary" />
+                <span className="text-[9px] font-black text-brand-secondary">Settings</span>
+              </button>
+            </div>
 
-              {/* Navigation Items */}
-              <div className="flex flex-col gap-1.5">
-                {navItems.map((item) => {
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                logout();
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-sm border border-rose-500/20 bg-rose-500/5 py-3 text-xs font-black text-rose-450 cursor-pointer"
+            >
+              Logout Account
+            </button>
+          </div>
+        )}
+      </header>
+
+      {/* Desktop Sidebar: rendered fixed below the header with warm yellowish amber tone */}
+      <aside
+        id="sidebar-nav-desktop"
+        className={`hidden lg:flex fixed top-[76px] left-0 bottom-0 z-40 bg-[#FFFDF7] dark:bg-[#080d17] border-r border-brand-border/40 flex-col py-4 px-3 justify-between transition-all duration-300 overflow-x-hidden ${isSidebarCollapsed ? "w-20" : "w-64"}`}
+      >
+        <div className="space-y-4 flex flex-col h-full min-h-0">
+
+          {/* Categorized Menu Scroll Container */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3.5 py-1.5 pr-1 min-h-0 select-none no-scrollbar">
+            {/* MAIN Category */}
+            <div className="space-y-0.5">
+              {!isSidebarCollapsed && (
+                <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block px-3 py-0.5">
+                  MAIN
+                </span>
+              )}
+              <div className="space-y-0.5">
+                {mainItems.map((item) => {
                   const isActive = location.pathname === item.path ||
                     (item.path === "/create-interview" && location.pathname.startsWith("/interview")) ||
                     (item.path !== "/dashboard" && item.path !== "/create-interview" && location.pathname.startsWith(item.path));
                   return (
-                    <button
-                      key={item.label}
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        navigate(item.path);
-                      }}
-                      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider transition-all duration-200 text-left w-full cursor-pointer ${isActive
-                          ? "bg-gradient-to-br from-blue-500/10 to-indigo-500/10 text-blue-400 border border-blue-500/20"
-                          : "text-slate-400 hover:bg-white/5 hover:text-white"
-                        }`}
-                    >
-                      <span className={isActive ? "text-blue-400" : "text-slate-500"}>
-                        {item.icon}
-                      </span>
-                      <span>{item.label}</span>
-                    </button>
+                    <div key={item.label} className="relative group">
+                      <button
+                        onClick={() => navigate(item.path)}
+                        className={`flex items-center gap-3 px-3 py-1.5 w-full rounded-sm text-xs font-semibold tracking-wide transition-all duration-200 text-left cursor-pointer group/btn ${
+                          isActive
+                            ? "bg-[#F59E0B]/15 text-amber-700 dark:text-amber-400 border border-[#F59E0B]/30"
+                            : "text-brand-secondary hover:text-brand-text hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
+                        } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
+                      >
+                        <span className={`transition-transform duration-250 group-hover/btn:scale-110 shrink-0 ${isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500 group-hover/btn:text-slate-205"}`}>
+                          {item.icon}
+                        </span>
+                        <span className={`transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none hidden" : "w-auto opacity-100"}`}>
+                          {item.label}
+                        </span>
+                      </button>
+
+                      {isSidebarCollapsed && (
+                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-brand-border bg-slate-900 dark:bg-[#070b13] text-white text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
+                          {item.label}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+            </div>
 
-              {/* Premium Copilot for mobile */}
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  navigate("/practice");
-                }}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-650 to-violet-650 py-3 text-xs font-black text-white shadow-lg cursor-pointer"
-              >
-                <Sparkles className="w-4.5 h-4.5" />
-                <span>Launch AI Copilot</span>
-              </button>
-
-              <div className="border-t border-white/5" />
-
-              {/* Profile card */}
-              <div className="flex items-center gap-2.5 rounded-xl bg-brand-bg/40 p-3.5 border border-brand-border">
-                <span className="flex h-9.5 w-9.5 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-black uppercase text-white shadow-sm shrink-0">
-                  {(user?.name || "U").charAt(0)}
+            {/* QUICK ACCESS Category */}
+            <div className="space-y-0.5">
+              {!isSidebarCollapsed && (
+                <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block px-3 py-0.5">
+                  QUICK ACCESS
                 </span>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-brand-text">
-                    {user?.name || "Candidate"}
-                  </p>
-                  <p className="truncate text-[9px] font-bold text-brand-secondary mt-0.5">
-                    {user?.email || "Account Workspace"}
-                  </p>
-                </div>
-              </div>
+              )}
+              <div className="space-y-0.5">
+                {quickAccessItems.map((item) => {
+                  return (
+                    <div key={item.label} className="relative group">
+                      <button
+                        onClick={() => navigate(item.path)}
+                        className={`flex items-center gap-3 px-3 py-1.5 w-full rounded-sm text-xs font-semibold tracking-wide transition-all duration-200 text-left cursor-pointer group/btn text-brand-secondary hover:text-brand-text hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
+                      >
+                        <span className="transition-transform duration-250 group-hover/btn:scale-110 shrink-0 text-slate-400 dark:text-slate-500 group-hover/btn:text-slate-205">
+                          {item.icon}
+                        </span>
+                        <span className={`transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none hidden" : "w-auto opacity-100"}`}>
+                          {item.label}
+                        </span>
+                      </button>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    navigate("/profile");
-                  }}
-                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-brand-border bg-brand-bg/40 p-3 hover:bg-slate-100 dark:hover:bg-white/5 transition-all duration-205"
-                >
-                  <User className="w-4.5 h-4.5 text-brand-secondary" />
-                  <span className="text-[9px] font-black text-brand-secondary">Profile & Ranks</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    navigate("/settings");
-                  }}
-                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-brand-border bg-brand-bg/40 p-3 hover:bg-slate-100 dark:hover:bg-white/5 transition-all duration-205"
-                >
-                  <SettingsIcon className="w-4.5 h-4.5 text-brand-secondary" />
-                  <span className="text-[9px] font-black text-brand-secondary">Settings</span>
-                </button>
+                      {isSidebarCollapsed && (
+                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-brand-border bg-slate-900 dark:bg-[#070b13] text-white text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
+                          {item.label}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+            </div>
 
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  logout();
-                }}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/5 py-3 text-xs font-black text-rose-400 cursor-pointer"
-              >
-                Logout Account
-              </button>
+            {/* SETTINGS Category */}
+            <div className="space-y-0.5">
+              {!isSidebarCollapsed && (
+                <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block px-3 py-0.5">
+                  SETTINGS
+                </span>
+              )}
+              <div className="space-y-0.5">
+                {settingsItems.map((item) => {
+                  const isActive = item.path && location.pathname === item.path;
+                  const isDarkModeItem = item.toggle;
+                  const isNotificationsItem = item.label === "Notifications";
+
+                  return (
+                    <div key={item.label} className="relative group">
+                      <button
+                        onClick={() => {
+                          if (isDarkModeItem) {
+                            setTheme(resolvedTheme === "dark" ? "light" : "dark");
+                          } else if (isNotificationsItem) {
+                            setNotificationsOpen(!notificationsOpen);
+                            navigate("/notifications");
+                          } else if (item.path) {
+                            navigate(item.path);
+                          }
+                        }}
+                        className={`flex items-center gap-3 px-3 py-1.5 w-full rounded-sm text-xs font-semibold tracking-wide transition-all duration-200 text-left cursor-pointer group/btn ${
+                          isActive
+                            ? "bg-[#F59E0B]/15 text-amber-700 dark:text-amber-400 border border-[#F59E0B]/30"
+                            : "text-brand-secondary hover:text-brand-text hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
+                        } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
+                      >
+                        <span className={`transition-transform duration-250 group-hover/btn:scale-110 shrink-0 ${isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500 group-hover/btn:text-slate-205"}`}>
+                          {item.icon}
+                        </span>
+                        <span className={`transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none hidden" : "w-auto opacity-100"}`}>
+                          {item.label}
+                        </span>
+
+                        {/* Notifications Badge */}
+                        {!isSidebarCollapsed && isNotificationsItem && item.badge > 0 && (
+                          <span className="bg-[#F59E0B] text-[#0F172A] rounded-full text-[9px] font-black h-4 min-w-4 flex items-center justify-center px-1 shrink-0 ml-auto select-none shadow-[0_0_8px_rgba(245,158,11,0.4)]">
+                            {item.badge}
+                          </span>
+                        )}
+
+                        {/* Dark Mode Switch Toggle */}
+                        {!isSidebarCollapsed && isDarkModeItem && (
+                          <div className="ml-auto flex items-center">
+                            <div className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${resolvedTheme === "dark" ? "bg-[#F59E0B]" : "bg-slate-700"}`}>
+                              <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${resolvedTheme === "dark" ? "translate-x-3.5" : "translate-x-0"}`} />
+                            </div>
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Notifications Dropdown (Popout layout to the right of the sidebar, never overlapping menu links) */}
+                      {isNotificationsItem && notificationsOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-[9990] bg-transparent" 
+                            onClick={() => setNotificationsOpen(false)} 
+                          />
+                          <div className="absolute left-full bottom-0 ml-3.5 w-80 overflow-hidden rounded-sm border border-brand-border bg-brand-card p-3 shadow-2xl z-[9999] animate-dropdown-in">
+                            <div className="flex items-center justify-between px-3 py-2 border-b border-brand-border mb-2">
+                              <span className="text-xs font-black uppercase tracking-wider text-brand-text">Notifications</span>
+                              {unreadCount > 0 && (
+                                <span className="text-[10px] font-extrabold text-amber-500">{unreadCount} unread</span>
+                              )}
+                            </div>
+                            <div className="max-h-64 overflow-y-auto space-y-1.5 no-scrollbar">
+                              {notifications.length === 0 ? (
+                                <div className="py-8 text-center text-xs text-brand-muted font-semibold">
+                                  No notifications yet.
+                                </div>
+                              ) : (
+                                notifications.map((notif) => (
+                                  <button
+                                    key={notif._id}
+                                    onClick={() => handleNotificationClick(notif)}
+                                    className={`w-full text-left rounded-sm p-3 border transition active:scale-98 duration-100 cursor-pointer flex gap-3 ${
+                                      notif.read
+                                        ? "border-transparent bg-brand-elevated/40 hover:bg-brand-elevated"
+                                        : "border-[#F59E0B]/20 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/15"
+                                    }`}
+                                  >
+                                    <div className={`h-7.5 w-7.5 rounded-full shrink-0 flex items-center justify-center text-xs font-bold ${
+                                      notif.eligible
+                                        ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20"
+                                        : "bg-rose-500/15 text-rose-500 border border-rose-500/20"
+                                    }`}>
+                                      {notif.eligible ? "✓" : "⚡"}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-semibold text-brand-text leading-relaxed">
+                                        {notif.message}
+                                      </p>
+                                    </div>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                            <div className="pt-2 border-t border-brand-border mt-2 text-center">
+                              <button
+                                onClick={() => {
+                                  setNotificationsOpen(false);
+                                  navigate("/notifications");
+                                }}
+                                className="text-[11px] font-extrabold text-amber-500 hover:underline cursor-pointer"
+                              >
+                                View Notifications Center →
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {isSidebarCollapsed && (
+                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-brand-border bg-slate-900 dark:bg-[#070b13] text-white text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
+                          {item.label}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        )}
 
-      </header>
+          {/* Combined User Profile & Actions Footer - Single Line Icon Layout */}
+          <div className="pt-2 px-1 shrink-0">
+            {!isSidebarCollapsed ? (
+              <div className="rounded-sm border border-brand-border dark:border-white/5 bg-slate-50/50 dark:bg-white/5 p-1.5 flex items-center justify-between gap-1.5">
+                {/* Profile info button */}
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="flex items-center gap-2 min-w-0 flex-1 hover:bg-slate-100 dark:hover:bg-white/5 p-1 rounded-sm transition cursor-pointer text-left select-none"
+                  title="View Profile"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#F59E0B] text-xs font-black uppercase text-[#0F172A] shrink-0 shadow-md">
+                    {(user?.name || "SK").substring(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">
+                      {user?.name || "Sachin Kumar"}
+                    </div>
+                    <div className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 truncate">
+                      Premium User 👑
+                    </div>
+                  </div>
+                </button>
 
-      {/* Spacer matching compact height */}
-      <div className="h-24 select-none pointer-events-none" />
+                {/* Icon-only Actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Sign Out Icon Button */}
+                  <button
+                    onClick={logout}
+                    className="h-8 w-8 flex items-center justify-center rounded-sm border border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/10 hover:bg-rose-100 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-500 transition cursor-pointer active:scale-95 duration-100"
+                    title="Sign Out"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-500" />
+                  </button>
+
+                  {/* Collapse Sidebar Icon Button */}
+                  <button
+                    onClick={toggleSidebar}
+                    className="h-8 w-8 flex items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text hover:border-slate-400 dark:hover:border-slate-600 transition cursor-pointer"
+                    title="Collapse Sidebar (Ctrl+B)"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Collapsed state footer
+              <div className="flex flex-col items-center gap-3">
+                {/* Profile Avatar */}
+                <div className="relative group w-full flex justify-center">
+                  <button
+                    onClick={() => navigate("/profile")}
+                    className="flex h-8 w-8 items-center justify-center rounded-sm bg-indigo-600 text-xs font-black uppercase text-white shrink-0 shadow-md hover:scale-105 transition cursor-pointer"
+                  >
+                    {(user?.name || "SK").substring(0, 2).toUpperCase()}
+                  </button>
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-brand-border bg-slate-900 dark:bg-[#070b13] text-white text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
+                    Profile
+                  </div>
+                </div>
+
+                {/* Sign Out Button */}
+                <div className="relative group w-full flex justify-center">
+                  <button
+                    onClick={logout}
+                    className="flex h-8 w-8 items-center justify-center rounded-sm border border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/10 hover:bg-rose-100 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-500 transition cursor-pointer active:scale-95 duration-100"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0 text-rose-500" />
+                  </button>
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-rose-500/20 bg-rose-950 text-rose-350 text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
+                    Sign Out
+                  </div>
+                </div>
+
+                {/* Expand Toggle Button */}
+                <div className="relative group w-full flex justify-center">
+                  <button
+                    onClick={toggleSidebar}
+                    className="h-8 w-8 flex items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text hover:border-slate-400 dark:hover:border-slate-600 transition cursor-pointer"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-brand-border bg-slate-900 dark:bg-[#070b13] text-white text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
+                    Expand Sidebar (Ctrl+B)
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* Spacer matching top header height on all viewports */}
+      <div className="h-[76px] select-none pointer-events-none w-full" />
 
       {/* Command Palette (Cmd+K Modal) */}
       {searchOpen && (
@@ -644,7 +766,7 @@ function Navbar() {
             className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/65 backdrop-blur-md transition-opacity"
           />
 
-          <div className="relative w-full max-w-xl rounded-2xl border border-brand-border bg-brand-card p-4 shadow-2xl animate-dropdown-in flex flex-col max-h-[60vh] text-brand-text">
+          <div className="relative w-full max-w-xl rounded-sm border border-brand-border bg-brand-card p-4 shadow-2xl animate-dropdown-in flex flex-col max-h-[60vh] text-brand-text">
             <div className="flex items-center gap-3 border-b border-brand-border pb-3 mb-3.5">
               <Search className="w-5 h-5 text-brand-secondary shrink-0" />
               <input
@@ -689,7 +811,7 @@ function Navbar() {
                               setSearchOpen(false);
                               setSearchQuery("");
                             }}
-                            className={`w-full flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold text-left transition-all cursor-pointer ${isChosen
+                            className={`w-full flex items-center justify-between rounded-sm px-3.5 py-2.5 text-xs font-semibold text-left transition-all cursor-pointer ${isChosen
                                 ? "bg-gradient-to-r from-blue-500/15 to-indigo-500/15 text-blue-400 border border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.1)]"
                                 : "text-brand-secondary hover:bg-slate-100 dark:hover:bg-white/5 hover:text-brand-text border border-transparent"
                               }`}
@@ -708,7 +830,7 @@ function Navbar() {
                 ))
               ) : (
                 <div className="py-12 text-center text-xs text-slate-500 font-semibold">
-                  No matching workspace actions found for "{searchQuery}".
+                  No matching actions found for "{searchQuery}".
                 </div>
               )}
             </div>

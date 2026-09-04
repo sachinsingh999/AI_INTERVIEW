@@ -6,7 +6,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
-    <title>MockAI Admin • System Controls</title>
+    <title>CodeForge Admin • System Controls</title>
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      (function() {
+        const theme = localStorage.getItem("theme") || "system";
+        let resolved = "dark";
+        if (theme === "system") {
+          resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        } else {
+          resolved = theme;
+        }
+        if (resolved === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

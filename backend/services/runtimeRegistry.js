@@ -69,17 +69,17 @@ const templates = {
       },
       {
         path: "src/components/SearchBar.jsx",
-        content: `import React from 'react';\n\nexport default function SearchBar({ query, setQuery, category, setCategory }) {\n  const categories = ['All', 'Electronics', 'Audio', 'Accessories'];\n\n  return (\n    <div className="flex flex-col sm:flex-row gap-4 search-bar">\n      <input\n        type="text"\n        placeholder="Search products by title..."\n        value={query}\n        onChange={(e) => setQuery(e.target.value)}\n      />\n      <div className="flex gap-2">\n        {categories.map((cat) => (\n          <button\n            key={cat}\n            onClick={() => setCategory(cat)}\n            className={\`px-3 py-1.5 rounded-lg text-xs font-bold border transition \${ \n              category === cat \n                ? 'bg-indigo-600 border-indigo-500 text-white' \n                : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'\n            }\`}\n          >\n            {cat}\n          </button>\n        ))}\n      </div>\n    </div>\n  );\n}`,
+        content: `import React from 'react';\n\nexport default function SearchBar({ query, setQuery, category, setCategory }) {\n  // TODO: Render a search input field and category filter buttons.\n  // Make sure to bind appropriate props and update search category/query state.\n  return (\n    <div className="flex flex-col sm:flex-row gap-4 search-bar">\n      <input\n        type="text"\n        placeholder="Search products by title..."\n        value={query}\n        onChange={(e) => setQuery(e.target.value)}\n      />\n      <div className="flex gap-2">\n        {['All', 'Electronics', 'Audio', 'Accessories'].map((cat) => (\n          <button\n            key={cat}\n            onClick={() => setCategory(cat)}\n            className={\`px-3 py-1.5 rounded-lg text-xs font-bold border transition \${\n              category === cat\n                ? 'bg-indigo-600 border-indigo-500 text-white'\n                : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'\n            }\`}\n          >\n            {cat}\n          </button>\n        ))}\n      </div>\n    </div>\n  );\n}`,
         isReadOnly: false,
       },
       {
         path: "src/components/ProductList.jsx",
-        content: `import React from 'react';\n\nexport default function ProductList({ query, category }) {\n  return (\n    <div className="space-y-3">\n      <div className="product-card">\n        <h3 className="text-sm font-bold text-white">iPhone 15 Pro Max</h3>\n        <p className="text-xs text-slate-400">$1199 • Electronics</p>\n      </div>\n    </div>\n  );\n}`,
+        content: `import React from 'react';\n\nexport default function ProductList({ query, category }) {\n  // TODO: Use the MOCK_PRODUCTS array, filter items based on the search query (case-insensitive)\n  // and category, and map the filtered items dynamically.\n  return (\n    <div className="space-y-3">\n      <div className="product-card">\n        <h3 className="text-sm font-bold text-white">iPhone 15 Pro Max</h3>\n        <p className="text-xs text-slate-400">$1199 • Electronics</p>\n      </div>\n    </div>\n  );\n}`,
         isReadOnly: false,
       },
       {
         path: "src/hooks/useDebounce.js",
-        content: `import { useState, useEffect } from 'react';\n\nexport default function useDebounce(value, delay) {\n  const [debouncedValue, setDebouncedValue] = useState(value);\n\n  useEffect(() => {\n    const handler = setTimeout(() => {\n      setDebouncedValue(value);\n    }, delay);\n\n    return () => clearTimeout(handler);\n  }, [value, delay]);\n\n  return debouncedValue;\n}`,
+        content: `import { useState, useEffect } from 'react';\n\nexport default function useDebounce(value, delay) {\n  // TODO: Implement a custom debounce hook that delays updating the state value.\n  return value;\n}`,
         isReadOnly: false,
       },
       {

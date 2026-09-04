@@ -48,33 +48,100 @@ export default function PhaseCompleteTransition() {
   // Real session state fetched from backend
   const [sessionQuestions, setSessionQuestions] = useState([]);
   const [userAnswers, setUserAnswers] = useState({});
+  const [workspaceSubmission, setWorkspaceSubmission] = useState(null);
 
   useEffect(() => {
-    const fetchRealSession = async () => {
+    let pollInterval = null;
+
+    const checkStatus = async () => {
       if (!interviewId) return;
+
+      if (interviewId.startsWith("session-")) {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
+        try {
+          const localSession = localStorage.getItem(`interview_session_${interviewId}`);
+          const localAnswers = localStorage.getItem(`interview_answers_${interviewId}`);
+          if (localSession) {
+            const sessionObj = JSON.parse(localSession);
+            const answersObj = localAnswers ? JSON.parse(localAnswers) : {};
+            const phases = sessionObj.phases || {};
+            let activePhaseQuestions = [];
+            if (isTech1) activePhaseQuestions = phases.phase2?.questions || [];
+            else if (isTech2) activePhaseQuestions = phases.phase3?.questions || [];
+            else if (isHR) activePhaseQuestions = phases.phase4?.questions || [];
+            else activePhaseQuestions = phases.phase1?.questions || [];
+
+            setSessionQuestions(activePhaseQuestions);
+            setUserAnswers(answersObj);
+          }
+        } catch (e) {
+          console.error("Local storage lookup failed in mock transition:", e);
+        }
+        return;
+      }
+
       try {
         const res = await api.get(`/interview/${interviewId}/questions`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
+        // Auto-navigate if interview is complete and we are not explicitly reviewing reports
         if (res.data?.status === "Completed" || res.data?.status === "Submitted" || res.data?.status === "Expired" || res.data?.isLocked) {
-          navigate(`/interview/${interviewId}/responses`, { replace: true });
+          navigate(`/interview/${interviewId}/completed`, { replace: true });
           return;
         }
 
-        if (res.data?.phases) {
-          const phases = res.data.phases;
+        const activePhases = res.data?.activePhases || ["phase1"];
+        const phases = res.data?.phases || {};
+
+        let nextReady = false;
+        if (isTech1) {
+          nextReady = activePhases.includes("phase3") && (phases.phase3?.questions?.length > 0 || res.data?.questions?.length > 0);
+        } else if (isTech2) {
+          nextReady = activePhases.includes("phase4") && phases.phase4?.questions?.length > 0;
+        } else if (isHR) {
+          nextReady = true;
+        } else {
+          nextReady = activePhases.includes("phase2") && (phases.phase2?.questions?.length > 0 || res.data?.technicalQuestions?.length > 0);
+        }
+
+        if (nextReady) {
+          if (pollInterval) {
+            clearInterval(pollInterval);
+          }
+          setWorkspaceSubmission(res.data?.workspaceSubmission || null);
+
           let activePhaseQuestions = [];
           if (isTech1) activePhaseQuestions = phases.phase2?.questions || [];
-          else if (isTech2) activePhaseQuestions = phases.phase3?.questions || [];
+          else if (isTech2) {
+            const taskTitle = res.data.workspaceState?.taskGuidelines?.title || "Project Development Challenge";
+            const taskDesc = res.data.workspaceState?.taskGuidelines?.description || "Implement features in workspace templates.";
+            activePhaseQuestions = [{
+              id: "p3_project_dev",
+              title: taskTitle,
+              description: taskDesc,
+              type: "project",
+              difficulty: res.data.difficulty || "Medium",
+              constraints: "Filesystem Workspace • Persistence"
+            }];
+            if (res.data.workspaceSubmission?.isSubmitted) {
+              setUserAnswers({ p3_project_dev: "Submitted" });
+            } else {
+              setUserAnswers({});
+            }
+          }
           else if (isHR) activePhaseQuestions = phases.phase4?.questions || [];
           else activePhaseQuestions = phases.phase1?.questions || [];
 
           setSessionQuestions(activePhaseQuestions);
-          setUserAnswers(res.data.userAnswers || {});
+          if (!isTech2) {
+            setUserAnswers(res.data.userAnswers || {});
+          }
         }
       } catch (err) {
-        console.error("Error fetching session data in PhaseCompleteTransition, attempting local fallback:", err);
+        console.error("Error checking session status, utilizing local storage fallback:", err);
         try {
           const localSession = localStorage.getItem(`interview_session_${interviewId}`);
           const localAnswers = localStorage.getItem(`interview_answers_${interviewId}`);
@@ -96,21 +163,51 @@ export default function PhaseCompleteTransition() {
         }
       }
     };
-    fetchRealSession();
+
+    // Initial status check
+    checkStatus();
+
+    // Start polling status check
+    pollInterval = setInterval(checkStatus, 3000);
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, [interviewId, isTech1, isTech2, isHR, token]);
 
   const phaseQuestions = sessionQuestions.length > 0 ? sessionQuestions : (location.state?.questions || []);
-  const realAnswersObj = Object.keys(userAnswers).length > 0 ? userAnswers : (location.state?.answers || {});
+  
+  // Merge multiple sources of answers to ensure absolute correctness and robustness
+  const realAnswersObj = {
+    ...(location.state?.answers || {}),
+    ...(() => {
+      try {
+        const localAnswers = localStorage.getItem(`interview_answers_${interviewId}`);
+        return localAnswers ? JSON.parse(localAnswers) : {};
+      } catch (e) {
+        return {};
+      }
+    })(),
+    ...(userAnswers || {})
+  };
 
   const answeredCount = phaseQuestions.filter((q) => {
-    const ans = realAnswersObj[q.id];
+    const ans = realAnswersObj[q.id] || realAnswersObj[q._id];
     if (!ans) return false;
     if (typeof ans === "string") return ans.trim().length > 0;
-    if (typeof ans === "object") return (ans.code && ans.code.trim().length > 0) || ans.selectedOption;
+    if (typeof ans === "object") {
+      if (ans.selectedOption !== undefined && ans.selectedOption !== null) return true;
+      if (ans.selectedOptions && ans.selectedOptions.length > 0) return true;
+      if (ans.code && ans.code.trim().length > 0) return true;
+      if (ans.text && ans.text.trim().length > 0) return true;
+      return Object.keys(ans).length > 0;
+    }
     return false;
   }).length;
 
-  const totalCount = phaseQuestions.length || (isTech1 ? 2 : isTech2 ? 2 : isHR ? 3 : 10);
+  const totalCount = isTech2 ? 1 : (phaseQuestions.length || (isTech1 ? 2 : isHR ? 3 : 10));
   const skippedCount = Math.max(0, totalCount - answeredCount);
   let realStatsFromState = location.state?.realStats;
   if (!realStatsFromState && interviewId) {
@@ -123,9 +220,9 @@ export default function PhaseCompleteTransition() {
   }
 
   const summaryMetrics = {
-    totalAttempted: `${answeredCount} / ${totalCount}`,
-    answered: `${answeredCount}`,
-    skipped: `${skippedCount}`,
+    totalAttempted: isTech2 ? (workspaceSubmission?.isSubmitted ? "1 / 1" : "0 / 1") : `${answeredCount} / ${totalCount}`,
+    answered: isTech2 ? (workspaceSubmission?.weightedScore ? `${workspaceSubmission.weightedScore}%` : "Pending") : `${answeredCount}`,
+    skipped: isTech2 ? (workspaceSubmission?.isSubmitted ? "0" : "1") : `${skippedCount}`,
     timeTaken: realStatsFromState?.timeTaken || "0 min 45 sec",
     status: realStatsFromState?.status || (isHR ? "All Assessment Rounds Completed 🎉" : isTech2 ? "Qualified for HR Round" : isTech1 ? "Qualified for Round 2" : "Qualified for Next Round"),
   };
@@ -169,7 +266,7 @@ export default function PhaseCompleteTransition() {
 
   const handleStartNextRound = async () => {
     if (isHR) {
-      navigate(`/interview/${interviewId}/responses`, { replace: true });
+      navigate(`/interview/${interviewId}/completed`, { replace: true });
       return;
     }
 
@@ -196,68 +293,57 @@ export default function PhaseCompleteTransition() {
     }
   };
 
-  useEffect(() => {
-    if (isTech2) {
-      const timer = setTimeout(() => {
-        navigate(`/interview/${interviewId}/responses`, { replace: true });
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isTech2]);
-
-  if (isTech2) {
-    return (
-      <div className="min-h-screen bg-[#070b13] text-white flex flex-col items-center justify-center font-sans">
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white uppercase">
-          Technical Round 2
-        </h1>
-      </div>
-    );
-  }
 
   const handleConfirmExit = () => {
     setShowExitModal(false);
     navigate("/dashboard");
   };
 
+  const isReady = isHR || sessionQuestions.length > 0;
+
   return (
-    <div className="min-h-screen bg-brand-bg text-brand-text selection:bg-blue-500 selection:text-white font-sans pb-16">
+    <div className="min-h-screen flex flex-col bg-brand-bg text-brand-text selection:bg-blue-500 selection:text-white font-sans transition-colors duration-200">
       {/* Top Navbar */}
       <Navbar />
 
       {/* Main Container - Clean Full-Page Layout */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-3 pb-8 space-y-3.5 flex-1">
         {/* Hero Confirmation Banner (Clean & Non-Duplicated) */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="rounded-xl border border-brand-border bg-brand-card p-4 sm:p-5 backdrop-blur-xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4"
+          className="rounded-md border border-brand-border bg-brand-card p-3.5 sm:p-4 backdrop-blur-xl shadow-md flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden"
         >
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] shrink-0">
+          {/* Subtle ambient glow in the banner background */}
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 rounded-full bg-emerald-500/5 dark:bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+          <div className="flex items-start sm:items-center gap-3 relative z-10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-emerald-555/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-555/20 dark:border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] shrink-0">
               {isHR ? (
-                <Trophy className="h-5.5 w-5.5 stroke-[2.5] text-amber-400" />
+                <Trophy className="h-5.5 w-5.5 stroke-[2.5] text-amber-550 dark:text-amber-400" />
               ) : isTech2 ? (
-                <Layers className="h-5.5 w-5.5 stroke-[2.5]" />
+                <Layers className="h-5.5 w-5.5 stroke-[2.5] text-indigo-500" />
               ) : isTech1 ? (
-                <Code2 className="h-5.5 w-5.5 stroke-[2.5]" />
+                <Code2 className="h-5.5 w-5.5 stroke-[2.5] text-blue-500" />
               ) : (
                 <CheckCircle2 className="h-5.5 w-5.5 stroke-[2.5]" />
               )}
             </div>
 
             <div className="space-y-0.5">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-bold uppercase tracking-wider">
-                {isHR
-                  ? "🎉 Full Assessment Completed"
-                  : isTech2
-                  ? "✓ Tech-2 Submission Confirmed"
-                  : isTech1
-                  ? "✓ Tech-1 Submission Confirmed"
-                  : "✓ Aptitude Submission Confirmed"}
-              </span>
-              <h1 className="text-xl sm:text-2xl font-black text-brand-text tracking-tight">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[8px] font-mono font-bold uppercase tracking-wider">
+                  {isHR
+                    ? "🎉 Full Assessment Completed"
+                    : isTech2
+                    ? "✓ Tech-2 Submission Confirmed"
+                    : isTech1
+                    ? "✓ Tech-1 Submission Confirmed"
+                    : "✓ Aptitude Submission Confirmed"}
+                </span>
+              </div>
+              <h1 className="text-lg sm:text-xl font-black text-brand-text tracking-tight leading-none">
                 {isHR
                   ? "All Assessment Rounds Completed!"
                   : isTech2
@@ -266,7 +352,7 @@ export default function PhaseCompleteTransition() {
                   ? "Technical Round 1 Completed"
                   : "Aptitude Assessment Completed"}
               </h1>
-              <p className="text-xs text-brand-secondary font-normal leading-relaxed max-w-xl">
+              <p className="text-[11px] text-brand-secondary font-medium leading-relaxed max-w-xl">
                 {isHR
                   ? "Congratulations! You have completed all 4 assessment rounds (Aptitude, Tech 1, Tech 2, and HR). Your responses have been submitted for final score analysis."
                   : isTech2
@@ -278,33 +364,33 @@ export default function PhaseCompleteTransition() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 relative z-10">
             <button
               type="button"
               onClick={() => setShowExitModal(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-border bg-brand-card text-xs font-bold text-brand-secondary hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-brand-text transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border border-brand-border bg-brand-bg text-[11px] font-bold text-brand-secondary hover:bg-brand-border/20 hover:text-brand-text transition duration-200 cursor-pointer shadow-sm"
             >
-              <LogOut className="h-3.5 w-3.5 text-rose-450" />
+              <LogOut className="h-3 w-3 text-rose-500" />
               <span>Exit Interview</span>
             </button>
           </div>
         </motion.div>
 
         {/* 2-Column Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           {/* Left Column: Response Metrics & Submitted Items (7 Cols) */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="rounded-xl border border-brand-border bg-brand-card p-5 backdrop-blur-xl shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-brand-border pb-3">
-                <h3 className="text-xs font-mono uppercase font-bold text-brand-text flex items-center gap-2">
+          <div className="lg:col-span-7 space-y-4">
+            <div className="rounded-md border border-brand-border bg-brand-card p-4 backdrop-blur-xl shadow-md space-y-4 relative overflow-hidden">
+              <div className="flex items-center justify-between border-b border-brand-border pb-2.5">
+                <h3 className="text-[11px] font-mono uppercase font-bold text-brand-text flex items-center gap-1.5">
                   {isHR ? (
-                    <UserCheck className="h-4 w-4 text-emerald-400" />
+                    <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
                   ) : isTech2 ? (
-                    <Cpu className="h-4 w-4 text-purple-400" />
+                    <Cpu className="h-3.5 w-3.5 text-purple-400" />
                   ) : isTech1 ? (
-                    <Terminal className="h-4 w-4 text-blue-400" />
+                    <Terminal className="h-3.5 w-3.5 text-blue-400" />
                   ) : (
-                    <Sparkles className="h-4 w-4 text-amber-400" />
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
                   )}
                   <span>
                     {isHR
@@ -316,157 +402,70 @@ export default function PhaseCompleteTransition() {
                       : "Aptitude Response Summary"}
                   </span>
                 </h3>
-                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
+                <span className="px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-mono font-bold">
                   {summaryMetrics.status}
                 </span>
               </div>
 
               {/* Metric Cards Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                <div className="bg-brand-bg/85 p-3.5 rounded-xl border border-brand-border space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brand-secondary block">
-                    {isHR ? "HR Questions" : isTech2 ? "Design Scenarios" : isTech1 ? "Problems Solved" : "Attempted"}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {/* Metric 1 */}
+                <div className="border-l-4 border-l-blue-500 bg-brand-bg/40 p-2.5 rounded-sm hover:bg-brand-bg/60 transition-all duration-200 flex flex-col justify-between min-h-[72px] group">
+                  <span className="text-[8.5px] font-mono font-bold uppercase text-brand-secondary block tracking-wider mb-0.5">
+                    {isHR ? "HR Questions" : isTech2 ? "Project Tasks" : isTech1 ? "Problems Solved" : "Attempted"}
                   </span>
-                  <span className="text-lg font-black text-brand-text font-mono">{summaryMetrics.totalAttempted}</span>
+                  <span className="text-lg font-black text-brand-text font-mono tracking-tight group-hover:text-blue-500 transition-colors">{summaryMetrics.totalAttempted}</span>
                 </div>
 
-                <div className="bg-brand-bg/85 p-3.5 rounded-xl border border-brand-border space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brand-secondary block">
-                    {isHR ? "STAR Answers" : isTech2 ? "Schemas Saved" : isTech1 ? "Solutions Saved" : "Answered"}
+                {/* Metric 2 */}
+                <div className="border-l-4 border-l-emerald-500 bg-brand-bg/40 p-2.5 rounded-sm hover:bg-brand-bg/60 transition-all duration-200 flex flex-col justify-between min-h-[72px] group">
+                  <span className="text-[8.5px] font-mono font-bold uppercase text-brand-secondary block tracking-wider mb-0.5">
+                    {isHR ? "STAR Answers" : isTech2 ? "AI Score" : isTech1 ? "Solutions Saved" : "Answered"}
                   </span>
-                  <span className="text-lg font-black text-emerald-550 dark:text-emerald-400 font-mono">{summaryMetrics.answered}</span>
+                  <span className="text-lg font-black text-emerald-650 dark:text-emerald-400 font-mono tracking-tight group-hover:scale-105 transition-all origin-left">{summaryMetrics.answered}</span>
                 </div>
 
-                <div className="bg-brand-bg/85 p-3.5 rounded-xl border border-brand-border space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brand-secondary block">Skipped</span>
-                  <span className="text-lg font-black text-amber-555 dark:text-amber-400 font-mono">{summaryMetrics.skipped}</span>
+                {/* Metric 3 */}
+                <div className="border-l-4 border-l-amber-500 bg-brand-bg/40 p-2.5 rounded-sm hover:bg-brand-bg/60 transition-all duration-200 flex flex-col justify-between min-h-[72px] group">
+                  <span className="text-[8.5px] font-mono font-bold uppercase text-brand-secondary block tracking-wider mb-0.5">Skipped</span>
+                  <span className="text-lg font-black text-amber-650 dark:text-amber-400 font-mono tracking-tight group-hover:text-amber-550 transition-colors">{summaryMetrics.skipped}</span>
                 </div>
 
-                <div className="bg-brand-bg/85 p-3.5 rounded-xl border border-brand-border space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brand-secondary block">Time Taken</span>
-                  <span className="text-lg font-black text-blue-550 dark:text-blue-400 font-mono">{summaryMetrics.timeTaken}</span>
+                {/* Metric 4 */}
+                <div className="border-l-4 border-l-purple-500 bg-brand-bg/40 p-2.5 rounded-sm hover:bg-brand-bg/60 transition-all duration-200 flex flex-col justify-between min-h-[72px] group">
+                  <span className="text-[8.5px] font-mono font-bold uppercase text-brand-secondary block tracking-wider mb-0.5">Time Taken</span>
+                  <span className="text-lg font-black text-purple-650 dark:text-purple-400 font-mono tracking-tight group-hover:text-purple-500 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">{summaryMetrics.timeTaken}</span>
                 </div>
               </div>
 
-              {/* Recorded Answers List (For Aptitude OA) */}
-              {!isHR && !isTech1 && !isTech2 && (
-                <div className="pt-3 border-t border-brand-border space-y-2">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brand-secondary block">
-                    Recorded Aptitude Submission Responses
-                  </span>
-                  <div className="max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {phaseQuestions.map((q, idx) => {
-                      const ans = realAnswersObj[q.id];
-                      let userAnsText = "Not Attempted";
-                      let isAnswered = false;
-                      if (ans) {
-                        if (typeof ans === "string") {
-                          userAnsText = ans;
-                          isAnswered = true;
-                        } else if (ans.selectedOption) {
-                          userAnsText = `Option ${ans.selectedOption}`;
-                          isAnswered = true;
-                        } else if (ans.selectedOptions && ans.selectedOptions.length > 0) {
-                          userAnsText = ans.selectedOptions.join(", ");
-                          isAnswered = true;
-                        } else if (ans.text) {
-                          userAnsText = ans.text;
-                          isAnswered = true;
-                        }
-                      }
-                      
-                      return (
-                        <div key={q.id || idx} className="flex items-center justify-between p-3.5 rounded-xl bg-brand-bg/85 border border-brand-border text-xs">
-                          <div>
-                            <p className="font-bold text-brand-text max-w-[200px] truncate">{q.title || `Question ${idx + 1}`}</p>
-                            <p className="text-[10px] text-brand-secondary font-mono truncate max-w-[200px]">{isAnswered ? `Answer: ${userAnsText}` : "No response"}</p>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${isAnswered ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-brand-bg text-brand-secondary border-brand-border"}`}>
-                            {isAnswered ? "Saved ✓" : "Skipped"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Submissions Preview (For HR) */}
-              {isHR && (
-                <div className="pt-3 border-t border-brand-border space-y-2">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brand-secondary block">
-                    Submitted HR & Behavioral Responses
-                  </span>
-                  <div className="max-h-[220px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
-                    {phaseQuestions.map((q, idx) => {
-                      const ans = realAnswersObj[q.id];
-                      const isAnswered = ans && (typeof ans === "string" ? ans.trim().length > 0 : (ans.text && ans.text.trim().length > 0));
-                      return (
-                        <div key={q.id || idx} className="flex items-center justify-between p-3.5 rounded-xl bg-brand-bg/85 border border-brand-border text-xs">
-                          <div className="flex items-center gap-3">
-                            <UserCheck className={`h-4.5 w-4.5 ${isAnswered ? "text-emerald-500" : "text-brand-secondary"}`} />
-                            <div>
-                              <p className="font-bold text-brand-text">{q.title || `Behavioral Question ${idx + 1}`}</p>
-                              <p className="text-[10px] text-brand-secondary font-mono">STAR Method • Detailed Response</p>
-                            </div>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded text-[10px] font-bold border ${isAnswered ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-brand-bg text-brand-secondary border-brand-border"}`}>
-                            {isAnswered ? "Saved ✓" : "Not Attempted"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Submissions Preview (For Tech 1 & Tech 2) */}
-              {(isTech1 || isTech2) && (
-                <div className="pt-3 border-t border-brand-border space-y-2">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brand-secondary block">
-                    {isTech2 ? "Submitted Architecture & Design Challenges" : "Submitted Coding Challenges"}
-                  </span>
-                  <div className="max-h-[220px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
-                    {phaseQuestions.map((q, idx) => {
-                      const ans = realAnswersObj[q.id];
-                      const isAnswered = ans && (typeof ans === "string" ? ans.trim().length > 0 : (ans.code && ans.code.trim().length > 0));
-                      const langDisplay = typeof ans === "object" && ans.language ? ans.language : (q.language || "JavaScript");
-                      const totalTC = q.testCases?.length || 3;
-
-                      return (
-                        <div key={q.id || idx} className="flex items-center justify-between p-3.5 rounded-xl bg-brand-bg/85 border border-brand-border text-xs">
-                          <div className="flex items-center gap-3">
-                            <Code2 className={`h-4.5 w-4.5 ${idx % 2 === 0 ? "text-blue-500" : "text-indigo-500"}`} />
-                            <div>
-                              <p className="font-bold text-brand-text">{q.title || `Coding Challenge ${idx + 1}`}</p>
-                              <p className="text-[10px] text-brand-secondary font-mono">
-                                {langDisplay} • {q.constraints ? (typeof q.constraints === "string" ? q.constraints.split("\n")[0] : q.constraints[0]) : "Time: O(N) | Space: O(1)"}
-                              </p>
-                            </div>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded text-[10px] font-bold border ${isAnswered ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-brand-bg text-brand-secondary border-brand-border"}`}>
-                            {isAnswered ? "Submitted ✓" : "Not Attempted"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-3 border-t border-brand-border">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-brand-border">
                 <button
                   type="button"
-                  onClick={() => navigate(`/interview/${interviewId}/responses`, { replace: true })}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/10 text-blue-550 dark:text-blue-400 border border-blue-500/20 text-xs font-bold hover:bg-blue-500/20 transition cursor-pointer"
+                  onClick={async () => {
+                    if (!isHR) {
+                      const targetPhaseName = isTech2 ? "hr_round" : isTech1 ? "technical_round_2" : "technical_round_1";
+                      try {
+                        await api.post(
+                          "/interview/start-phase",
+                          {
+                            interviewId,
+                            phase: targetPhaseName,
+                          },
+                          { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                      } catch (e) {
+                        console.error("Error advancing phase on backend:", e);
+                      }
+                    }
+                    navigate(`/interview/${interviewId}/responses`, { replace: true });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-blue-500/10 text-blue-650 dark:text-blue-400 border border-blue-500/20 text-xs font-bold hover:bg-blue-500/20 transition duration-200 cursor-pointer shadow-sm"
                 >
-                  <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                  <Eye className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
                   <span>View Full Response Transcripts</span>
                 </button>
 
-                <p className="text-xs text-brand-secondary italic">
+                <p className="text-[11px] text-brand-secondary italic">
                   Responses saved securely.
                 </p>
               </div>
@@ -474,14 +473,14 @@ export default function PhaseCompleteTransition() {
           </div>
 
           {/* Right Column: Next Round Blueprint & Primary Launch Action (5 Cols) */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="rounded-xl border border-brand-border bg-brand-card p-6 backdrop-blur-xl shadow-xl space-y-5">
-              <div className="border-b border-brand-border pb-4 flex items-center justify-between">
+          <div className="lg:col-span-5 space-y-4">
+            <div className="rounded-md border border-brand-border bg-brand-card p-4 backdrop-blur-xl shadow-md space-y-3.5 relative overflow-hidden">
+              <div className="border-b border-brand-border pb-3 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-mono uppercase font-bold text-emerald-500 tracking-wider block">
+                  <span className="text-[8.5px] font-mono uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider block">
                     {isHR ? "Final Report Ready" : "Next Round Information"}
                   </span>
-                  <h3 className="text-lg font-black text-brand-text tracking-tight">
+                  <h3 className="text-base font-black text-brand-text tracking-tight">
                     {isHR
                       ? "Comprehensive Skill Analytics"
                       : isTech2
@@ -491,13 +490,13 @@ export default function PhaseCompleteTransition() {
                       : "Technical Interview - Round 1"}
                   </h3>
                 </div>
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold shrink-0">
-                  {isHR ? <Trophy className="h-4 w-4 text-amber-400" /> : <Clock className="h-4 w-4" />}
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-bold shrink-0 shadow-sm">
+                  {isHR ? <Trophy className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /> : <Clock className="h-3.5 w-3.5" />}
                   <span>{isHR ? "Full Report" : isTech2 ? "15 Mins" : isTech1 ? "30 Mins" : "20 Mins"}</span>
                 </div>
               </div>
 
-              <p className="text-xs text-brand-secondary leading-relaxed font-normal">
+              <p className="text-[11px] text-brand-secondary leading-relaxed font-medium">
                 {isHR
                   ? "Access your detailed performance score, skill proficiency radar, strength & growth breakdown, STAR analysis, and recruiter decision report."
                   : isTech2
@@ -507,15 +506,15 @@ export default function PhaseCompleteTransition() {
                   : "Evaluates core programming, Data Structures (Arrays, Hash Maps), Algorithmic time complexity O(N), and live IDE code execution with automated test cases."}
               </p>
 
-              <div className="space-y-2.5">
-                <span className="text-xs font-mono font-bold uppercase text-brand-secondary block">
+              <div className="space-y-1.5">
+                <span className="text-[8.5px] font-mono font-bold uppercase text-brand-secondary block">
                   {isHR ? "Report Features Included:" : "Core Topics Covered:"}
                 </span>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   {nextRoundTopics.map((topic) => (
                     <span
                       key={topic}
-                      className="px-2.5 py-1.5 rounded-lg bg-brand-bg border border-brand-border text-xs font-bold text-brand-text"
+                      className="px-2 py-0.5 rounded-sm bg-brand-bg/60 border border-brand-border text-[11px] font-bold text-brand-text hover:bg-brand-border/20 transition duration-150"
                     >
                       {topic}
                     </span>
@@ -524,13 +523,13 @@ export default function PhaseCompleteTransition() {
               </div>
 
               {/* Readiness Checklist */}
-              <div className="pt-3 border-t border-brand-border space-y-2.5">
-                <span className="text-[10px] font-mono uppercase font-bold text-brand-secondary block">
+              <div className="pt-2.5 border-t border-brand-border space-y-2">
+                <span className="text-[8.5px] font-mono uppercase font-bold text-brand-secondary block">
                   Pre-Round Environment Checklist
                 </span>
-                <div className="space-y-1.5 text-xs font-bold">
-                  <div className="flex items-center gap-2 p-1.5 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 stroke-[3]" />
+                <div className="space-y-1 text-[11px] font-bold">
+                  <div className="flex items-center gap-2 p-1.5 rounded-sm bg-emerald-500/5 border border-emerald-555/20 text-emerald-700 dark:text-emerald-300">
+                    <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-455 stroke-[3.5] shrink-0" />
                     <span>
                       {isHR
                         ? "All Assessment Rounds Completed ✓"
@@ -541,8 +540,8 @@ export default function PhaseCompleteTransition() {
                         : "Aptitude Assessment Passed ✓"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 p-1.5 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 stroke-[3]" />
+                  <div className="flex items-center gap-2 p-1.5 rounded-sm bg-emerald-500/5 border border-emerald-555/20 text-emerald-700 dark:text-emerald-300">
+                    <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-455 stroke-[3.5] shrink-0" />
                     <span>
                       {isHR
                         ? "Evaluation Report Prepared ✓"
@@ -553,8 +552,8 @@ export default function PhaseCompleteTransition() {
                         : "Judge0 IDE Code Compiler Active ✓"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 p-1.5 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 stroke-[3]" />
+                  <div className="flex items-center gap-2 p-1.5 rounded-sm bg-emerald-500/5 border border-emerald-555/20 text-emerald-700 dark:text-emerald-300">
+                    <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-455 stroke-[3.5] shrink-0" />
                     <span>
                       {isHR ? "Camera & Microphone Shut Down ✓" : "Camera & Microphone Active ✓"}
                     </span>
@@ -566,12 +565,18 @@ export default function PhaseCompleteTransition() {
               <button
                 type="button"
                 onClick={handleStartNextRound}
-                disabled={isStartingNext}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-xs sm:text-sm font-extrabold text-white shadow-xl hover:brightness-110 active:scale-98 transition duration-150 cursor-pointer"
+                disabled={isStartingNext || !isReady}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-[12px] sm:text-xs font-bold transition duration-200 cursor-pointer active:scale-95 border ${
+                  isStartingNext || !isReady
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-550 border-brand-border cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 !text-white border-transparent"
+                }`}
               >
-                <span>
-                  {isHR
-                    ? "Open Full Assessment Report 🎉"
+                <span className={isStartingNext || !isReady ? "text-slate-400 dark:text-slate-550" : "!text-white"}>
+                  {!isReady
+                    ? "Preparing Next Round..."
+                    : isHR
+                    ? "Finish & View Report 🎉"
                     : isStartingNext
                     ? "Initializing Next Round..."
                     : isTech2
@@ -580,7 +585,7 @@ export default function PhaseCompleteTransition() {
                     ? "Start Technical Round 2"
                     : "Start Technical Round 1 Now 🚀"}
                 </span>
-                <ArrowRight className="h-4.5 w-4.5" />
+                <ArrowRight className={`h-3.5 w-3.5 ${isStartingNext || !isReady ? "text-slate-400 dark:text-slate-550" : "!text-white"}`} />
               </button>
             </div>
           </div>
@@ -592,12 +597,12 @@ export default function PhaseCompleteTransition() {
         {showExitModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 p-4 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-md rounded-2xl border border-brand-border bg-brand-card p-6 shadow-2xl space-y-4 text-center text-brand-text"
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md rounded-sm border border-brand-border bg-brand-card p-6 shadow-2xl space-y-4 text-center text-brand-text"
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-sm bg-amber-500/10 text-amber-500 border border-amber-500/20">
                 <AlertTriangle className="h-6 w-6" />
               </div>
 
@@ -612,14 +617,14 @@ export default function PhaseCompleteTransition() {
                 <button
                   type="button"
                   onClick={() => setShowExitModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-brand-border bg-brand-card text-xs font-bold text-brand-secondary hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-sm border border-brand-border bg-brand-bg text-xs font-bold text-brand-secondary hover:bg-brand-border/25 cursor-pointer transition duration-200"
                 >
                   Resume Interview
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmExit}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 text-xs font-bold text-white hover:bg-rose-500 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-sm bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white cursor-pointer transition duration-200"
                 >
                   Exit to Dashboard
                 </button>
@@ -630,7 +635,7 @@ export default function PhaseCompleteTransition() {
       </AnimatePresence>
 
       {/* Footer */}
-      <Footer />
+      <Footer onlyCopyright={true} />
     </div>
   );
 }

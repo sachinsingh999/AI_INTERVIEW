@@ -46,7 +46,7 @@ function Analytics() {
 
       <Navbar />
 
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="w-full px-4 py-8 sm:px-8 lg:px-12">
         <div className="mb-8">
           <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Performance insights</p>
           <h1 className="text-3xl font-black tracking-tight text-brand-text leading-none mt-2">Real-Time Analytics</h1>

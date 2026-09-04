@@ -228,7 +228,7 @@ export default function PracticeDashboard() {
       <Navbar />
 
       {/* Main Grid Layout with Sidebar */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8">
         
         <PracticeDashboardSidebar
           activeSection={activeSection}
