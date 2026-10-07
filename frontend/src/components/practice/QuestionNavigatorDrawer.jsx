@@ -10,7 +10,7 @@ export default function QuestionNavigatorDrawer({
   questionSet = [],
   currentIndex,
   goToQuestion,
-  userProfile, // contains userProfile.saved and userProfile.bookmarked
+  userProfile,
   solvedQuestionIds = new Set(),
 }) {
   const [collapsedSections, setCollapsedSections] = useState({
@@ -73,21 +73,21 @@ export default function QuestionNavigatorDrawer({
     let statusIcon;
     if (isSelected) {
       statusIcon = (
-        <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className="w-3.5 h-3.5 text-brand-primary shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <circle cx="12" cy="12" r="10" />
           <circle cx="12" cy="12" r="4" fill="currentColor" />
         </svg>
       );
     } else if (isSolved) {
       statusIcon = (
-        <svg className="w-3.5 h-3.5 text-emerald-450 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className="w-3.5 h-3.5 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity="0.1" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
         </svg>
       );
     } else {
       statusIcon = (
-        <svg className="w-3.5 h-3.5 text-slate-600 shrink-0 hover:text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-3.5 h-3.5 text-brand-secondary/60 shrink-0 hover:text-brand-secondary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <circle cx="12" cy="12" r="10" />
         </svg>
       );
@@ -97,15 +97,15 @@ export default function QuestionNavigatorDrawer({
     const isEasy = q.difficulty === "Easy";
     const isMedium = q.difficulty === "Medium";
     const diffBadge = isEasy ? (
-      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 shrink-0 ml-3.5">
+      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0 ml-3.5">
         Easy
       </span>
     ) : isMedium ? (
-      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/15 shrink-0 ml-3.5">
+      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-500 border border-amber-500/20 shrink-0 ml-3.5">
         Medium
       </span>
     ) : (
-      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-455 border border-rose-550/15 shrink-0 ml-3.5">
+      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0 ml-3.5">
         Hard
       </span>
     );
@@ -118,13 +118,13 @@ export default function QuestionNavigatorDrawer({
           goToQuestion(originalIdx);
           setDrawerOpen(false);
         }}
-        className={`w-full text-left py-2 px-3 flex items-center justify-between transition-all duration-200 cursor-pointer select-none rounded-lg border text-xs ${
+        className={`w-full text-left py-1.5 px-2.5 flex items-center justify-between transition-all duration-200 cursor-pointer select-none rounded-xs border text-xs ${
           isSelected 
-            ? "bg-indigo-500/10 text-white border-indigo-500/40 font-semibold shadow-[0_0_12px_rgba(99,102,241,0.04)]" 
-            : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/35 hover:border-slate-800/50 hover:translate-x-0.5"
+            ? "bg-brand-primary/10 text-brand-primary border-brand-primary/40 font-bold shadow-xs" 
+            : "border-transparent text-brand-secondary hover:text-brand-text hover:bg-brand-elevated hover:border-brand-border"
         }`}
       >
-        <div className="min-w-0 flex items-center gap-2.5">
+        <div className="min-w-0 flex items-center gap-2">
           {statusIcon}
           <span className="truncate">{originalIdx + 1}. {title}</span>
         </div>
@@ -154,26 +154,26 @@ export default function QuestionNavigatorDrawer({
       {/* Background Overlay */}
       <div 
         onClick={() => setDrawerOpen(false)}
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1.5px] transition-opacity duration-300"
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
       />
       
-      {/* Premium Compact Explorer Sidebar */}
-      <div className="fixed top-0 left-0 bottom-0 z-50 w-[360px] bg-gradient-to-b from-[#0F172A] to-[#0B1220] border-r border-[#1E293B]/70 shadow-2xl flex flex-col transition-all duration-300 ease-in-out transform translate-x-0">
+      {/* Explorer Sidebar */}
+      <div className="fixed top-0 left-0 bottom-0 z-50 w-[340px] bg-brand-card border-r border-brand-border shadow-2xl flex flex-col transition-all duration-300 ease-in-out transform translate-x-0">
         
         {/* Sidebar Header */}
-        <div className="p-3 px-4 border-b border-[#1E293B]/60 flex items-center justify-between bg-slate-900/40 backdrop-blur-md shrink-0">
+        <div className="p-3 px-4 border-b border-brand-border flex items-center justify-between bg-brand-elevated shrink-0">
           <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-4 h-4 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200 select-none">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-text select-none">
               {isCoding ? "Workspace Explorer" : isAptitude ? "Aptitude Tests" : "Written Practice"}
             </h3>
           </div>
           <button 
             type="button"
             onClick={() => setDrawerOpen(false)}
-            className="text-slate-400 hover:text-slate-200 transition-all duration-200 p-1.5 hover:bg-slate-800/60 rounded-md cursor-pointer"
+            className="text-brand-secondary hover:text-brand-text transition p-1 hover:bg-brand-card rounded-xs cursor-pointer"
             title="Close Sidebar"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -183,10 +183,10 @@ export default function QuestionNavigatorDrawer({
         </div>
         
         {/* Compact Search Bar */}
-        <div className="p-3 border-b border-[#1E293B]/50 bg-slate-900/10 shrink-0">
+        <div className="p-2.5 border-b border-brand-border bg-brand-card shrink-0">
           <div className="relative flex items-center">
             <svg 
-              className="absolute left-3 w-3.5 h-3.5 text-slate-500 pointer-events-none" 
+              className="absolute left-2.5 w-3.5 h-3.5 text-brand-secondary pointer-events-none" 
               fill="none" 
               viewBox="0 0 24 24" 
               stroke="currentColor"
@@ -199,73 +199,64 @@ export default function QuestionNavigatorDrawer({
               placeholder="Search problems..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950/40 border border-[#1E293B] hover:border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-200 font-medium"
+              className="w-full bg-brand-elevated border border-brand-border rounded-xs pl-8 pr-3 py-1 text-xs text-brand-text placeholder-brand-secondary/60 outline-none focus:border-brand-primary transition font-medium"
             />
           </div>
         </div>
 
         {/* Dropdown Filters Bar */}
-        <div className="p-3 border-b border-[#1E293B]/50 bg-slate-900/5 flex gap-2 shrink-0">
-          <div className="flex-1 min-w-[75px] relative">
+        <div className="p-2.5 border-b border-brand-border bg-brand-card flex gap-1.5 shrink-0">
+          <div className="flex-1 min-w-[70px] relative">
             <select
               value={difficultyFilter}
               onChange={(e) => setDifficultyFilter(e.target.value)}
-              className="w-full bg-slate-950/30 text-slate-300 border border-[#1E293B] rounded-lg pl-2.5 pr-6 py-1.5 text-[10px] font-bold outline-none cursor-pointer hover:border-indigo-500/50 hover:text-slate-200 transition appearance-none bg-[right_8px_center] bg-no-repeat bg-[length:8px]"
-              style={{
-                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`
-              }}
+              className="w-full bg-brand-elevated text-brand-text border border-brand-border rounded-xs px-2 py-1 text-[10px] font-bold outline-none cursor-pointer hover:border-brand-primary transition"
             >
-              <option className="bg-[#0B1220] text-slate-300" value="All">Difficulty</option>
-              <option className="bg-[#0B1220] text-slate-300" value="Easy">Easy</option>
-              <option className="bg-[#0B1220] text-slate-300" value="Medium">Medium</option>
-              <option className="bg-[#0B1220] text-slate-300" value="Hard">Hard</option>
+              <option value="All">Difficulty: All</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
             </select>
           </div>
 
-          <div className="flex-1 min-w-[75px] relative">
+          <div className="flex-1 min-w-[70px] relative">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full bg-slate-950/30 text-slate-300 border border-[#1E293B] rounded-lg pl-2.5 pr-6 py-1.5 text-[10px] font-bold outline-none cursor-pointer hover:border-indigo-500/50 hover:text-slate-200 transition appearance-none bg-[right_8px_center] bg-no-repeat bg-[length:8px]"
-              style={{
-                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`
-              }}
+              className="w-full bg-brand-elevated text-brand-text border border-brand-border rounded-xs px-2 py-1 text-[10px] font-bold outline-none cursor-pointer hover:border-brand-primary transition"
             >
-              <option className="bg-[#0B1220] text-slate-300" value="All">Status</option>
-              <option className="bg-[#0B1220] text-slate-300" value="Solved">Solved</option>
-              <option className="bg-[#0B1220] text-slate-300" value="Unsolved">Unsolved</option>
+              <option value="All">Status: All</option>
+              <option value="Solved">Solved</option>
+              <option value="Unsolved">Unsolved</option>
             </select>
           </div>
 
-          <div className="flex-1 min-w-[75px] max-w-[95px] relative">
+          <div className="flex-1 min-w-[70px] relative">
             <select
               value={topicFilter}
               onChange={(e) => setTopicFilter(e.target.value)}
-              className="w-full bg-slate-950/30 text-slate-300 border border-[#1E293B] rounded-lg pl-2.5 pr-6 py-1.5 text-[10px] font-bold outline-none cursor-pointer hover:border-indigo-500/50 hover:text-slate-200 transition appearance-none bg-[right_8px_center] bg-no-repeat bg-[length:8px] truncate"
-              style={{
-                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`
-              }}
+              className="w-full bg-brand-elevated text-brand-text border border-brand-border rounded-xs px-2 py-1 text-[10px] font-bold outline-none cursor-pointer hover:border-brand-primary transition truncate"
             >
-              <option className="bg-[#0B1220] text-slate-300" value="All">Topic</option>
+              <option value="All">Topic: All</option>
               {allTopics.filter(t => t !== "All").map((topic) => (
-                <option className="bg-[#0B1220] text-slate-300" key={topic} value={topic}>{topic}</option>
+                <option key={topic} value={topic}>{topic}</option>
               ))}
             </select>
           </div>
         </div>
         
         {/* Scannable Problems list */}
-        <div className="flex-1 overflow-y-auto py-3 px-3 space-y-4 bg-slate-900/10">
+        <div className="flex-1 overflow-y-auto py-2.5 px-2.5 space-y-3 bg-brand-card">
           
           {/* Section: Bookmarks */}
           <div className="space-y-0.5">
             <button
               onClick={() => toggleSection("bookmarks")}
-              className="w-full flex items-center justify-between py-2 px-2.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 bg-slate-950/20 hover:bg-slate-900/30 border border-slate-900 rounded-lg hover:text-slate-200 transition-all duration-200 select-none cursor-pointer"
+              className="w-full flex items-center justify-between py-1.5 px-2 text-[10px] font-extrabold uppercase tracking-wider text-brand-secondary bg-brand-elevated hover:bg-brand-elevated/80 border border-brand-border rounded-xs hover:text-brand-text transition select-none cursor-pointer"
             >
               <span>Bookmarks ({bookmarkedIndices.length})</span>
               <svg 
-                className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 text-brand-secondary transition-transform duration-200 ${
                   collapsedSections.bookmarks ? "-rotate-90" : "rotate-0"
                 }`}
                 fill="none" 
@@ -277,9 +268,9 @@ export default function QuestionNavigatorDrawer({
               </svg>
             </button>
             {!collapsedSections.bookmarks && (
-              <div className="mt-2 space-y-1.5">
+              <div className="mt-1 space-y-1">
                 {bookmarkedIndices.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic py-2 pl-3">No bookmarks</p>
+                  <p className="text-[10px] text-brand-secondary italic py-1 pl-2">No bookmarks</p>
                 ) : (
                   getFilteredList(bookmarkedIndices).map(({ q, idx }) => renderQuestionButton(q, idx))
                 )}
@@ -291,11 +282,11 @@ export default function QuestionNavigatorDrawer({
           <div className="space-y-0.5">
             <button
               onClick={() => toggleSection("saved")}
-              className="w-full flex items-center justify-between py-2 px-2.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 bg-slate-950/20 hover:bg-slate-900/30 border border-slate-900 rounded-lg hover:text-slate-200 transition-all duration-200 select-none cursor-pointer"
+              className="w-full flex items-center justify-between py-1.5 px-2 text-[10px] font-extrabold uppercase tracking-wider text-brand-secondary bg-brand-elevated hover:bg-brand-elevated/80 border border-brand-border rounded-xs hover:text-brand-text transition select-none cursor-pointer"
             >
               <span>Saved ({savedIndices.length})</span>
               <svg 
-                className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 text-brand-secondary transition-transform duration-200 ${
                   collapsedSections.saved ? "-rotate-90" : "rotate-0"
                 }`}
                 fill="none" 
@@ -307,9 +298,9 @@ export default function QuestionNavigatorDrawer({
               </svg>
             </button>
             {!collapsedSections.saved && (
-              <div className="mt-2 space-y-1.5">
+              <div className="mt-1 space-y-1">
                 {savedIndices.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic py-2 pl-3">No saved questions</p>
+                  <p className="text-[10px] text-brand-secondary italic py-1 pl-2">No saved questions</p>
                 ) : (
                   getFilteredList(savedIndices).map(({ q, idx }) => renderQuestionButton(q, idx))
                 )}
@@ -321,11 +312,11 @@ export default function QuestionNavigatorDrawer({
           <div className="space-y-0.5">
             <button
               onClick={() => toggleSection("library")}
-              className="w-full flex items-center justify-between py-2 px-2.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 bg-slate-950/20 hover:bg-slate-900/30 border border-slate-900 rounded-lg hover:text-slate-200 transition-all duration-200 select-none cursor-pointer"
+              className="w-full flex items-center justify-between py-1.5 px-2 text-[10px] font-extrabold uppercase tracking-wider text-brand-secondary bg-brand-elevated hover:bg-brand-elevated/80 border border-brand-border rounded-xs hover:text-brand-text transition select-none cursor-pointer"
             >
               <span>Problems ({questionSet.length})</span>
               <svg 
-                className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 text-brand-secondary transition-transform duration-200 ${
                   collapsedSections.library ? "-rotate-90" : "rotate-0"
                 }`}
                 fill="none" 
@@ -337,7 +328,7 @@ export default function QuestionNavigatorDrawer({
               </svg>
             </button>
             {!collapsedSections.library && (
-              <div className="mt-2 space-y-1.5">
+              <div className="mt-1 space-y-1">
                 {getFilteredList(normalIndices).map(({ q, idx }) => renderQuestionButton(q, idx))}
               </div>
             )}

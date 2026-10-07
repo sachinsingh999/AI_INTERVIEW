@@ -423,7 +423,7 @@ export default function InterviewResponses() {
                   <span>Calculated Score</span>
                 </span>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400 dark:from-emerald-400 dark:to-teal-300 font-mono tracking-tight">{scorePercentage}%</span>
+                  <span className="text-xl sm:text-2xl font-black text-emerald-500 dark:text-emerald-400 font-mono tracking-tight">{scorePercentage}%</span>
                   <span className="text-[10px] text-brand-secondary font-mono font-bold">
                     ({correctCount}/{totalQuestions})
                   </span>
@@ -445,7 +445,7 @@ export default function InterviewResponses() {
                   <CheckCircle2 className="h-3.5 w-3.5 text-brand-secondary/80" />
                   <span>Answered & Saved</span>
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-555 dark:from-teal-400 dark:to-emerald-400 font-mono tracking-tight">{answeredCount}</span>
+                <span className="text-xl sm:text-2xl font-black text-teal-600 dark:text-teal-400 font-mono tracking-tight">{answeredCount}</span>
               </div>
 
               {/* Metric 4 */}
@@ -481,7 +481,7 @@ export default function InterviewResponses() {
                   tab.locked
                     ? "bg-brand-bg/25 border border-brand-border text-brand-secondary/60 cursor-not-allowed opacity-45"
                     : activePhaseFilter === tab.id
-                      ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow border border-indigo-400/20 cursor-pointer"
+                      ? "bg-indigo-600 text-white shadow border border-indigo-400/20 cursor-pointer"
                       : "bg-brand-card border border-brand-border text-brand-secondary hover:text-brand-text hover:border-brand-border/80 cursor-pointer"
                 }`}
               >
@@ -770,7 +770,7 @@ export default function InterviewResponses() {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-xs font-extrabold text-white shadow-[0_4px_15px_rgba(99,102,241,0.2)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.45)] transition duration-205 cursor-pointer relative z-10"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-indigo-600 hover:bg-indigo-500 text-xs font-extrabold text-white shadow-md transition duration-205 cursor-pointer relative z-10"
                 >
                   <Download className="h-4 w-4" />
                   <span>Export Score Report PDF</span>

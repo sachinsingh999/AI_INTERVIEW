@@ -79,7 +79,7 @@ export default function AptitudeConfigForm({
       <button
         type="submit"
         disabled={generating}
-        className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-650 to-indigo-600 hover:opacity-95 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 cursor-pointer flex items-center justify-center gap-2 border-none outline-none"
+        className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 border-none outline-none"
       >
         {generating ? (
           <>

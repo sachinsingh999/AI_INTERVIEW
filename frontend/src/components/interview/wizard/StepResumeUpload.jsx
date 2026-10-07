@@ -270,7 +270,7 @@ export default function StepResumeUpload({ resumeData, setResumeData, setParsedR
           <div className="space-y-1.5 w-full max-w-xs mx-auto">
             <div className="w-full bg-slate-200 dark:bg-slate-950 rounded-full h-2 overflow-hidden border border-brand-border">
               <div
-                className="bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 h-full transition-all duration-300 rounded-full"
+                className="bg-indigo-600 h-full transition-all duration-300 rounded-full"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
@@ -343,7 +343,7 @@ export default function StepResumeUpload({ resumeData, setResumeData, setParsedR
           disabled={!resumeData.uploaded || uploading}
           className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-xs font-extrabold text-white transition duration-150 ${
             resumeData.uploaded && !uploading
-              ? "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md hover:brightness-110 active:scale-98 cursor-pointer"
+              ? "bg-indigo-600 hover:bg-indigo-500 shadow-md active:scale-98 cursor-pointer"
               : "bg-slate-100 dark:bg-slate-900 border border-brand-border text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-40"
           }`}
         >

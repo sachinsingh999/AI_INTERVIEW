@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link, Navigate } from "react-router-dom";
 import { toast } from "../utils/toast";
 import api from "../services/api";
 import { useTheme } from "../context/ThemeContext";
+import { isAuthenticated } from "../components/ProtectedRoute";
 import {
   Sun,
   Moon,
@@ -24,6 +25,10 @@ import {
 import Logo from "../components/Logo";
 
 export default function Auth({ initialMode = "login" }) {
+  if (isAuthenticated()) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const navigate = useNavigate();
   const location = useLocation();
   const { resolvedTheme, setTheme } = useTheme();
@@ -54,14 +59,6 @@ export default function Auth({ initialMode = "login" }) {
   const [experience, setExperience] = useState("Mid-level");
 
   const [loading, setLoading] = useState(false);
-
-  // Redirect if already logged in
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      navigate("/dashboard");
-    }
-  }, [navigate]);
 
   // Password strength calculator
   const calculatePasswordStrength = (pass) => {

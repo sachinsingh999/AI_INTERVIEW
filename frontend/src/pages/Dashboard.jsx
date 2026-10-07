@@ -278,16 +278,12 @@ function Dashboard() {
       {/* Smart Navbar Component */}
       <Navbar />
 
-      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 md:space-y-8 mt-2">
+      <main className="flex-1 w-full px-3 sm:px-4 lg:px-5 py-2 space-y-1.5">
         
         {/* SECTION 2 — HERO WELCOME PANEL */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 items-stretch">
-                   {/* Left Panel: Welcomer & Stats Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-1.5 items-stretch">
+          {/* Left Panel: Welcomer & Stats Cards */}
           <section className="relative overflow-hidden rounded-sm border border-brand-border bg-brand-card/85 backdrop-blur-md p-6 md:p-7 shadow-sm flex flex-col justify-between">
-            {/* Ambient glows */}
-            <div className="absolute top-0 left-0 -ml-16 -mt-16 w-60 h-60 rounded-full bg-amber-500/10 blur-[80px] pointer-events-none" />
-            <div className="absolute bottom-0 right-0 -mr-16 -mb-16 w-60 h-60 rounded-full bg-purple-500/10 blur-[80px] pointer-events-none" />
-
             <div className="relative z-10 space-y-4">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-900/60 dark:bg-slate-950/60 border border-white/5 text-slate-400 w-fit">
                 Good to see you again! 👋
@@ -301,8 +297,9 @@ function Dashboard() {
                   Continue building your interview readiness and career growth journey.
                 </p>
               </div>
-                            {/* Status metric cards row (4 cards) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+
+              {/* Status metric cards row (4 cards) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
                 {[
                   { title: "Current Rank", value: currentRanking, icon: <Award className="w-4 h-4 text-amber-500" />, trend: true },
                   { title: "Current Rating", value: currentRating, icon: <Trophy className="w-4 h-4 text-amber-500" />, trend: true },
@@ -331,7 +328,7 @@ function Dashboard() {
               </div>
 
               {/* AI Insight Card */}
-              <div className="bg-brand-bg/45 hover:bg-brand-bg/80 border border-brand-border/50 hover:border-brand-border rounded-sm p-3.5 flex items-center justify-between gap-4 transition-all duration-300 group cursor-pointer">
+              <div className="bg-brand-bg/45 hover:bg-brand-bg/80 border border-brand-border/50 hover:border-brand-border rounded-sm p-3.5 flex items-center justify-between gap-1.5 transition-all duration-300 group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.1)] group-hover:scale-105 transition-transform">
                     <Sparkles className="w-4.5 h-4.5" />
@@ -351,7 +348,7 @@ function Dashboard() {
             </div>
 
             {/* CTAs Row */}
-            <div className="flex flex-wrap items-center gap-2.5 mt-4 pt-1 relative z-10">
+            <div className="flex flex-wrap items-center gap-1.5 mt-4 pt-1 relative z-10">
               <button
                 onClick={() => navigate("/practice")}
                 className="px-4 py-2.5 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] font-black text-[11px] flex items-center gap-2 transition duration-200 shadow-md cursor-pointer"
@@ -372,9 +369,6 @@ function Dashboard() {
 
           {/* Right Panel: Overall Readiness Ring & Stage Timeline */}
           <section className="relative overflow-hidden rounded-lg border border-brand-border bg-brand-card/85 backdrop-blur-md p-6 shadow-sm flex flex-col justify-between">
-            {/* ambient glow */}
-            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-60 h-60 rounded-full bg-indigo-500/10 blur-[80px] pointer-events-none" />
-
             <div className="relative z-10 space-y-4">
               {/* Info Title */}
               <div className="flex items-center justify-between">
@@ -413,7 +407,7 @@ function Dashboard() {
                       cx="56"
                       cy="56"
                       r="48"
-                      stroke="url(#heroSplitGradient)"
+                      stroke="#3B82F6"
                       strokeWidth="6.5"
                       fill="transparent"
                       strokeDasharray="301.6"
@@ -421,13 +415,6 @@ function Dashboard() {
                       strokeLinecap="round"
                       className="transition-all duration-1000 ease-out"
                     />
-                    <defs>
-                      <linearGradient id="heroSplitGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#3B82F6" />
-                        <stop offset="50%" stopColor="#6366F1" />
-                        <stop offset="100%" stopColor="#8B5CF6" />
-                      </linearGradient>
-                    </defs>
                   </svg>
                   <div className="absolute flex flex-col items-center justify-center text-center px-1">
                     <span className="text-2.5xl font-black text-brand-text leading-none">{placementReadiness}%</span>
@@ -490,8 +477,8 @@ function Dashboard() {
                     {/* connector bar */}
                     <div className="absolute top-[13px] left-6 right-6 h-0.5 bg-brand-border/40 z-0" />
                     {roadmapNodes.map((node, i) => {
-                      let nodeStyle = "bg-brand-bg border-brand-border/40 text-slate-500";
-                      let statusColor = "text-slate-500";
+                      let nodeStyle = "bg-brand-bg border-brand-border/40 text-slate-400 dark:text-slate-300";
+                      let statusColor = "text-slate-500 dark:text-slate-400";
                       
                       if (node.cleared) {
                         nodeStyle = "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.3)]";
@@ -525,7 +512,7 @@ function Dashboard() {
         </div>
 
         {/* SECTION 3 — PERFORMANCE OVERVIEW */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
           {[
             { 
               title: "Questions Solved", 
@@ -598,7 +585,7 @@ function Dashboard() {
             <p className="text-[11px] text-brand-secondary font-medium mt-0.5">Clear standard round assessments to master domain requirements.</p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1.5">
             {[
               { label: "Frontend", active: hasFrontend, desc: "Design & UX Architecture" },
               { label: "Backend", active: hasBackend, desc: "API & Process Control" },
@@ -633,9 +620,9 @@ function Dashboard() {
         </section>
 
         {/* SECTION 5 — QUICK ACTION CENTER */}
-        <section className="space-y-4">
+        <section className="space-y-1.5">
           <h2 className="text-base font-black text-brand-text tracking-tight">Quick Action Center</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
             {[
               { 
                 title: "Start AI Interview", 
@@ -687,7 +674,7 @@ function Dashboard() {
         </section>
 
         {/* SECTION 6 — SKILL INTELLIGENCE DASHBOARD */}
-        <section className="grid grid-cols-1 lg:grid-cols-[1.5fr_1.2fr] gap-6">
+        <section className="grid grid-cols-1 lg:grid-cols-[1.5fr_1.2fr] gap-1.5">
           {/* Skill Radar Card */}
           <div className="bg-brand-card border border-brand-border rounded-lg p-6 flex flex-col justify-between shadow-sm">
             <div>
@@ -746,7 +733,7 @@ function Dashboard() {
                       style={{ width: `${skill.value}%` }} 
                     />
                   </div>
-                  <div className="flex justify-between items-center text-[9px] text-slate-400 dark:text-slate-500 font-bold">
+                  <div className="flex justify-between items-center text-[9px] text-slate-500 dark:text-slate-300 font-bold">
                     <span>Target: 85%</span>
                     <span className="text-emerald-555 dark:text-emerald-450">{skill.trend}</span>
                   </div>
@@ -761,12 +748,12 @@ function Dashboard() {
         </section>
 
         {/* SECTION 7 — ACHIEVEMENTS & AI INSIGHTS */}
-        <section className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.5fr] gap-6">
+        <section className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.5fr] gap-1.5">
           
           {/* Achievement Box */}
           <div className="bg-brand-card border border-brand-border rounded-lg p-6 shadow-sm">
             <h3 className="text-sm font-black text-brand-text mb-4">Achievements</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-1.5">
               {[
                 { title: `${interviews.length} Completed`, label: "Interviews Completed", desc: "Total prep sessions", color: "bg-blue-500/5 text-blue-600 dark:text-blue-400 border-blue-500/20" },
                 { title: `${completedInterviews} Cleared`, label: "Rounds Cleared", desc: "100% submission rate", color: "bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
@@ -824,13 +811,13 @@ function Dashboard() {
         </section>
 
         {/* SECTION 8 — TARGET COMPANY PREPARATION */}
-        <section className="space-y-4">
+        <section className="space-y-1.5">
           <div>
             <h2 className="text-base font-black text-brand-text tracking-tight">Target Company Preparation</h2>
             <p className="text-xs text-brand-secondary font-medium mt-0.5">Resume custom prep guides mapped directly to matching recruitment requirements.</p>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-1.5">
             {[
               { name: "Google", offset: -3, focus: "Graphs & DSA", gap: "DFS/BFS trees", color: "border-blue-500/25 hover:border-blue-500 bg-blue-500/5" },
               { name: "Amazon", offset: 5, focus: "Leadership Principles", gap: "LP scenarios", color: "border-orange-500/25 hover:border-orange-500 bg-orange-500/5" },
@@ -873,7 +860,7 @@ function Dashboard() {
         <section className="bg-brand-card border border-brand-border rounded-sm p-6 shadow-sm transition-all duration-300">
           {activeParent ? (
             <>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-4">
                 <div>
                   <h3 className="text-sm font-black text-brand-text">
                     Active Recruitment Pipeline: {activeParent.role}
@@ -894,7 +881,7 @@ function Dashboard() {
                 {/* Animated horizontal connecter */}
                 <div className="hidden md:block absolute top-[23px] left-12 right-12 h-1 bg-brand-bg border-t border-b border-brand-border/45 z-0 rounded-full" />
                 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-1.5 relative z-10">
                   {[
                     { key: "oa", label: "1. OA Round", desc: "Written Cognitive & Coding" },
                     { key: "tech1", label: "2. Technical Round 1", desc: "DSA & Interactive Live IDE" },
@@ -910,14 +897,14 @@ function Dashboard() {
                     else if (round.key === "tech2") unlocked = activeParent?.phasesMetadata?.tech1?.cleared || false;
                     else if (round.key === "hr") unlocked = activeParent?.phasesMetadata?.tech2?.cleared || false;
 
-                    let badgeColor = "text-slate-500 bg-brand-bg/40 border border-brand-border/40";
+                    let badgeColor = "text-slate-500 dark:text-slate-400 bg-brand-bg/40 border border-brand-border/40";
                     let stateText = "Locked 🔒";
-                    let checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-500";
+                    let checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-400 dark:text-slate-300";
 
                     if (!unlocked) {
                       stateText = "Locked 🔒";
-                      badgeColor = "text-slate-500 bg-brand-bg/40 border border-brand-border/40";
-                      checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-500";
+                      badgeColor = "text-slate-500 dark:text-slate-400 bg-brand-bg/40 border border-brand-border/40";
+                      checkGlow = "border-brand-border/40 bg-brand-bg/40 text-slate-400 dark:text-slate-300";
                     } else if (metadata.completed) {
                       if (metadata.pending) {
                         stateText = "Under Review ⏳";
@@ -958,7 +945,7 @@ function Dashboard() {
               </div>
             </>
           ) : (
-            <div className="py-8 text-center max-w-md mx-auto space-y-3">
+            <div className="py-6 text-center max-w-md mx-auto space-y-3">
               <div className="h-10 w-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mx-auto">
                 <Layers className="w-5 h-5" />
               </div>
@@ -979,7 +966,7 @@ function Dashboard() {
         </section>
 
         {/* SECTION 10 — RECENT INTERVIEWS FEED */}
-        <section className="space-y-4">
+        <section className="space-y-1.5">
           <div>
             <h2 className="text-base font-black text-brand-text tracking-tight">Recent Interviews</h2>
             <p className="text-xs text-brand-secondary font-medium mt-0.5">Review history of standard sessions, score reports and evaluations.</p>
@@ -1059,7 +1046,7 @@ function Dashboard() {
                   })}
                   {scoredInterviews.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="py-8 text-center text-slate-500 font-semibold">
+                      <td colSpan="6" className="py-8 text-center text-slate-500 dark:text-slate-400 font-semibold">
                         Launch an interview above to see dynamic dashboard data here.
                       </td>
                     </tr>
@@ -1073,8 +1060,8 @@ function Dashboard() {
       </main>
 
       {/* SECTION 11 — FOOTER */}
-      <footer className="bg-brand-bg border-t border-brand-border px-6.5 py-6 mt-12 transition-colors duration-150">
-        <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] font-black uppercase tracking-wider text-brand-secondary">
+      <footer className="bg-brand-bg border-t border-brand-border px-4 py-3 mt-1.5 transition-colors duration-150">
+        <div className="w-full flex flex-col md:flex-row items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wider text-brand-secondary">
           <p>© 2026 Evalora AI. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="#" className="hover:text-brand-text transition-colors">Privacy Policy</a>

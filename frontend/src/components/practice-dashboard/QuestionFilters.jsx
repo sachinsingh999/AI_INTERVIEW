@@ -1,4 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
+import {
+  Search,
+  X,
+  Sparkles,
+  LayoutGrid,
+  List,
+  RotateCcw,
+  Layers
+} from "lucide-react";
+import TopicsModal from "./TopicsModal";
 
 export default function QuestionFilters({
   searchQuery,
@@ -12,78 +22,237 @@ export default function QuestionFilters({
   sortKey,
   setSortKey,
   setShowAiModal,
+  viewMode = "table",
+  setViewMode,
+  availableTags = [],
+  questions = [],
 }) {
+  const [showTopicsModal, setShowTopicsModal] = useState(false);
+
+  const popularTopics = [
+    "All",
+    "Arrays",
+    "Strings",
+    "Two Pointers",
+    "Sliding Window",
+    "Dynamic Programming",
+    "Trees",
+    "Graphs",
+    "Stack",
+    "Linked List",
+    "Hash Table",
+    "Binary Search"
+  ];
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    selectedDifficulty !== "All" ||
+    selectedTag !== "All" ||
+    selectedStatus !== "All" ||
+    sortKey !== "None";
+
+  const handleClearAll = () => {
+    setSearchQuery("");
+    setSelectedDifficulty("All");
+    setSelectedTag("All");
+    setSelectedStatus("All");
+    setSortKey("None");
+  };
+
+  const isCustomTopicSelected =
+    selectedTag !== "All" &&
+    !popularTopics.some((t) => t.toLowerCase() === selectedTag.toLowerCase());
+
   return (
-    <div className="flex flex-col lg:flex-row lg:items-center gap-4 bg-white dark:bg-[#0d1424] p-4 rounded-lg border border-slate-200 dark:border-slate-800/80 shadow-sm">
-      <div className="relative flex-1">
-        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </span>
-        <input
-          type="text"
-          placeholder="Search problems or tags..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-[#070b13]/40 border border-slate-200 dark:border-slate-800 rounded-md text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-550 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/10 transition-all"
-        />
-      </div>
+    <div className="bg-brand-card border border-brand-border rounded-xs p-1.5 sm:p-2 shadow-xs space-y-1.5">
+      
+      {/* ROW 1: SEARCH INPUT + TOPIC PILLS + AI GENERATOR */}
+      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        
+        {/* Search Input */}
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="w-3.5 h-3.5 text-brand-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search problems, topics, keywords..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-7 py-1 bg-brand-elevated border border-brand-border rounded-xs text-xs font-semibold text-brand-text placeholder:text-brand-secondary/60 outline-none focus:border-brand-primary transition-colors"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-brand-secondary hover:text-brand-text cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
 
-      <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
-        <select
-          value={selectedDifficulty}
-          onChange={(e) => setSelectedDifficulty(e.target.value)}
-          className="bg-slate-50 dark:bg-[#070b13]/40 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-xs font-black outline-none cursor-pointer focus:border-indigo-500 hover:border-slate-350 dark:hover:border-slate-750 transition-colors"
-        >
-          <option value="All">Difficulty: All</option>
-          <option value="Easy">Easy</option>
-          <option value="Medium">Medium</option>
-          <option value="Hard">Hard</option>
-        </select>
+        {/* Topic Pills Inline Scroll */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 max-w-full sm:max-w-md shrink-0">
+          {popularTopics.map((topic) => {
+            const isSelected = selectedTag.toLowerCase() === topic.toLowerCase();
+            return (
+              <button
+                key={topic}
+                onClick={() => setSelectedTag(topic)}
+                className={`px-2 py-0.5 rounded-xs text-[10px] sm:text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-brand-text text-brand-bg font-black shadow-xs"
+                    : "bg-brand-elevated text-brand-secondary hover:text-brand-text hover:bg-brand-elevated/80 border border-brand-border"
+                }`}
+              >
+                {topic}
+              </button>
+            );
+          })}
 
-        <select
-          value={selectedTag}
-          onChange={(e) => setSelectedTag(e.target.value)}
-          className="bg-slate-50 dark:bg-[#070b13]/40 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-xs font-black outline-none cursor-pointer focus:border-indigo-500 hover:border-slate-350 dark:hover:border-slate-750 transition-colors"
-        >
-          <option value="All">Topics: All</option>
-          {["Arrays", "Strings", "Linked List", "Trees", "Graphs", "Dynamic Programming", "Stack"].map((tag) => (
-            <option key={tag} value={tag}>{tag}</option>
-          ))}
-        </select>
+          {/* Active Custom Topic Pill if selected from modal */}
+          {isCustomTopicSelected && (
+            <button
+              onClick={() => setSelectedTag("All")}
+              className="px-2 py-0.5 rounded-xs text-[10px] sm:text-[11px] font-black whitespace-nowrap bg-amber-500 text-slate-900 shadow-xs inline-flex items-center gap-1 cursor-pointer transition-all"
+              title="Click to clear active topic"
+            >
+              <span>{selectedTag}</span>
+              <X className="w-2.5 h-2.5 stroke-[3]" />
+            </button>
+          )}
 
-        <select
-          value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
-          className="bg-slate-50 dark:bg-[#070b13]/40 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-xs font-black outline-none cursor-pointer focus:border-indigo-500 hover:border-slate-350 dark:hover:border-slate-750 transition-colors"
-        >
-          <option value="All">Status: All</option>
-          <option value="Solved">Solved</option>
-          <option value="Unsolved">Unsolved</option>
-        </select>
+          {/* "+ More" Button to open Topics Popup */}
+          <button
+            onClick={() => setShowTopicsModal(true)}
+            className={`px-2 py-0.5 rounded-xs text-[10px] sm:text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer inline-flex items-center gap-1 ${
+              showTopicsModal || isCustomTopicSelected
+                ? "bg-amber-500/20 text-amber-500 border border-amber-500/50 font-black"
+                : "bg-brand-elevated text-amber-600 dark:text-amber-400 hover:text-amber-500 hover:bg-brand-elevated/80 border border-amber-500/30"
+            }`}
+            title="Browse all DSA topics and categories"
+          >
+            <Layers className="w-2.5 h-2.5" />
+            <span>+ More</span>
+          </button>
+        </div>
 
-        <select
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value)}
-          className="bg-slate-50 dark:bg-[#070b13]/40 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-xs font-black outline-none cursor-pointer focus:border-indigo-500 hover:border-slate-350 dark:hover:border-slate-750 transition-colors"
-        >
-          <option value="None">Sort: Default</option>
-          <option value="Difficulty">Sort: Difficulty</option>
-          <option value="Acceptance">Sort: Acceptance</option>
-          <option value="Title">Sort: Name</option>
-        </select>
-
+        {/* AI Generator Button */}
         <button
           onClick={() => setShowAiModal(true)}
-          className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-indigo-500/10"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xs bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] text-[11px] font-black uppercase tracking-wider transition-all shadow-xs active:scale-98 cursor-pointer shrink-0 ml-auto sm:ml-0"
         >
-          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 21l-.813-5.096L3.096 15 8.1 14.187 9 9l.813 5.187 5.096.817-5.096.9zM19.045 7.045L18.5 10.5l-.545-3.455L14.5 6.5l3.455-.545L18.5 2.5l.545 3.455 3.455.545-3.455.545z" />
-          </svg>
-          <span>Generate</span>
+          <Sparkles className="w-3 h-3" />
+          <span>AI Generate</span>
         </button>
+
       </div>
+
+      {/* ROW 2: COMPACT CONTROLS & DROPDOWNS */}
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-brand-border/60">
+        
+        {/* Dropdowns Group */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Difficulty */}
+          <select
+            value={selectedDifficulty}
+            onChange={(e) => setSelectedDifficulty(e.target.value)}
+            className="bg-brand-elevated border border-brand-border rounded-xs px-2 py-0.5 text-xs font-bold text-brand-text outline-none focus:border-brand-primary cursor-pointer"
+          >
+            <option value="All">Difficulty: All</option>
+            <option value="Easy">🟢 Easy</option>
+            <option value="Medium">🟡 Medium</option>
+            <option value="Hard">🔴 Hard</option>
+          </select>
+
+          {/* Topic Select */}
+          <select
+            value={selectedTag}
+            onChange={(e) => setSelectedTag(e.target.value)}
+            className="bg-brand-elevated border border-brand-border rounded-xs px-2 py-0.5 text-xs font-bold text-brand-text outline-none focus:border-brand-primary cursor-pointer"
+          >
+            <option value="All">Topic: All</option>
+            {(availableTags.length > 0 ? availableTags : popularTopics.slice(1)).map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+
+          {/* Status */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="bg-brand-elevated border border-brand-border rounded-xs px-2 py-0.5 text-xs font-bold text-brand-text outline-none focus:border-brand-primary cursor-pointer"
+          >
+            <option value="All">Status: All</option>
+            <option value="Solved">✓ Solved</option>
+            <option value="Attempted">⚡ Attempted</option>
+            <option value="Unsolved">⭕ Unsolved</option>
+          </select>
+
+          {/* Sort */}
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            className="bg-brand-elevated border border-brand-border rounded-xs px-2 py-0.5 text-xs font-bold text-brand-text outline-none focus:border-brand-primary cursor-pointer"
+          >
+            <option value="None">Sort: Default</option>
+            <option value="Difficulty">Sort: Difficulty</option>
+            <option value="Acceptance">Sort: Acceptance</option>
+            <option value="Title">Sort: Name (A-Z)</option>
+          </select>
+        </div>
+
+        {/* Right side: View Toggle & Reset */}
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearAll}
+              className="inline-flex items-center gap-1 text-[11px] font-black text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+          )}
+
+          {/* View Mode Toggle */}
+          {setViewMode && (
+            <div className="flex items-center gap-0.5 bg-brand-elevated p-0.5 rounded-xs border border-brand-border">
+              <button
+                onClick={() => setViewMode("table")}
+                className={`p-1 rounded-xs transition-colors cursor-pointer ${
+                  viewMode === "table"
+                    ? "bg-brand-card text-amber-500 shadow-xs"
+                    : "text-brand-secondary hover:text-brand-text"
+                }`}
+                title="Detailed Table View"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-1 rounded-xs transition-colors cursor-pointer ${
+                  viewMode === "grid"
+                    ? "bg-brand-card text-amber-500 shadow-xs"
+                    : "text-brand-secondary hover:text-brand-text"
+                }`}
+                title="Grid Cards View"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* ALL TOPICS POPUP MODAL */}
+      <TopicsModal
+        isOpen={showTopicsModal}
+        onClose={() => setShowTopicsModal(false)}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        questions={questions}
+        availableTags={availableTags}
+      />
+
     </div>
   );
 }

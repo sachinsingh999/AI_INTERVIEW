@@ -855,7 +855,7 @@ export default function StepResumeParsingReview({ resumeData, parsedResume, setP
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-extrabold text-white shadow-md hover:brightness-110 active:scale-98 transition duration-150 cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-extrabold text-white shadow-md active:scale-98 transition duration-150 cursor-pointer"
         >
           <span>Continue to Lobby</span>
           <ChevronRight className="h-3.5 w-3.5" />

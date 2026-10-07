@@ -212,7 +212,7 @@ export default function ProgressiveWizardForm({
           {/* Connector Line */}
           <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-800 -translate-y-1/2 z-0" />
           <div
-            className="absolute top-1/2 left-4 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 -translate-y-1/2 z-0 transition-all duration-500"
+            className="absolute top-1/2 left-4 h-0.5 bg-indigo-500 -translate-y-1/2 z-0 transition-all duration-500"
             style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
           />
 
@@ -236,7 +236,7 @@ export default function ProgressiveWizardForm({
                     isCompleted
                       ? "bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]"
                       : isCurrent
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] scale-110 border border-blue-400"
+                      ? "bg-indigo-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] scale-110 border border-indigo-400"
                       : "bg-slate-900 border border-white/10 text-slate-500 hover:text-white"
                   }`}
                 >
@@ -328,7 +328,7 @@ export default function ProgressiveWizardForm({
               <button
                 type="button"
                 onClick={nextStep}
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-extrabold text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.02] active:scale-98 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-xs font-extrabold text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-[1.02] active:scale-98 transition cursor-pointer"
               >
                 <span>Continue to Basic Setup</span>
                 <ChevronRight className="h-4 w-4" />
@@ -431,7 +431,7 @@ export default function ProgressiveWizardForm({
               <button
                 type="button"
                 onClick={nextStep}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-extrabold text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.02] active:scale-98 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-xs font-extrabold text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-[1.02] active:scale-98 transition cursor-pointer"
               >
                 <span>Continue to Topics & Tech</span>
                 <ChevronRight className="h-4 w-4" />
@@ -642,7 +642,7 @@ export default function ProgressiveWizardForm({
               <button
                 type="button"
                 onClick={nextStep}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-extrabold text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.02] active:scale-98 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-xs font-extrabold text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-[1.02] active:scale-98 transition cursor-pointer"
               >
                 <span>Review & Launch</span>
                 <ChevronRight className="h-4 w-4" />
@@ -763,9 +763,8 @@ export default function ProgressiveWizardForm({
                 type="button"
                 onClick={onSubmit}
                 disabled={isSubmitting}
-                className="flex-1 max-w-sm relative flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-sm font-black text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:shadow-[0_0_40px_rgba(99,102,241,0.6)] hover:scale-[1.02] active:scale-98 transition duration-200 cursor-pointer overflow-hidden group"
+                className="flex-1 max-w-sm relative flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-sm font-black text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:shadow-[0_0_40px_rgba(99,102,241,0.6)] hover:scale-[1.02] active:scale-98 transition duration-200 cursor-pointer overflow-hidden group"
               >
-                <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out" />
                 <Send className="h-4 w-4 shrink-0 group-hover:rotate-12 transition-transform duration-300" />
                 <span>Generate Interview</span>
               </button>

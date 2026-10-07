@@ -27,7 +27,7 @@ export default function DurationSlider({ value, onChange }) {
               onClick={() => onChange(duration)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border ${
                 isSelected
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-500/50 text-white shadow-[0_0_12px_rgba(59,130,246,0.35)]"
+                  ? "bg-indigo-600 border-indigo-500/50 text-white shadow-[0_0_12px_rgba(99,102,241,0.35)]"
                   : "bg-slate-950/40 border-white/10 text-slate-400 hover:text-white hover:border-white/20 hover:bg-white/5"
               }`}
             >

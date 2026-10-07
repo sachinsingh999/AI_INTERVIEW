@@ -150,14 +150,13 @@ export default function AptitudePractice({
             setSubmitted(true);
             setShowReview(true);
           }}
-          className="mt-6 w-full rounded-lg bg-gradient-to-r from-slate-900 to-slate-850 py-2.5 text-xs font-black text-white shadow-md shadow-slate-900/10 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95 border border-slate-800"
+          className="mt-6 w-full rounded-lg bg-slate-900 py-2.5 text-xs font-black text-white shadow-md shadow-slate-900/10 transition-all hover:bg-slate-800 hover:-translate-y-0.5 hover:shadow-lg active:scale-95 border border-slate-800"
         >
           Submit Test
         </button>
       </aside>
 
       <section className="flex flex-col min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl shadow-lg relative">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-950/20 via-slate-950/0 to-slate-950/0"></div>
         <div className="border-b border-slate-800/80 bg-slate-950/20 px-5 py-3 shrink-0 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-black text-white uppercase tracking-wider">Aptitude Assessment</h2>
@@ -250,7 +249,7 @@ export default function AptitudePractice({
             <button
               type="button"
               onClick={() => moveQuestion(1)}
-              className="rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2 text-xs font-black text-white shadow-md shadow-indigo-500/20 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+              className="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-6 py-2 text-xs font-black text-white shadow-md shadow-indigo-500/20 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
             >
               Save & Next
             </button>

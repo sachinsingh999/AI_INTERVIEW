@@ -167,7 +167,7 @@ export default function SubmittingSolutionModal({
               <div className="space-y-3 pt-1">
                 <div className="h-2 w-full bg-[#1F2937] rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-[#6366F1] to-[#818CF8]"
+                    className="h-full bg-indigo-600"
                     initial={{ width: "0%" }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.1, ease: "linear" }}
@@ -394,7 +394,7 @@ export default function SubmittingSolutionModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#818CF8] hover:from-[#4F46E5] hover:to-[#6366F1] text-xs font-bold text-[#F8FAFC] shadow-[0_4px_15px_rgba(99,102,241,0.25)] transition duration-200 cursor-pointer active:scale-98 text-center"
+                  className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-[#F8FAFC] shadow-[0_4px_15px_rgba(99,102,241,0.25)] transition duration-200 cursor-pointer active:scale-98 text-center"
                 >
                   Return to Coding Workspace
                 </button>

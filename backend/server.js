@@ -68,6 +68,7 @@ app.get("/", (req, res) => {
 });
 
 const resumeRoutes = require("./routes/resumeRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 
 // ===== API Routes =====
 app.use("/api/users", userRoutes);
@@ -80,6 +81,7 @@ app.use("/api/compiler", compilerRoutes);
 app.use("/api/potd", potdRoutes);
 app.use("/api/aptitude", aptitudeRoutes);
 app.use("/api/roadmap", roadmapRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Error logging middleware
 app.use((err, req, res, next) => {

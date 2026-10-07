@@ -13,25 +13,25 @@ export default function ConsoleTabContent({
 }) {
   if (consoleTab === "testcases") {
     const activeCases = activeTestCases.length > 0 ? activeTestCases : (problem?.visibleTestCases || problem?.tests || []);
-    const selectedIndex = selectedTestCaseIndex === "custom" ? "custom" : Math.min(selectedTestCaseIndex, activeCases.length - 1);
-    const activeCase = selectedIndex !== "custom" ? activeCases[selectedIndex] : null;
+    const selectedIndex = selectedTestCaseIndex === "custom" ? "custom" : Math.min(selectedTestCaseIndex, Math.max(0, activeCases.length - 1));
+    const activeCase = selectedIndex !== "custom" && activeCases.length > 0 ? activeCases[selectedIndex] : null;
 
     return (
       <div className="flex-1 flex flex-col min-h-0 text-xs select-none">
         {/* Toggle Tab header: Official Cases | Custom Input */}
-        <div className="flex items-center gap-6 border-b border-[#1F2937]/50 pb-0 mb-3 shrink-0">
+        <div className="flex items-center gap-4 sm:gap-6 border-b border-brand-border pb-0 mb-3 shrink-0">
           <button
             type="button"
             onClick={() => setSelectedTestCaseIndex(0)}
             className={`pb-2 text-xs font-bold relative transition cursor-pointer bg-transparent border-none outline-none ${
               selectedIndex !== "custom"
-                ? "text-white font-extrabold"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-brand-text font-black"
+                : "text-brand-secondary hover:text-brand-text"
             }`}
           >
             Official Cases
             {selectedIndex !== "custom" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full" />
             )}
           </button>
           <button
@@ -39,13 +39,13 @@ export default function ConsoleTabContent({
             onClick={() => setSelectedTestCaseIndex("custom")}
             className={`pb-2 text-xs font-bold relative transition cursor-pointer bg-transparent border-none outline-none ${
               selectedIndex === "custom"
-                ? "text-white font-extrabold"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-brand-text font-black"
+                : "text-brand-secondary hover:text-brand-text"
             }`}
           >
             Custom Input
             {selectedIndex === "custom" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full" />
             )}
           </button>
         </div>
@@ -55,19 +55,19 @@ export default function ConsoleTabContent({
             <textarea
               value={customInput}
               onChange={(e) => setCustomInput(e.target.value)}
-              className="flex-1 min-h-[120px] w-full p-3 rounded-lg border border-[#1F2937]/50 font-mono text-xs bg-[#090E1A] text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+              className="flex-1 min-h-[120px] w-full p-3 rounded-xs border border-brand-border font-mono text-xs bg-brand-elevated text-brand-text focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
               placeholder="Enter custom input here..."
             />
           </div>
         ) : (
-          <div className="space-y-3.5">
-            <div className="flex items-center gap-3 mb-2 shrink-0">
-              <span className="text-xs font-semibold text-slate-400">Select Testcase:</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5 mb-2 shrink-0">
+              <span className="text-xs font-semibold text-brand-secondary">Select Testcase:</span>
               <div className="relative">
                 <select
                   value={selectedIndex}
                   onChange={(e) => setSelectedTestCaseIndex(Number(e.target.value))}
-                  className="appearance-none bg-[#090E1A] text-slate-300 border border-[#1F2937]/80 hover:border-slate-655 rounded-lg pl-3 pr-8 py-1 text-xs font-semibold outline-none cursor-pointer transition select-none"
+                  className="appearance-none bg-brand-elevated text-brand-text border border-brand-border hover:border-brand-primary rounded-xs pl-3 pr-7 py-1 text-xs font-semibold outline-none cursor-pointer transition select-none"
                 >
                   {activeCases.map((test, idx) => (
                     <option key={idx} value={idx}>
@@ -75,15 +75,15 @@ export default function ConsoleTabContent({
                     </option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-brand-secondary">
                   <span className="text-[9px]">▼</span>
                 </div>
               </div>
             </div>
 
             {/* Unified case input textarea box */}
-            <div className="flex flex-col gap-1.5 select-text">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">INPUT =</span>
+            <div className="flex flex-col gap-1 select-text">
+              <span className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">INPUT =</span>
               <textarea
                 value={activeCase ? activeCase.input : ""}
                 onChange={(e) => {
@@ -96,7 +96,7 @@ export default function ConsoleTabContent({
                     return updated;
                   });
                 }}
-                className="w-full min-h-[60px] max-h-[120px] p-3.5 rounded-md border border-[#1F2937]/50 font-mono text-xs bg-[#090E1A] text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all leading-normal"
+                className="w-full min-h-[60px] max-h-[120px] p-3 rounded-xs border border-brand-border font-mono text-xs bg-brand-elevated text-brand-text focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary transition-all leading-normal"
               />
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function ConsoleTabContent({
     if (!result) {
       return (
         <div className="flex flex-col items-center justify-center text-center text-brand-secondary p-4 py-8 select-none">
-          <p className="text-xs font-semibold text-slate-500">No execution logs found. Run your code to check outputs.</p>
+          <p className="text-xs font-semibold">No execution logs found. Run your code to check outputs.</p>
         </div>
       );
     }
@@ -118,57 +118,57 @@ export default function ConsoleTabContent({
     const isCustom = selectedTestCaseIndex === "custom";
 
     return (
-      <div className="space-y-4 text-xs">
+      <div className="space-y-3.5 text-xs">
         {/* Top Verdict Card */}
-        <div className="p-3.5 rounded-md bg-slate-900/40 shadow-sm border border-[#1F2937]/30 flex items-center justify-between font-sans">
-          <div className="flex items-center gap-3">
-            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+        <div className="p-3 rounded-xs bg-brand-elevated shadow-xs border border-brand-border flex items-center justify-between font-sans">
+          <div className="flex items-center gap-2.5">
+            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-xs ${
               isPassed 
-                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" 
+                : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
             }`}>
               {isPassed ? "Accepted" : "Wrong Answer"}
             </span>
-            <span className="text-slate-300 font-bold">
-              {isCustom ? "Custom Test Case" : `Case ${selectedTestCaseIndex + 1}`}
+            <span className="text-brand-text font-bold">
+              {isCustom ? "Custom Test Case" : `Case ${Number(selectedTestCaseIndex) + 1}`}
             </span>
           </div>
-          <div className="text-slate-400 text-[10px] font-semibold">
-            Runtime: <span className="text-slate-200 font-bold">{result.executionTime || "0 ms"}</span> | Memory: <span className="text-slate-200 font-bold">{result.memory || "0 MB"}</span>
+          <div className="text-brand-secondary text-[10px] font-semibold">
+            Runtime: <span className="text-brand-text font-bold">{result.executionTime || "0 ms"}</span> | Memory: <span className="text-brand-text font-bold">{result.memory || "0 MB"}</span>
           </div>
         </div>
 
         {result.status === "error" || testResult.error ? (
-          <div className="p-3.5 rounded-md bg-rose-950/10 border border-rose-500/10 font-sans">
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-455 block mb-1">Execution Error</span>
-            <pre className="overflow-x-auto text-xs font-mono text-rose-300 whitespace-pre-wrap">
+          <div className="p-3 rounded-xs bg-rose-500/10 border border-rose-500/20 font-sans">
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 block mb-1">Execution Error</span>
+            <pre className="overflow-x-auto text-xs font-mono text-rose-600 dark:text-rose-300 whitespace-pre-wrap">
               {result.message || testResult.error}
             </pre>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Input Card */}
             {testResult.input && (
-              <div className="p-3.5 rounded-md bg-slate-900/20 border border-[#1F2937]/20 font-sans">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Input</span>
-                <pre className="overflow-x-auto text-xs font-mono text-slate-300 whitespace-pre-wrap">
+              <div className="p-3 rounded-xs bg-brand-elevated border border-brand-border font-sans">
+                <span className="text-[10px] font-black uppercase tracking-wider text-brand-secondary block mb-1">Input</span>
+                <pre className="overflow-x-auto text-xs font-mono text-brand-text whitespace-pre-wrap">
                   {testResult.input}
                 </pre>
               </div>
             )}
 
             {/* Output & Expected Cards */}
-            <div className="p-3.5 rounded-md bg-slate-900/20 border border-[#1F2937]/20 font-sans">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Your Output</span>
-              <pre className="overflow-x-auto text-xs font-mono text-slate-200 whitespace-pre-wrap font-bold">
+            <div className="p-3 rounded-xs bg-brand-elevated border border-brand-border font-sans">
+              <span className="text-[10px] font-black uppercase tracking-wider text-brand-secondary block mb-1">Your Output</span>
+              <pre className="overflow-x-auto text-xs font-mono text-brand-text whitespace-pre-wrap font-bold">
                 {actual}
               </pre>
             </div>
 
             {!isCustom && (
-              <div className="p-3.5 rounded-md bg-slate-900/20 border border-[#1F2937]/20 font-sans">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Expected Output</span>
-                <pre className="overflow-x-auto text-xs font-mono text-slate-200 whitespace-pre-wrap font-bold">
+              <div className="p-3 rounded-xs bg-brand-elevated border border-brand-border font-sans">
+                <span className="text-[10px] font-black uppercase tracking-wider text-brand-secondary block mb-1">Expected Output</span>
+                <pre className="overflow-x-auto text-xs font-mono text-brand-text whitespace-pre-wrap font-bold">
                   {expected}
                 </pre>
               </div>
@@ -180,25 +180,25 @@ export default function ConsoleTabContent({
   } else if (consoleTab === "result") {
     if (!result) {
       return (
-        <div className="flex flex-col items-center justify-center text-center text-slate-550 p-4 py-8 select-none">
-          <p className="text-xs font-semibold text-slate-500">Submit your solution to view verdicts and test cases.</p>
+        <div className="flex flex-col items-center justify-center text-center text-brand-secondary p-4 py-8 select-none">
+          <p className="text-xs font-semibold">Submit your solution to view verdicts and test cases.</p>
         </div>
       );
     }
     return (
-      <div className="space-y-4 text-xs">
+      <div className="space-y-3.5 text-xs">
         {/* Main Verdict Card */}
-        <div className={`p-4 rounded-md shadow-md border font-sans ${
+        <div className={`p-3.5 rounded-xs shadow-xs border font-sans ${
           result.status === "error"
-            ? "bg-rose-950/10 border-rose-500/20 text-rose-300"
+            ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-300"
             : result.passedCount === result.totalCount
-              ? "bg-emerald-950/10 border-emerald-500/20 text-emerald-300"
-              : "bg-amber-950/10 border-amber-500/20 text-amber-300"
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-300"
+              : "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-300"
         }`}>
           <p className="text-[9px] font-black uppercase tracking-widest opacity-75">
             {result.submit ? "Submission Verdict" : "Run Status"}
           </p>
-          <p className="mt-1 text-base font-black">
+          <p className="mt-0.5 text-sm sm:text-base font-black">
             {result.status === "error"
               ? "Execution Error"
               : result.passedCount === result.totalCount
@@ -210,14 +210,14 @@ export default function ConsoleTabContent({
         {result.status !== "error" && (
           <>
             {/* Performance Cards */}
-            <div className="grid grid-cols-2 gap-3 shrink-0">
-              <div className="bg-slate-900/40 border border-[#1F2937]/20 rounded-md p-3 font-sans">
-                <p className="text-[9px] font-black uppercase text-slate-500">Runtime</p>
-                <p className="text-xs font-black text-slate-200 mt-0.5">{result.executionTime}</p>
+            <div className="grid grid-cols-2 gap-2.5 shrink-0">
+              <div className="bg-brand-elevated border border-brand-border rounded-xs p-2.5 font-sans">
+                <p className="text-[9px] font-black uppercase text-brand-secondary">Runtime</p>
+                <p className="text-xs font-black text-brand-text mt-0.5">{result.executionTime}</p>
               </div>
-              <div className="bg-slate-900/40 border border-[#1F2937]/20 rounded-md p-3 font-sans">
-                <p className="text-[9px] font-black uppercase text-slate-500">Memory</p>
-                <p className="text-xs font-black text-slate-200 mt-0.5">{result.memory}</p>
+              <div className="bg-brand-elevated border border-brand-border rounded-xs p-2.5 font-sans">
+                <p className="text-[9px] font-black uppercase text-brand-secondary">Memory</p>
+                <p className="text-xs font-black text-brand-text mt-0.5">{result.memory}</p>
               </div>
             </div>
 
@@ -228,28 +228,28 @@ export default function ConsoleTabContent({
                 return (
                   <div
                     key={index}
-                    className="p-3.5 rounded-md border text-xs shadow-sm bg-slate-900/30 border-[#1F2937]/20 font-sans"
+                    className="p-3 rounded-xs border text-xs shadow-xs bg-brand-elevated border-brand-border font-sans"
                   >
-                    <div className="flex items-center justify-between font-bold mb-2">
-                      <span className="text-slate-300">{test.label || `Case ${index + 1}`}</span>
+                    <div className="flex items-center justify-between font-bold mb-1.5">
+                      <span className="text-brand-text">{test.label || `Case ${index + 1}`}</span>
                       {!isCustom && (
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-xs ${
                           test.passed 
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" 
+                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                         }`}>
                           {test.passed ? "Passed" : "Failed"}
                         </span>
                       )}
                     </div>
-                    <div className="space-y-1 font-mono text-[11px] text-slate-455">
-                      <p><span className="text-slate-500">Input:</span> {test.input}</p>
+                    <div className="space-y-1 font-mono text-[11px] text-brand-secondary">
+                      <p><span className="text-brand-secondary/70">Input:</span> {test.input}</p>
                       {!isCustom && (
-                        <p><span className="text-slate-500">Expected:</span> {test.expected}</p>
+                        <p><span className="text-brand-secondary/70">Expected:</span> {test.expected}</p>
                       )}
                       <p>
-                        <span className="text-slate-500">Actual:</span>{" "}
-                        <span className={test.passed ? "text-emerald-400/90" : "text-rose-455"}>
+                        <span className="text-brand-secondary/70">Actual:</span>{" "}
+                        <span className={test.passed ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
                           {test.actual ?? "-"}
                         </span>
                       </p>

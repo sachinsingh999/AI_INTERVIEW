@@ -681,7 +681,7 @@ export default function VoiceInterviewWorkspace({
                 )}
 
                 {/* Main Avatar Container */}
-                <div className={`relative w-24 h-24 rounded-full bg-gradient-to-br from-slate-850 to-slate-950 border flex items-center justify-center text-blue-400 shadow-xl breathing-pulse transition duration-300 ${
+                <div className={`relative w-24 h-24 rounded-full bg-slate-900 border flex items-center justify-center text-blue-400 shadow-xl breathing-pulse transition duration-300 ${
                   aiState === "speaking"
                     ? "border-blue-500"
                     : aiState === "listening"

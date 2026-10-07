@@ -1169,7 +1169,7 @@ const toggleBookmark = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     const questionId = req.params.id;
-    const isBookmarked = user.bookmarkedQuestions.includes(questionId);
+    const isBookmarked = (user.bookmarkedQuestions || []).some(id => id.toString() === questionId);
 
     if (isBookmarked) {
       user.bookmarkedQuestions = user.bookmarkedQuestions.filter(id => id.toString() !== questionId);
@@ -1189,7 +1189,7 @@ const toggleSave = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     const questionId = req.params.id;
-    const isSaved = user.savedQuestions.includes(questionId);
+    const isSaved = (user.savedQuestions || []).some(id => id.toString() === questionId);
 
     if (isSaved) {
       user.savedQuestions = user.savedQuestions.filter(id => id.toString() !== questionId);

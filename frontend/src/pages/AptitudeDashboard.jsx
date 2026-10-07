@@ -120,10 +120,10 @@ export default function AptitudeDashboard() {
     <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col font-sans transition-colors duration-200">
       <Navbar />
 
-      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-3 space-y-1.5">
         
         {/* Header Block */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-brand-border pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 border-b border-brand-border pb-3">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-brand-text">
               AI Aptitude Practice Suite
@@ -134,11 +134,11 @@ export default function AptitudeDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-1.5 items-start">
           
           {/* Left Side: Topic Selector and Form */}
-          <div className="space-y-6">
-            <div className="bg-brand-card border border-brand-border rounded-2xl p-6 space-y-6 backdrop-blur-md">
+          <div className="space-y-1.5">
+            <div className="bg-brand-card border border-brand-border rounded-2xl p-6 space-y-4 backdrop-blur-md">
               <h2 className="text-lg font-bold text-brand-text flex items-center gap-2">
                 <span>🎯</span> Configure Practice Set
               </h2>

@@ -375,7 +375,7 @@ export default function AIInterviewWorkspace({
           
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-sm bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md border border-indigo-400/30">
+            <div className="h-8 w-8 rounded-sm bg-indigo-600 flex items-center justify-center shadow-md border border-indigo-400/30">
               <Cpu className="h-4.5 w-4.5 text-white" />
             </div>
             <div>

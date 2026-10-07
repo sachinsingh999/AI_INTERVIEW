@@ -159,7 +159,7 @@ export default function AiAnalysisModal({
                     setShowAnalysisModal(false);
                     toast.success(`Loaded settings for recommended set: ${rec.nextTopics[0]}!`);
                   }}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-650 hover:opacity-95 text-white text-xs font-black uppercase tracking-wider transition cursor-pointer text-center border-none outline-none"
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider transition cursor-pointer text-center border-none outline-none"
                 >
                   Load Recommended Practice Config
                 </button>

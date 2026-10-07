@@ -7,15 +7,43 @@
   --foreground: #0F172A;
   --card: #FFFFFF;
   --card-elevated: #F1F5F9;
+  --subtle-surface: #F8FAFC;
   --sidebar: #FFFFFF;
   --input-bg: #F1F5F9;
   --border: #E2E8F0;
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --secondary: #7C3AED;
+  --border-subtle: #F1F5F9;
+  --border-strong: #CBD5E1;
+  --primary: #0891B2;
+  --primary-hover: #0E7490;
+  --primary-active: #155E75;
+  --secondary: #64748B;
+  --accent: #06B6D4;
+  --accent-soft: rgba(6, 182, 212, 0.08);
   --body-text: #334155;
   --muted-text: #64748B;
   --disabled-text: #94A3B8;
+  --inverse-text: #FFFFFF;
+
+  /* Specialized Product / Code Surfaces (Light Mode: Clean Neutral) */
+  --code-bg: #F8FAFC;
+  --code-header: #F1F5F9;
+  --code-surface: #FFFFFF;
+  --code-border: #E2E8F0;
+  --code-text: #0F172A;
+  --code-muted: #64748B;
+  --code-snippet: #F1F5F9;
+
+  /* Status Colors */
+  --status-success: #10B981;
+  --status-success-soft: rgba(16, 185, 129, 0.1);
+  --status-warning: #F59E0B;
+  --status-warning-soft: rgba(245, 158, 11, 0.1);
+  --status-error: #DC2626;
+  --status-error-soft: rgba(220, 38, 38, 0.1);
+  --status-info: #06B6D4;
+
+  /* Accessible Focus Ring */
+  --focus-ring: #0891B2;
 
   --bg-color: var(--background);
   --card-color: var(--card);
@@ -23,25 +51,54 @@
   --primary-color: var(--primary);
   --text-primary: var(--foreground);
   --text-secondary: var(--muted-text);
+  --secondary-text: var(--muted-text);
   
   --scrollbar-thumb: #CBD5E1;
   --scrollbar-thumb-hover: #94A3B8;
 }
 
 .dark {
-  --background: #0B1120;
-  --foreground: #F8FAFC;
-  --card: #111827;
-  --card-elevated: #172033;
+  --background: #0F172A;
+  --foreground: #F1F5F9;
+  --card: #172033;
+  --card-elevated: #1E293B;
+  --subtle-surface: #1E293B;
   --sidebar: #0F172A;
-  --input-bg: #0F172A;
-  --border: #1E293B;
-  --primary: #6366F1;
-  --primary-hover: #818CF8;
-  --secondary: #8B5CF6;
-  --body-text: #CBD5E1;
+  --input-bg: #1E293B;
+  --border: #334155;
+  --border-subtle: #1E293B;
+  --border-strong: #475569;
+  --primary: #06B6D4;
+  --primary-hover: #22D3EE;
+  --primary-active: #0891B2;
+  --secondary: #94A3B8;
+  --accent: #22D3EE;
+  --accent-soft: rgba(6, 182, 212, 0.15);
+  --body-text: #F1F5F9;
   --muted-text: #94A3B8;
-  --disabled-text: #475569;
+  --disabled-text: #64748B;
+  --inverse-text: #0F172A;
+
+  /* Specialized Product / Code Surfaces (Dark Mode: Deep Slate & Cyan) */
+  --code-bg: #0F172A;
+  --code-header: #172033;
+  --code-surface: #172033;
+  --code-border: #334155;
+  --code-text: #F1F5F9;
+  --code-muted: #94A3B8;
+  --code-snippet: #0B1220;
+
+  /* Status Colors */
+  --status-success: #10B981;
+  --status-success-soft: rgba(16, 185, 129, 0.15);
+  --status-warning: #F59E0B;
+  --status-warning-soft: rgba(245, 158, 11, 0.15);
+  --status-error: #EF4444;
+  --status-error-soft: rgba(239, 68, 68, 0.15);
+  --status-info: #06B6D4;
+
+  /* Accessible Focus Ring */
+  --focus-ring: #06B6D4;
 
   --bg-color: var(--background);
   --card-color: var(--card);
@@ -49,8 +106,9 @@
   --primary-color: var(--primary);
   --text-primary: var(--foreground);
   --text-secondary: var(--muted-text);
+  --secondary-text: var(--muted-text);
 
-  --scrollbar-thumb: #1E293B;
+  --scrollbar-thumb: #334155;
   --scrollbar-thumb-hover: #475569;
 }
 
@@ -60,16 +118,42 @@
   --color-brand-bg: var(--background);
   --color-brand-card: var(--card);
   --color-brand-elevated: var(--card-elevated);
+  --color-brand-subtle: var(--subtle-surface);
   --color-brand-sidebar: var(--sidebar);
   --color-brand-input: var(--input-bg);
   --color-brand-border: var(--border);
+  --color-brand-border-subtle: var(--border-subtle);
+  --color-brand-border-strong: var(--border-strong);
   --color-brand-primary: var(--primary);
   --color-brand-primary-hover: var(--primary-hover);
-  --color-brand-secondary: var(--secondary);
+  --color-brand-primary-active: var(--primary-active);
+  --color-brand-secondary: var(--muted-text);
+  --color-brand-accent: var(--accent);
+  --color-brand-accent-soft: var(--accent-soft);
   --color-brand-text: var(--foreground);
   --color-brand-body: var(--body-text);
   --color-brand-muted: var(--muted-text);
   --color-brand-disabled: var(--disabled-text);
+  --color-brand-inverse: var(--inverse-text);
+  --color-brand-code-bg: var(--code-bg);
+  --color-brand-code-header: var(--code-header);
+  --color-brand-code-surface: var(--code-surface);
+  --color-brand-code-border: var(--code-border);
+  --color-brand-code-text: var(--code-text);
+  --color-brand-code-muted: var(--code-muted);
+  --color-brand-code-snippet: var(--code-snippet);
+  --color-brand-focus-ring: var(--focus-ring);
+  --color-brand-success: var(--status-success);
+  --color-brand-warning: var(--status-warning);
+  --color-brand-error: var(--status-error);
+}
+
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .font-brand-logo {
@@ -211,24 +295,6 @@ body,
 .bg-brand-card .border-white\/10,
 .bg-brand-card .border-white\/5 {
   border-color: var(--border-color) !important;
-}
-
-.bg-brand-card .bg-slate-900\/65,
-.bg-brand-card .bg-slate-900\/60,
-.bg-brand-card .bg-slate-900\/50,
-.bg-brand-card .bg-slate-900\/40,
-.bg-brand-card .bg-slate-900 {
-  background-color: var(--bg-color) !important;
-}
-
-.bg-brand-card .text-white,
-.bg-brand-card .text-slate-200 {
-  color: var(--text-primary) !important;
-}
-
-.bg-brand-card .text-slate-300,
-.bg-brand-card .text-slate-400 {
-  color: var(--secondary-text) !important;
 }
 
 

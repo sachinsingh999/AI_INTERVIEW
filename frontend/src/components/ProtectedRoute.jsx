@@ -1,7 +1,7 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 // Helper to check if token is expired
-const isTokenExpired = (token) => {
+export const isTokenExpired = (token) => {
   if (!token) return true;
   try {
     const parts = token.split('.');
@@ -16,12 +16,23 @@ const isTokenExpired = (token) => {
   }
 };
 
-function ProtectedRoute({ children }) {
+// Helper to check if user is authenticated with a valid token
+export const isAuthenticated = () => {
   const token = localStorage.getItem("token");
-
   if (!token || isTokenExpired(token)) {
-    localStorage.clear();
-    return <Navigate to="/" />;
+    return false;
+  }
+  return true;
+};
+
+function ProtectedRoute({ children }) {
+  const location = useLocation();
+
+  if (!isAuthenticated()) {
+    // Only remove auth credentials, preserving theme and client settings
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;

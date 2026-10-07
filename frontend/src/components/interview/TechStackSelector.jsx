@@ -75,7 +75,7 @@ export default function TechStackSelector({ value = [], onChange, hasError }) {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600/30 to-indigo-600/30 text-blue-300 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.15)] group"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 shadow-[0_0_10px_rgba(99,102,241,0.15)] group"
             >
               <span>{tech}</span>
               <button

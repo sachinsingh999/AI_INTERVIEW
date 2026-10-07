@@ -15,43 +15,42 @@ export default function AiAssistantDrawer({
     <>
       <div 
         onClick={() => setAiDrawerOpen(false)}
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300"
       />
-      <div className="fixed top-0 right-0 bottom-0 z-50 w-96 bg-[#101428] border-l border-brand-border shadow-2xl flex flex-col transition-all duration-300 p-5 space-y-5 overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-brand-border bg-[#0c1024]/60 -mx-5 px-5">
-          <h3 className="text-xs font-black uppercase tracking-widest text-[#9CA3AF] flex items-center gap-2">
+      <div className="fixed top-0 right-0 bottom-0 z-50 w-88 sm:w-96 bg-brand-card text-brand-text border-l border-brand-border shadow-2xl flex flex-col transition-all duration-300 p-4 space-y-4 overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-brand-border pb-3 bg-brand-card">
+          <h3 className="text-xs font-black uppercase tracking-wider text-brand-secondary flex items-center gap-1.5">
             <span>✨ AI Assistant Drawer</span>
           </h3>
           <button 
             type="button"
             onClick={() => setAiDrawerOpen(false)}
-            className="text-brand-secondary hover:text-white transition p-1.5 hover:bg-brand-card/5 rounded-lg text-sm"
+            className="text-brand-secondary hover:text-brand-text transition p-1 hover:bg-brand-elevated rounded-xs text-xs font-bold cursor-pointer"
           >
             ✕ Close
           </button>
         </div>
 
         {/* AI Mentor Coaching Box */}
-        <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4 space-y-3 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/10 rounded-full blur-2xl" />
-          <div className="flex items-center gap-2">
-            <span className="text-lg">✨</span>
-            <p className="text-xs font-black text-indigo-400">AI Mentor Advice</p>
+        <div className="rounded-xs border border-amber-500/25 bg-amber-500/5 p-3.5 space-y-2 relative overflow-hidden">
+          <div className="flex items-center gap-1.5">
+            <span className="text-base">✨</span>
+            <p className="text-xs font-black text-amber-600 dark:text-amber-400">AI Mentor Advice</p>
           </div>
-          <p className="text-[11px] font-medium leading-relaxed text-[#9CA3AF]">
-            "You're working on <b>{problem.title}</b>. This pattern is widely asked in tech screenings. {detectedTopics.includes("Arrays") && "Keep space complexity at O(1) if possible by operating in-place. Let me check your code once you submit!"}"
+          <p className="text-xs font-medium leading-relaxed text-brand-body">
+            "You're working on <b>{problem?.title || "this problem"}</b>. This pattern is widely asked in tech screenings. {detectedTopics.includes("Arrays") && "Keep space complexity at O(1) if possible by operating in-place. Let me check your code once you submit!"}"
           </p>
         </div>
 
         {/* Pattern Tracker */}
-        <div className="rounded-2xl border border-brand-border bg-[#0b0e20]/60 p-4 space-y-3">
+        <div className="rounded-xs border border-brand-border bg-brand-elevated p-3.5 space-y-2.5">
           <p className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">Pattern Tracker</p>
           <div className="space-y-2">
             <div>
               <span className="text-[9px] font-bold text-brand-secondary block">Detected Topic:</span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {detectedTopics.map((topic, idx) => (
-                  <span key={idx} className="text-[9px] font-bold bg-[#6366F1]/10 text-indigo-400 px-2 py-0.5 rounded border border-[#6366F1]/20">
+                  <span key={idx} className="text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-xs border border-amber-500/20">
                     ✓ {topic}
                   </span>
                 ))}
@@ -61,7 +60,7 @@ export default function AiAssistantDrawer({
               <span className="text-[9px] font-bold text-brand-secondary block">Suggested Approach:</span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {suggestedPatterns.map((pat, idx) => (
-                  <span key={idx} className="text-[9px] font-bold bg-[#0B1020] text-brand-secondary px-2 py-0.5 rounded border border-brand-border/5">
+                  <span key={idx} className="text-[9px] font-bold bg-brand-card text-brand-secondary px-2 py-0.5 rounded-xs border border-brand-border">
                     • {pat}
                   </span>
                 ))}
@@ -72,32 +71,32 @@ export default function AiAssistantDrawer({
 
         {/* Submission Analytics */}
         {result && (
-          <div className="rounded-2xl border border-brand-border bg-[#0b0e20]/60 p-4 space-y-3">
+          <div className="rounded-xs border border-brand-border bg-brand-elevated p-3.5 space-y-2.5">
             <p className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">Submission Analytics</p>
-            <div className={`p-3 rounded-xl border text-center ${
-              result.status === "error" ? "bg-rose-950/20 border-rose-500/20 text-rose-400" : "bg-emerald-950/20 border-emerald-500/20 text-emerald-450"
+            <div className={`p-2.5 rounded-xs border text-center ${
+              result.status === "error" ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
             }`}>
-              <p className="text-sm font-black mt-0.5">
+              <p className="text-xs font-black">
                 {result.status === "error" ? "Execution Error" : `${result.passedCount}/${result.totalCount} Cases Passed`}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-mono pt-1">
-              <div className="bg-[#0b0e20] border border-brand-border/5 rounded-lg p-2">
+            <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-mono pt-0.5">
+              <div className="bg-brand-card border border-brand-border rounded-xs p-2">
                 <p className="text-[8px] font-bold text-brand-secondary uppercase">Runtime</p>
-                <p className="text-white font-black">{result.executionTime || "0.08s"}</p>
+                <p className="text-brand-text font-black">{result.executionTime || "0.08s"}</p>
               </div>
-              <div className="bg-[#0b0e20] border border-brand-border/5 rounded-lg p-2">
+              <div className="bg-brand-card border border-brand-border rounded-xs p-2">
                 <p className="text-[8px] font-bold text-brand-secondary uppercase">Memory</p>
-                <p className="text-white font-black">{result.memory || "12.4 MB"}</p>
+                <p className="text-brand-text font-black">{result.memory || "12.4 MB"}</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Question Insights */}
-        <div className="rounded-2xl border border-brand-border bg-[#0b0e20]/60 p-4 space-y-3">
+        <div className="rounded-xs border border-brand-border bg-brand-elevated p-3.5 space-y-2">
           <p className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">Question Insights</p>
-          <div className="text-[10px] text-[#9CA3AF] space-y-2 leading-relaxed">
+          <div className="text-[11px] text-brand-body space-y-1.5 leading-relaxed">
             <p>• <b>Most Common Approach:</b> Hash table lookup (O(N) Time, O(N) Space).</p>
             <p>• <b>Alternative Approach:</b> Sorting array and binary search (O(N log N) Time, O(1) Space).</p>
             <p>• <b>Common mistake:</b> Missing check for index duplication when numbers match.</p>

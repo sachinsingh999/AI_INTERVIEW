@@ -67,27 +67,27 @@ export default function CodeWorkspace({
     <section className="flex-1 flex flex-col min-h-0 relative h-full">
       
       {/* Monaco Editor Container */}
-      <div className="flex-1 min-h-[50vh] flex flex-col bg-[#0B1220] overflow-hidden relative transition-colors duration-150">
+      <div className="flex-1 min-h-[50vh] flex flex-col bg-brand-card overflow-hidden relative transition-colors duration-150">
         
         {/* Floating Top Editor Toolbar */}
-        <div className="shrink-0 border-b border-[#1F2937]/60 p-2.5 px-4 flex items-center justify-between bg-[#0B1220] relative z-20 select-none">
+        <div className="shrink-0 border-b border-brand-border/80 p-2 px-3 sm:px-4 flex items-center justify-between bg-brand-card relative z-20 select-none">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+            <span className="text-[10px] font-black uppercase tracking-wider text-brand-secondary">
               {"</>"} Source Code
             </span>
           </div>
           
-          <div className="flex items-center gap-2.5">
-            {/* Formatting, Reset, Settings Toolbar Controls */}
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            {/* Formatting, Reset Controls */}
+            <div className="flex items-center gap-1">
               {/* Reset code */}
               <button
                 type="button"
                 onClick={handleResetCode}
-                className="p-1.5 rounded-lg border border-[#1F2937] bg-slate-900/50 text-slate-400 hover:text-rose-450 hover:border-rose-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center"
+                className="p-1 rounded-xs border border-brand-border bg-brand-elevated text-brand-secondary hover:text-rose-500 hover:border-rose-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center"
                 title="Reset starter template"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                 </svg>
               </button>
@@ -96,10 +96,10 @@ export default function CodeWorkspace({
               <button
                 type="button"
                 onClick={formatCode}
-                className="p-1.5 rounded-lg border border-[#1F2937] bg-slate-900/50 text-slate-400 hover:text-indigo-400 hover:border-indigo-500/30 transition active:scale-95 cursor-pointer"
+                className="p-1 rounded-xs border border-brand-border bg-brand-elevated text-brand-secondary hover:text-brand-primary hover:border-brand-primary/30 transition active:scale-95 cursor-pointer"
                 title="Format Code"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18M3 10h18M3 15h12M3 20h12" />
                 </svg>
               </button>
@@ -108,7 +108,7 @@ export default function CodeWorkspace({
         </div>
         
         {/* Monaco Component */}
-        <div className="flex-1 min-h-0 relative">
+        <div className="flex-1 min-h-0 relative bg-brand-card">
           <Editor
             height="100%"
             language={activeLanguage.monaco}
@@ -127,7 +127,7 @@ export default function CodeWorkspace({
               smoothScrolling: true,
               readOnly: false,
               cursorBlinking: "smooth",
-              fontSize: fontSize || 15,
+              fontSize: fontSize || 14,
               fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
               automaticLayout: true,
               formatOnPaste: true,
@@ -139,7 +139,7 @@ export default function CodeWorkspace({
 
           {submitting && (
             <div 
-              className="absolute inset-0 bg-[#050B14]/85 backdrop-blur-md flex flex-col items-center justify-center z-40 transition-all duration-300"
+              className="absolute inset-0 bg-brand-bg/85 backdrop-blur-md flex flex-col items-center justify-center z-40 transition-all duration-300"
               style={{ animation: "fadeIn 0.2s ease-out forwards" }}
             >
               <style>{`
@@ -148,38 +148,27 @@ export default function CodeWorkspace({
                   to { opacity: 1; }
                 }
               `}</style>
-              <div className="max-w-xs w-full mx-auto p-6 rounded-2xl border border-indigo-500/20 bg-slate-900/40 flex flex-col items-center text-center shadow-2xl relative overflow-hidden">
-                {/* Decorative glowing gradient sphere in background */}
-                <div className="absolute -top-12 -left-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl" />
-                <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
-
-                {/* Spinning loader with dynamic double ring */}
-                <div className="relative w-16 h-16 mb-5">
-                  <div className="absolute inset-0 rounded-full border-4 border-slate-800" />
-                  <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 border-r-indigo-500 animate-spin" />
-                  <div className="absolute inset-2 rounded-full border-4 border-slate-800" />
-                  <div className="absolute inset-2 rounded-full border-4 border-b-emerald-500 border-l-emerald-500" style={{ animation: "spin 1s linear infinite reverse" }} />
-                  
-                  {/* Small inner logo/symbol */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-indigo-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  </div>
+              <div className="max-w-xs w-full mx-auto p-5 rounded-xs border border-brand-border bg-brand-card flex flex-col items-center text-center shadow-2xl relative overflow-hidden">
+                {/* Spinning loader */}
+                <div className="relative w-14 h-14 mb-4">
+                  <div className="absolute inset-0 rounded-full border-3 border-brand-border" />
+                  <div className="absolute inset-0 rounded-full border-3 border-t-amber-500 border-r-amber-500 animate-spin" />
+                  <div className="absolute inset-2 rounded-full border-3 border-brand-border" />
+                  <div className="absolute inset-2 rounded-full border-3 border-b-brand-primary border-l-brand-primary" style={{ animation: "spin 1s linear infinite reverse" }} />
                 </div>
 
                 {/* Status messages */}
-                <h3 className="text-sm font-extrabold text-white mb-1 tracking-wide">
+                <h3 className="text-sm font-black text-brand-text mb-1 tracking-tight">
                   Evaluating Submission
                 </h3>
-                <p className="text-[11px] text-slate-400 max-w-[220px] leading-relaxed mb-4">
-                  Running your solution against the hidden test suite...
+                <p className="text-[11px] text-brand-secondary max-w-[220px] leading-relaxed mb-3">
+                  Running your solution against test cases...
                 </p>
 
                 {/* Pulse loading text */}
-                <div className="flex items-center gap-1.5 text-[9px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full animate-pulse border border-indigo-500/20">
-                  <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping" />
-                  <span>Processing Test Cases</span>
+                <div className="flex items-center gap-1.5 text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded-xs animate-pulse border border-amber-500/20">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
+                  <span>Processing Test Suite</span>
                 </div>
               </div>
             </div>
@@ -188,17 +177,17 @@ export default function CodeWorkspace({
 
         {/* Interactive Console Pane */}
         {!isFocusMode && (
-          <div className="shrink-0 border-t border-[#1F2937]/75 bg-[#0B1220] relative">
+          <div className="shrink-0 border-t border-brand-border bg-brand-card relative">
             
             {/* Draggable Resizer Divider */}
             <div
               onMouseDown={startConsoleResize}
-              className="absolute -top-1 left-0 right-0 h-2 hover:bg-indigo-500/40 cursor-row-resize transition-all z-35"
+              className="absolute -top-1 left-0 right-0 h-2 hover:bg-brand-primary/40 cursor-row-resize transition-all z-35"
               title="Drag to resize console"
             />
 
-            <div className="flex items-center justify-between px-4 border-b border-[#1F2937]/50 bg-[#0B1220]/20 select-none">
-              <div className="flex gap-6">
+            <div className="flex items-center justify-between px-3 sm:px-4 border-b border-brand-border bg-brand-card select-none">
+              <div className="flex gap-4 sm:gap-6">
                 {[
                   { id: "testcases", label: "Testcase" },
                   { id: "result", label: "Result" },
@@ -211,25 +200,25 @@ export default function CodeWorkspace({
                       key={tab.id}
                       type="button"
                       onClick={() => { setConsoleTab(tab.id); setConsoleExpanded(true); }}
-                      className={`py-3.5 text-xs font-bold relative transition shrink-0 cursor-pointer ${
+                      className={`py-2 text-xs font-bold relative transition shrink-0 cursor-pointer ${
                         isActive
-                          ? "text-white font-extrabold"
-                          : "text-slate-450 hover:text-slate-200"
+                          ? "text-brand-text font-black"
+                          : "text-brand-secondary hover:text-brand-text"
                       }`}
                     >
                       {tab.label}
                       {isActive && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full" />
                       )}
                     </button>
                   );
                 })}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setConsoleExpanded(!consoleExpanded)}
-                  className="text-xs text-slate-400 hover:text-white transition p-1.5 rounded-md hover:bg-slate-800/40 cursor-pointer font-bold select-none shrink-0"
+                  className="text-xs text-brand-secondary hover:text-brand-text transition p-1 rounded-xs hover:bg-brand-elevated cursor-pointer font-bold select-none shrink-0"
                 >
                   {consoleExpanded ? "Console ▾" : "Console ▴"}
                 </button>
@@ -239,12 +228,12 @@ export default function CodeWorkspace({
             {consoleExpanded && (
               <div 
                 style={{ height: `${consoleHeight}px` }}
-                className="p-4 bg-[#0B1220]/10 border-b border-[#1F2937]/50 min-h-[100px] max-h-[450px] overflow-y-auto"
+                className="p-3 sm:p-4 bg-brand-card border-b border-brand-border min-h-[100px] max-h-[450px] overflow-y-auto"
               >
                 {consoleTab === "submissions" ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {submissions.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center text-center text-slate-500 py-6 select-none">
+                      <div className="flex flex-col items-center justify-center text-center text-brand-secondary py-6 select-none">
                         <p className="text-xs font-semibold">No submissions found for this question yet.</p>
                       </div>
                     ) : (
@@ -252,18 +241,18 @@ export default function CodeWorkspace({
                         const timeStr = sub.createdAt ? new Date(sub.createdAt).toLocaleTimeString() : `${index + 1} mins ago`;
                         const isAccepted = sub.passed === sub.total;
                         return (
-                          <div key={index} className="flex items-center justify-between p-3.5 rounded-md bg-[#0F172A] border border-[#1F2937]/50 shadow-sm">
+                          <div key={index} className="flex items-center justify-between p-3 rounded-xs bg-brand-elevated border border-brand-border shadow-xs">
                             <div className="min-w-0">
-                              <p className={`text-xs font-black ${isAccepted ? "text-emerald-450" : "text-rose-455"}`}>
+                              <p className={`text-xs font-black ${isAccepted ? "text-emerald-500" : "text-rose-500"}`}>
                                 {isAccepted ? "Accepted" : "Wrong Answer"} ({sub.passed || 0}/{sub.total || 0} passed)
                               </p>
-                              <p className="text-[10px] text-slate-500 font-semibold mt-0.5 select-none">
+                              <p className="text-[10px] text-brand-secondary font-semibold mt-0.5 select-none">
                                 Language: {sub.languageName || "JavaScript"} • {timeStr}
                               </p>
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-xs font-black text-slate-200">Score: {sub.score || 0}</p>
-                              <p className="text-[10px] text-slate-500 font-semibold select-none">{sub.runtime || "0.08s"} • {sub.memory || "12.4 MB"}</p>
+                              <p className="text-xs font-black text-brand-text">Score: {sub.score || 0}</p>
+                              <p className="text-[10px] text-brand-secondary font-semibold select-none">{sub.runtime || "0.08s"} • {sub.memory || "12.4 MB"}</p>
                             </div>
                           </div>
                         );

@@ -49,7 +49,7 @@ export default function LoadingOverlay({ isOpen }) {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 rounded-3xl bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-cyan-500/20 blur-md"
+              className="absolute inset-0 rounded-3xl bg-indigo-500/20 blur-md"
             />
             <Bot className="h-10 w-10 text-blue-400 relative z-10 animate-bounce" />
             <Sparkles className="h-4 w-4 text-amber-400 absolute top-2 right-2 animate-pulse" />

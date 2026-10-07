@@ -17,14 +17,17 @@ import Roadmap from "./pages/Roadmap";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
+import Bookmarks from "./pages/Bookmarks";
 import ForgeAI from "./pages/ForgeAI";
 import POTDArchive from "./pages/POTDArchive";
+import DailyChallenges from "./pages/DailyChallenges";
 import CreateInterview from "./pages/CreateInterview";
 import InterviewSession from "./pages/InterviewSession";
 import PhaseCompleteTransition from "./pages/PhaseCompleteTransition";
 import InterviewResponses from "./pages/InterviewResponses";
 import InterviewCompleted from "./pages/InterviewCompleted";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
 import ToastContainer from "./components/ToastContainer";
 import { useParams } from "react-router-dom";
 
@@ -39,11 +42,32 @@ function App() {
       <BrowserRouter>
         <ToastContainer />
       <Routes>
-        {/* Public Routes */}
+        {/* Public / Guest-only Routes */}
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/auth" element={<Auth initialMode="login" />} />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/auth"
+          element={
+            <PublicRoute>
+              <Auth initialMode="login" />
+            </PublicRoute>
+          }
+        />
 
         {/* Protected Routes */}
         <Route
@@ -202,6 +226,15 @@ function App() {
         />
 
         <Route
+          path="/bookmarks"
+          element={
+            <ProtectedRoute>
+              <Bookmarks />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/settings"
           element={
             <ProtectedRoute>
@@ -245,7 +278,39 @@ function App() {
             path="/practice/potd/archive"
             element={
               <ProtectedRoute>
-                <POTDArchive />
+                <DailyChallenges />
+              </ProtectedRoute>
+            }
+          />
+        <Route
+            path="/practice/potd"
+            element={
+              <ProtectedRoute>
+                <DailyChallenges />
+              </ProtectedRoute>
+            }
+          />
+        <Route
+            path="/practice/daily-challenges"
+            element={
+              <ProtectedRoute>
+                <DailyChallenges />
+              </ProtectedRoute>
+            }
+          />
+        <Route
+            path="/daily-challenges"
+            element={
+              <ProtectedRoute>
+                <DailyChallenges />
+              </ProtectedRoute>
+            }
+          />
+        <Route
+            path="/challenges"
+            element={
+              <ProtectedRoute>
+                <DailyChallenges />
               </ProtectedRoute>
             }
           />

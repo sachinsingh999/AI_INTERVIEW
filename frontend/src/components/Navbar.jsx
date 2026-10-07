@@ -62,6 +62,7 @@ function Navbar() {
     else if (path.startsWith("/history")) crumbs.push("History");
     else if (path.startsWith("/roadmap")) crumbs.push("Roadmap");
     else if (path.startsWith("/analytics")) crumbs.push("Analytics");
+    else if (path.startsWith("/bookmarks")) crumbs.push("Bookmarks");
     else if (path.startsWith("/settings")) crumbs.push("Settings");
     else if (path.startsWith("/profile")) crumbs.push("Profile");
     else crumbs.push("Overview");
@@ -180,9 +181,9 @@ function Navbar() {
   ];
 
   const quickAccessItems = [
-    { label: "Bookmarks", path: "/dashboard", icon: <Star className="w-4.5 h-4.5" /> },
-    { label: "Daily Challenge", path: "/practice", icon: <Target className="w-4.5 h-4.5" /> },
-    { label: "Streaks", path: "/dashboard", icon: <Flame className="w-4.5 h-4.5" /> },
+    { label: "Bookmarks", path: "/bookmarks", icon: <Star className="w-4.5 h-4.5" /> },
+    { label: "Daily Challenge", path: "/daily-challenges", icon: <Target className="w-4.5 h-4.5" /> },
+    { label: "Streaks", path: "/daily-challenges", icon: <Flame className="w-4.5 h-4.5" /> },
   ];
 
   const settingsItems = [
@@ -196,7 +197,9 @@ function Navbar() {
   const commandItems = [
     { label: "Launch ForgeAI Studio", category: "AI Assistant", shortcut: "G F", action: () => navigate("/forge-ai") },
     { label: "Go to Dashboard", category: "Navigation", shortcut: "G D", action: () => navigate("/dashboard") },
+    { label: "Daily Coding Challenge (POTD)", category: "Navigation", shortcut: "G C", action: () => navigate("/daily-challenges") },
     { label: "Go to Practice Hub", category: "Navigation", shortcut: "G P", action: () => navigate("/practice") },
+    { label: "Go to Bookmarks", category: "Navigation", shortcut: "G B", action: () => navigate("/bookmarks") },
     { label: "Launch Interview Studio", category: "Navigation", shortcut: "G I", action: () => navigate("/create-interview") },
     { label: "View Interview History", category: "Navigation", shortcut: "G H", action: () => navigate("/history") },
     { label: "Open Roadmap Guide", category: "Navigation", shortcut: "G R", action: () => navigate("/roadmap") },
@@ -265,8 +268,8 @@ function Navbar() {
       <style>{`
         @media (min-width: 1024px) {
           main, footer {
-            margin-left: ${isSidebarCollapsed ? "5rem" : "16rem"} !important;
-            width: calc(100% - ${isSidebarCollapsed ? "5rem" : "16rem"}) !important;
+            margin-left: ${isSidebarCollapsed ? "4.5rem" : "14.5rem"} !important;
+            width: calc(100% - ${isSidebarCollapsed ? "4.5rem" : "14.5rem"}) !important;
             transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
         }
@@ -275,19 +278,17 @@ function Navbar() {
       {/* Global Top Navbar: spans full-width on all viewports with warm yellowish ambient tone */}
       <header
         id="sidebar-nav-desktop-header"
-        className={`fixed top-0 left-0 right-0 w-full h-[76px] z-50 border-b border-brand-border/40 bg-[#FFFDF7]/95 dark:bg-[#0A0D15]/95 backdrop-blur-xl transition-all duration-300 ${isScrolled ? "shadow-md shadow-slate-900/5" : ""}`}
+        className={`fixed top-0 left-0 right-0 w-full h-[58px] z-50 border-b border-brand-border/40 bg-[#FFFDF7]/95 dark:bg-[#0A0D15]/95 backdrop-blur-xl transition-all duration-300 ${isScrolled ? "shadow-md shadow-slate-900/5" : ""}`}
       >
-        <div className="w-full h-full flex items-center justify-between px-4 sm:px-8">
+        <div className="w-full h-full flex items-center justify-between px-3 sm:px-5">
           {/* Brand Logo & Breadcrumbs - Aligned far left */}
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => navigate("/dashboard")}
               className="flex items-center group cursor-pointer shrink-0"
             >
-              <Logo className="h-16 shrink-0 transition-transform duration-300 group-hover:scale-105" />
+              <Logo className="h-9 shrink-0 transition-transform duration-300 group-hover:scale-105" />
             </button>
-
-
           </div>
 
           {/* Desktop Right Side Controls (lg+ viewports) */}
@@ -355,7 +356,7 @@ function Navbar() {
               }}
               className="w-full flex items-center gap-2.5 rounded-sm border border-brand-border bg-brand-bg/40 px-3.5 py-3 text-xs text-brand-secondary"
             >
-              <Search className="w-4 h-4 text-slate-500" />
+              <Search className="w-4 h-4 text-slate-400 dark:text-slate-400" />
               <span>Search interviews, questions...</span>
             </button>
 
@@ -374,10 +375,10 @@ function Navbar() {
                     }}
                     className={`flex items-center gap-3 rounded-sm px-4 py-3 text-xs font-black uppercase tracking-wider transition-all duration-200 text-left w-full cursor-pointer ${isActive
                         ? "bg-[#F59E0B]/15 text-amber-700 dark:text-amber-400 border border-[#F59E0B]/30"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-white/5 hover:text-white"
                       }`}
                   >
-                    <span className={isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-500"}>
+                    <span className={isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-400"}>
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
@@ -454,12 +455,12 @@ function Navbar() {
       {/* Desktop Sidebar: rendered fixed below the header with warm yellowish amber tone */}
       <aside
         id="sidebar-nav-desktop"
-        className={`hidden lg:flex fixed top-[76px] left-0 bottom-0 z-40 bg-[#FFFDF7] dark:bg-[#080d17] border-r border-brand-border/40 flex-col py-4 px-3 justify-between transition-all duration-300 overflow-x-hidden ${isSidebarCollapsed ? "w-20" : "w-64"}`}
+        className={`hidden lg:flex fixed top-[58px] left-0 bottom-0 z-40 bg-[#FFFDF7] dark:bg-[#080d17] border-r border-brand-border/40 flex-col py-2.5 px-2.5 justify-between transition-all duration-300 overflow-x-hidden ${isSidebarCollapsed ? "w-18" : "w-[232px]"}`}
       >
-        <div className="space-y-4 flex flex-col h-full min-h-0">
+        <div className="space-y-3 flex flex-col h-full min-h-0">
 
           {/* Categorized Menu Scroll Container */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3.5 py-1.5 pr-1 min-h-0 select-none no-scrollbar">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-2.5 py-1 pr-0.5 min-h-0 select-none no-scrollbar">
             {/* MAIN Category */}
             <div className="space-y-0.5">
               {!isSidebarCollapsed && (
@@ -482,7 +483,7 @@ function Navbar() {
                             : "text-brand-secondary hover:text-brand-text hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
                         } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
                       >
-                        <span className={`transition-transform duration-250 group-hover/btn:scale-110 shrink-0 ${isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500 group-hover/btn:text-slate-205"}`}>
+                        <span className={`transition-transform duration-250 group-hover/btn:scale-110 shrink-0 ${isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-300 group-hover/btn:text-slate-205"}`}>
                           {item.icon}
                         </span>
                         <span className={`transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none hidden" : "w-auto opacity-100"}`}>
@@ -504,7 +505,7 @@ function Navbar() {
             {/* QUICK ACCESS Category */}
             <div className="space-y-0.5">
               {!isSidebarCollapsed && (
-                <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block px-3 py-0.5">
+                <span className="text-[9px] font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase block px-3 py-0.5">
                   QUICK ACCESS
                 </span>
               )}
@@ -516,7 +517,7 @@ function Navbar() {
                         onClick={() => navigate(item.path)}
                         className={`flex items-center gap-3 px-3 py-1.5 w-full rounded-sm text-xs font-semibold tracking-wide transition-all duration-200 text-left cursor-pointer group/btn text-brand-secondary hover:text-brand-text hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
                       >
-                        <span className="transition-transform duration-250 group-hover/btn:scale-110 shrink-0 text-slate-400 dark:text-slate-500 group-hover/btn:text-slate-205">
+                        <span className="transition-transform duration-250 group-hover/btn:scale-110 shrink-0 text-slate-400 dark:text-slate-300 group-hover/btn:text-slate-205">
                           {item.icon}
                         </span>
                         <span className={`transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none hidden" : "w-auto opacity-100"}`}>
@@ -538,7 +539,7 @@ function Navbar() {
             {/* SETTINGS Category */}
             <div className="space-y-0.5">
               {!isSidebarCollapsed && (
-                <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block px-3 py-0.5">
+                <span className="text-[9px] font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase block px-3 py-0.5">
                   SETTINGS
                 </span>
               )}
@@ -567,7 +568,7 @@ function Navbar() {
                             : "text-brand-secondary hover:text-brand-text hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
                         } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
                       >
-                        <span className={`transition-transform duration-250 group-hover/btn:scale-110 shrink-0 ${isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500 group-hover/btn:text-slate-205"}`}>
+                        <span className={`transition-transform duration-250 group-hover/btn:scale-110 shrink-0 ${isActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-300 group-hover/btn:text-slate-205"}`}>
                           {item.icon}
                         </span>
                         <span className={`transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none hidden" : "w-auto opacity-100"}`}>
@@ -756,7 +757,7 @@ function Navbar() {
       </aside>
 
       {/* Spacer matching top header height on all viewports */}
-      <div className="h-[76px] select-none pointer-events-none w-full" />
+      <div className="h-[58px] select-none pointer-events-none w-full" />
 
       {/* Command Palette (Cmd+K Modal) */}
       {searchOpen && (
@@ -796,7 +797,7 @@ function Navbar() {
                   }, {})
                 ).map(([category, items]) => (
                   <div key={category} className="space-y-1.5">
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block px-2.5">
+                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block px-2.5">
                       {category}
                     </span>
                     <div className="space-y-0.5">
@@ -812,7 +813,7 @@ function Navbar() {
                               setSearchQuery("");
                             }}
                             className={`w-full flex items-center justify-between rounded-sm px-3.5 py-2.5 text-xs font-semibold text-left transition-all cursor-pointer ${isChosen
-                                ? "bg-gradient-to-r from-blue-500/15 to-indigo-500/15 text-blue-400 border border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.1)]"
+                                ? "bg-blue-500/15 text-blue-400 border border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.1)]"
                                 : "text-brand-secondary hover:bg-slate-100 dark:hover:bg-white/5 hover:text-brand-text border border-transparent"
                               }`}
                           >
@@ -829,13 +830,13 @@ function Navbar() {
                   </div>
                 ))
               ) : (
-                <div className="py-12 text-center text-xs text-slate-500 font-semibold">
+                <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 font-semibold">
                   No matching actions found for "{searchQuery}".
                 </div>
               )}
             </div>
 
-            <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between text-[9px] font-black text-slate-500 uppercase tracking-widest select-none">
+            <div className="border-t border-brand-border/40 mt-4 pt-3 flex items-center justify-between text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest select-none">
               <span>↑↓ Arrow keys to navigate</span>
               <span>ENTER to launch</span>
             </div>

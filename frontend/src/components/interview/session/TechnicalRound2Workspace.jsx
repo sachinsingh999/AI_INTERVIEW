@@ -199,8 +199,8 @@ export default function TechnicalRound2Workspace({
             transition={{ duration: 0.4, delay: 0.1 }}
             className="bg-brand-card border border-brand-border rounded-xl p-5 relative overflow-hidden"
           >
-            {/* Subtle glow border */}
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
+            {/* Subtle border accent */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-blue-500/30" />
             
             <div className="flex gap-4">
               <div className="h-10 w-10 rounded-lg bg-blue-500/5 border border-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 shadow-inner">

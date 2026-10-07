@@ -73,7 +73,7 @@ export default function CodingInterface({
   submitting,
 }) {
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#050B14] text-slate-100 font-sans overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-brand-bg text-brand-text font-sans overflow-hidden">
       
       {!isFocusMode && (
         <QuestionNavigatorDrawer
@@ -93,16 +93,16 @@ export default function CodingInterface({
 
       {/* Settings Dropdown Overlay */}
       {isFocusMode ? null : showSettings && (
-        <div className="absolute right-6 top-16 w-52 rounded-md bg-[#0F172A] border border-[#1F2937] p-3.5 shadow-2xl z-50 text-xs text-slate-200 space-y-3 animate-dropdown-in">
-          <p className="font-black uppercase tracking-wider text-slate-400 text-[9px] mb-1">IDE Configuration</p>
+        <div className="absolute right-6 top-16 w-52 rounded-md bg-brand-card border border-brand-border p-3.5 shadow-2xl z-50 text-xs text-brand-text space-y-3 animate-dropdown-in">
+          <p className="font-black uppercase tracking-wider text-brand-secondary text-[9px] mb-1">IDE Configuration</p>
           
           {/* Theme selector */}
           <div className="flex flex-col gap-1">
-            <span className="font-semibold text-slate-400">Theme</span>
+            <span className="font-semibold text-brand-secondary">Theme</span>
             <select
               value={editorTheme}
               onChange={(e) => setEditorTheme(e.target.value)}
-              className="bg-[#0B1220] text-slate-200 border border-[#1F2937] rounded-lg px-2 py-1 outline-none cursor-pointer hover:border-indigo-500 transition"
+              className="bg-brand-elevated text-brand-text border border-brand-border rounded-lg px-2 py-1 outline-none cursor-pointer hover:border-brand-primary transition"
             >
               <option value="vs-dark">Dark IDE</option>
               <option value="light">Light IDE</option>
@@ -112,12 +112,12 @@ export default function CodingInterface({
 
           {/* Font Size controls */}
           <div className="flex flex-col gap-1">
-            <span className="font-semibold text-slate-400">Font Size</span>
-            <div className="flex items-center justify-between bg-[#0B1220] border border-[#1F2937] rounded-lg p-0.5">
+            <span className="font-semibold text-brand-secondary">Font Size</span>
+            <div className="flex items-center justify-between bg-brand-elevated border border-brand-border rounded-lg p-0.5">
               <button 
                 type="button"
                 onClick={() => setFontSize(Math.max(10, fontSize - 1))}
-                className="w-6 h-6 flex items-center justify-center font-bold text-slate-400 hover:text-slate-200 hover:bg-[#1f2937]/40 rounded-md transition"
+                className="w-6 h-6 flex items-center justify-center font-bold text-brand-secondary hover:text-brand-text hover:bg-brand-card rounded-md transition"
               >
                 A-
               </button>
@@ -125,7 +125,7 @@ export default function CodingInterface({
               <button 
                 type="button"
                 onClick={() => setFontSize(Math.min(24, fontSize + 1))}
-                className="w-6 h-6 flex items-center justify-center font-bold text-slate-400 hover:text-slate-200 hover:bg-[#1f2937]/40 rounded-md transition"
+                className="w-6 h-6 flex items-center justify-center font-bold text-brand-secondary hover:text-brand-text hover:bg-brand-card rounded-md transition"
               >
                 A+
               </button>
@@ -133,14 +133,14 @@ export default function CodingInterface({
           </div>
 
           {/* Focus Options */}
-          <div className="pt-2 border-t border-[#1F2937]/80 flex flex-col gap-1.5">
+          <div className="pt-2 border-t border-brand-border flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => { setIsFocusMode(!isFocusMode); setShowSettings(false); }}
               className={`w-full py-1 rounded-lg border text-center font-bold transition ${
                 isFocusMode 
                   ? "bg-amber-500/10 border-amber-500 text-amber-500" 
-                  : "border-[#1F2937] bg-[#0B1220] text-slate-400 hover:text-slate-200"
+                  : "border-brand-border bg-brand-elevated text-brand-secondary hover:text-brand-text"
               }`}
             >
               {isFocusMode ? "Exit Zen Mode" : "Enter Zen Mode"}
@@ -150,8 +150,8 @@ export default function CodingInterface({
               onClick={() => { setIsFullscreen(!isFullscreen); setShowSettings(false); }}
               className={`w-full py-1 rounded-lg border text-center font-bold transition ${
                 isFullscreen 
-                  ? "bg-indigo-500/10 border-indigo-500 text-indigo-400" 
-                  : "border-[#1F2937] bg-[#0B1220] text-slate-400 hover:text-slate-200"
+                  ? "bg-brand-primary/10 border-brand-primary text-brand-primary" 
+                  : "border-brand-border bg-brand-elevated text-brand-secondary hover:text-brand-text"
               }`}
             >
               {isFullscreen ? "Split View" : "Zen Size"}
@@ -160,15 +160,15 @@ export default function CodingInterface({
         </div>
       )}
 
-      {/* Redesigned Clean Header (LeetCode Inspired) */}
+      {/* Header Bar */}
       {!isFocusMode && (
-        <header className="h-14 shrink-0 border-b border-[#1F2937]/80 bg-[#0B1220] flex items-center justify-between px-4 z-10 shadow-md">
+        <header className="h-14 shrink-0 border-b border-brand-border bg-brand-card flex items-center justify-between px-4 z-10 shadow-xs">
           {/* Left: Combined Exit & Problem Set Button Group */}
-          <div className="flex items-center rounded-lg border border-[#1F2937] bg-[#090E1A] overflow-hidden select-none">
+          <div className="flex items-center rounded-lg border border-brand-border bg-brand-elevated overflow-hidden select-none">
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
-              className="p-2 border-r border-[#1F2937] text-slate-400 hover:text-rose-500 hover:bg-[#1F2937]/30 transition cursor-pointer shrink-0"
+              className="p-2 border-r border-brand-border text-brand-secondary hover:text-rose-500 hover:bg-brand-card transition cursor-pointer shrink-0"
               title="Exit Arena"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
@@ -178,10 +178,10 @@ export default function CodingInterface({
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-400 hover:text-indigo-400 hover:bg-[#1F2937]/30 transition cursor-pointer select-none"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-secondary hover:text-brand-primary hover:bg-brand-card transition cursor-pointer select-none"
               title="Open problem set drawer"
             >
-              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3.5 h-3.5 text-brand-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
               Problem Set
@@ -196,14 +196,14 @@ export default function CodingInterface({
               disabled={running}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                 running && !submitting
-                  ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
-                  : "bg-[#090E1A] border-[#1F2937] text-slate-300 hover:text-white hover:border-slate-500 hover:bg-[#1F2937]/40"
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                  : "bg-brand-elevated border-brand-border text-brand-text hover:bg-brand-elevated/80"
               }`}
               title="Run Code"
             >
               {running && !submitting ? (
                 <>
-                  <svg className="w-3.5 h-3.5 animate-spin text-amber-400" fill="none" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
@@ -211,7 +211,7 @@ export default function CodingInterface({
                 </>
               ) : (
                 <>
-                  <svg className="w-3.5 h-3.5 text-slate-400 hover:text-white transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 text-brand-secondary hover:text-brand-text transition-colors" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                   <span>Run</span>
@@ -223,10 +223,10 @@ export default function CodingInterface({
               type="button"
               onClick={() => runCode(true)}
               disabled={running}
-              className={`flex items-center gap-1.5 px-5 py-1.5 rounded-lg text-xs font-extrabold text-white transition-all duration-200 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(99,102,241,0.15)] hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] ${
+              className={`flex items-center gap-1.5 px-5 py-1.5 rounded-lg text-xs font-extrabold text-white transition-all duration-200 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs ${
                 submitting
-                  ? "bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/40"
-                  : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 border border-indigo-500"
+                  ? "bg-brand-primary/30 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/40"
+                  : "bg-brand-primary hover:bg-brand-primary-hover border border-brand-primary text-white"
               }`}
               title="Submit Solution"
             >
@@ -249,7 +249,7 @@ export default function CodingInterface({
             </button>
           </div>
 
-          {/* Right: Autosave Status, Language Selection, Timer, and Run/Submit Actions */}
+          {/* Right: Autosave Status, Language Selection, Timer, and Settings Actions */}
           <div className="flex items-center gap-3.5 shrink-0">
             {/* Auto Save Status */}
             <div className="flex items-center text-xs select-none">
@@ -260,7 +260,7 @@ export default function CodingInterface({
                 </span>
               )}
               {saveStatus === "saved" && (
-                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="text-emerald-500 font-semibold flex items-center gap-1">
                   ✓ Saved
                 </span>
               )}
@@ -270,14 +270,14 @@ export default function CodingInterface({
                   <button
                     type="button"
                     onClick={() => handleManualSave()}
-                    className="underline ml-1 text-indigo-400 hover:text-indigo-300 font-black cursor-pointer bg-transparent border-none p-0 outline-none"
+                    className="underline ml-1 text-brand-primary font-black cursor-pointer bg-transparent border-none p-0 outline-none"
                   >
                     Retry
                   </button>
                 </span>
               )}
               {saveStatus === "unsaved" && (
-                <span className="text-amber-400 font-semibold flex items-center gap-1">
+                <span className="text-amber-500 font-semibold flex items-center gap-1">
                   ● Unsaved
                 </span>
               )}
@@ -291,7 +291,7 @@ export default function CodingInterface({
                   setSelectedLanguage(e.target.value);
                   setResult(null);
                 }}
-                className="bg-[#090E1A] text-slate-355 border border-[#1F2937] hover:border-slate-650 rounded-lg px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer transition select-none"
+                className="bg-brand-elevated text-brand-text border border-brand-border rounded-lg px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer transition select-none"
               >
                 {languageOptions.map((lang) => (
                   <option key={lang.id} value={lang.id}>{lang.label}</option>
@@ -300,12 +300,12 @@ export default function CodingInterface({
             </div>
 
             {/* Timer */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#1F2937] bg-[#090E1A] text-amber-500 font-semibold font-mono text-xs select-none">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-brand-border bg-brand-elevated text-amber-500 font-semibold font-mono text-xs select-none">
               <span className="text-amber-500">⏱</span>
               <span>{formatTime(timeLeft)}</span>
             </div>
 
-            <div className="h-4 w-px bg-[#1F2937]" />
+            <div className="h-4 w-px bg-brand-border" />
 
             {/* Gear Configuration Toggler */}
             <button
@@ -313,8 +313,8 @@ export default function CodingInterface({
               onClick={() => setShowSettings(!showSettings)}
               className={`p-1.5 rounded-lg border transition active:scale-95 cursor-pointer ${
                 showSettings
-                  ? "bg-indigo-500/10 border-indigo-500 text-indigo-400"
-                  : "border-slate-700 bg-transparent text-slate-400 hover:text-slate-200"
+                  ? "bg-brand-primary/10 border-brand-primary text-brand-primary"
+                  : "border-brand-border bg-brand-elevated text-brand-secondary hover:text-brand-text"
               }`}
               title="Editor Settings"
             >
@@ -330,8 +330,8 @@ export default function CodingInterface({
               onClick={() => setAiDrawerOpen(!aiDrawerOpen)}
               className={`p-1.5 rounded-lg border transition active:scale-95 cursor-pointer ${
                 aiDrawerOpen
-                  ? "bg-indigo-500/10 border-indigo-500 text-indigo-400"
-                  : "border-slate-700 bg-transparent text-slate-400 hover:text-slate-200"
+                  ? "bg-brand-primary/10 border-brand-primary text-brand-primary"
+                  : "border-brand-border bg-brand-elevated text-brand-secondary hover:text-brand-text"
               }`}
               title="AI Assistant Chat"
             >
@@ -353,7 +353,7 @@ export default function CodingInterface({
                 {isFocusMode ? null : isFullscreen ? (
                   <div 
                     onClick={() => setIsFullscreen(false)} 
-                    className="w-4 h-full bg-[#0B1220] hover:bg-[#1e293b] border-r border-[#1F2937]/50 flex flex-col items-center justify-center cursor-pointer hover:text-indigo-400 text-slate-500 transition duration-150 shrink-0 select-none"
+                    className="w-4 h-full bg-brand-card hover:bg-brand-elevated border-r border-brand-border flex flex-col items-center justify-center cursor-pointer hover:text-brand-primary text-brand-secondary transition duration-150 shrink-0 select-none"
                     title="Expand Question Panel"
                   >
                     <span className="text-xs font-bold">&gt;</span>
@@ -384,7 +384,7 @@ export default function CodingInterface({
                 {!isFullscreen && !isFocusMode && (
                   <div
                     onMouseDown={startResize}
-                    className="w-[3px] bg-[#1F2937]/65 hover:bg-indigo-500 cursor-col-resize transition-all self-stretch z-30 shrink-0"
+                    className="w-[3px] bg-brand-border hover:bg-brand-primary cursor-col-resize transition-all self-stretch z-30 shrink-0"
                   />
                 )}
    
@@ -448,19 +448,19 @@ export default function CodingInterface({
 
           {/* Operational Bottom Status Footer */}
           {!isFocusMode && (
-            <footer className="h-6 shrink-0 border-t border-[#1F2937]/50 bg-[#090E1A] px-4 flex items-center justify-between text-[10px] text-slate-500 select-none">
+            <footer className="h-6 shrink-0 border-t border-brand-border bg-brand-card px-4 flex items-center justify-between text-[10px] text-brand-secondary select-none">
               <div className="flex items-center gap-1.5 font-semibold">
                 <span>© 2026 CodeArena IDE. All rights reserved.</span>
-                <span className="text-slate-850">|</span>
-                <a href="#" className="hover:text-slate-350 transition">Terms</a>
-                <a href="#" className="hover:text-slate-350 transition">Privacy</a>
+                <span className="text-brand-border">|</span>
+                <a href="#" className="hover:text-brand-text transition">Terms</a>
+                <a href="#" className="hover:text-brand-text transition">Privacy</a>
               </div>
               <div className="flex items-center gap-4 font-semibold">
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10B981]" />
                   <span>All systems operational</span>
                 </div>
-                <a href="#" className="hover:text-slate-350 transition">Support</a>
+                <a href="#" className="hover:text-brand-text transition">Support</a>
               </div>
             </footer>
           )}

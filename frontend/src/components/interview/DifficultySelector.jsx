@@ -34,12 +34,12 @@ export default function DifficultySelector({ value, onChange }) {
               {isSelected && (
                 <motion.div
                   layoutId="difficulty-active"
-                  className={`absolute inset-0 rounded-xl bg-gradient-to-r ${
+                  className={`absolute inset-0 rounded-xl ${
                     option.id === "Easy"
-                      ? "from-emerald-600 to-teal-600 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                      ? "bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                       : option.id === "Medium"
-                      ? "from-amber-600 to-orange-600 shadow-[0_0_15px_rgba(245,158,11,0.4)]"
-                      : "from-rose-600 to-red-600 shadow-[0_0_15px_rgba(244,63,94,0.4)]"
+                      ? "bg-amber-600 shadow-[0_0_15px_rgba(245,158,11,0.4)]"
+                      : "bg-rose-600 shadow-[0_0_15px_rgba(244,63,94,0.4)]"
                   }`}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />

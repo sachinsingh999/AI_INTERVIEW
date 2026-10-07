@@ -144,7 +144,7 @@ export default function Notifications() {
     <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col font-sans transition-colors duration-200">
       <Navbar />
 
-      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6 max-w-5xl mx-auto space-y-6">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-4 max-w-5xl mx-auto space-y-3.5">
         
         {/* PAGE HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-brand-card border border-brand-border rounded-sm p-5 shadow-sm">

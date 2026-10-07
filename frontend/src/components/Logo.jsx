@@ -1,20 +1,31 @@
 import React from "react";
 
-export default function Logo({ className = "h-8", showText = true }) {
-  return (
-    <div className={`flex items-center gap-2.5 select-none ${className}`}>
-      {/* Official Brand Logo Image */}
+export default function Logo({ className = "h-8", showText = true, iconOnly = false }) {
+  if (!showText || iconOnly) {
+    return (
       <img
-        src="/logo.png"
-        alt="CodeForge"
-        className="h-8.5 w-auto object-contain shrink-0 filter drop-shadow-sm transition-transform duration-200"
+        src="/intervexa-icon.png"
+        alt="Intervexa"
+        className={`w-auto object-contain shrink-0 select-none ${className}`}
       />
-      {/* Text logo with Plus Jakarta Sans */}
-      {showText && (
-        <span className="text-xl font-extrabold font-brand-logo tracking-tight text-brand-text leading-none">
-          Code<span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">Forge</span>
-        </span>
-      )}
+    );
+  }
+
+  return (
+    <div className={`inline-flex items-center shrink-0 select-none ${className}`}>
+      {/* Light mode logo */}
+      <img
+        src="/intervexa-logo.png"
+        alt="Intervexa"
+        className="h-full w-auto object-contain shrink-0 dark:hidden"
+      />
+      {/* Dark mode logo */}
+      <img
+        src="/intervexa-logo-dark.png"
+        alt="Intervexa"
+        className="h-full w-auto object-contain shrink-0 hidden dark:block"
+      />
     </div>
   );
 }
+
