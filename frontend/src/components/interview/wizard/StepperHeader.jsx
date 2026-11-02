@@ -1,63 +1,39 @@
 import React from "react";
-import { Check } from "lucide-react";
 
-export default function StepperHeader({ currentStep, setStep }) {
+export default function StepperHeader({ currentStep }) {
   const steps = [
-    { num: 1, label: "Job Role" },
-    { num: 2, label: "Resume" },
-    { num: 3, label: "Review" },
-    { num: 4, label: "Lobby" },
+    { num: 1, label: "Select Job Role & Focus" },
+    { num: 2, label: "Upload Resume (Optional)" },
+    { num: 3, label: "Review Parsed Profile" },
+    { num: 4, label: "Interview Waiting Room" },
   ];
+
+  const current = steps.find((s) => s.num === currentStep) || steps[0];
+  const progressPercent = (currentStep / steps.length) * 100;
 
   return (
     <div className="w-full mb-4">
-      <div className="rounded-xl border border-brand-border bg-brand-card p-3 sm:p-4 shadow-lg">
-        <div className="flex items-center justify-between relative max-w-lg mx-auto px-2">
-          {/* Connector Line Background */}
-          <div className="absolute top-1/2 left-5 right-5 h-0.5 bg-slate-200 dark:bg-slate-800 -translate-y-1/2 z-0" />
+      <div className="rounded-sm border border-amber-200/80 dark:border-amber-900/30 bg-[#FFFDF7] dark:bg-[#121626] p-4 shadow-xs text-center">
+        {/* Step No & Title In Middle */}
+        <div className="flex flex-col items-center justify-center gap-1.5 mb-2.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-amber-100/70 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-bold tracking-wide">
+            <span className="flex h-4 w-4 items-center justify-center rounded-xs bg-[#F59E0B] text-[#0F172A] text-[10px] font-black">
+              {currentStep}
+            </span>
+            <span>Step {currentStep} of {steps.length}</span>
+          </div>
 
-          {/* Active Connector Progress Line */}
+          <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-outfit">
+            {current.label}
+          </h2>
+        </div>
+
+        {/* Clean Centered Progress Bar */}
+        <div className="w-full max-w-md mx-auto h-1.5 bg-amber-100/60 dark:bg-slate-800 rounded-xs overflow-hidden">
           <div
-            className="absolute top-1/2 left-5 h-0.5 bg-indigo-600 -translate-y-1/2 z-0 transition-all duration-500"
-            style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+            className="h-full bg-[#F59E0B] rounded-xs transition-all duration-300 ease-out"
+            style={{ width: `${progressPercent}%` }}
           />
-
-          {steps.map((step) => {
-            const isCompleted = currentStep > step.num;
-            const isCurrent = currentStep === step.num;
-            const isFuture = currentStep < step.num;
-
-            return (
-              <div key={step.num} className="relative z-10 flex flex-col items-center gap-1">
-                <button
-                  type="button"
-                  disabled={isFuture}
-                  onClick={() => isCompleted && setStep(step.num)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-md text-[11px] font-black transition-all duration-200 ${
-                    isCompleted
-                      ? "bg-emerald-500 text-white shadow-sm cursor-pointer hover:scale-105"
-                      : isCurrent
-                      ? "bg-indigo-600 text-white border border-indigo-400/80 shadow-md scale-105"
-                      : "bg-slate-100 dark:bg-slate-900 border border-brand-border text-slate-400 dark:text-slate-600 cursor-not-allowed"
-                  }`}
-                >
-                  {isCompleted ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : step.num}
-                </button>
-
-                <span
-                  className={`text-[11px] font-bold tracking-tight whitespace-nowrap transition-colors duration-200 ${
-                    isCurrent
-                      ? "text-blue-500 dark:text-blue-400 font-extrabold"
-                      : isCompleted
-                      ? "text-emerald-500 dark:text-emerald-400 font-semibold"
-                      : "text-brand-secondary"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
         </div>
       </div>
     </div>

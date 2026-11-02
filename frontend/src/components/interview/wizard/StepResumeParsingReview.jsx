@@ -1,18 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Check, Plus, X, User, Briefcase, Code2, FolderGit2, FileText, ChevronRight, ChevronLeft, Award, Languages, GraduationCap, Trash2 } from "lucide-react";
+import {
+  Check,
+  Plus,
+  X,
+  User,
+  Briefcase,
+  Code2,
+  FolderGit2,
+  FileText,
+  ChevronRight,
+  ChevronLeft,
+  GraduationCap,
+  Sparkles,
+  Award,
+  Globe,
+  Mail,
+  Phone,
+  MapPin,
+  Trash2
+} from "lucide-react";
 
-export default function StepResumeParsingReview({ resumeData, parsedResume, setParsedResume, onBack, onNext }) {
+export default function StepResumeParsingReview({
+  resumeData,
+  parsedResume,
+  setParsedResume,
+  onBack,
+  onNext
+}) {
   const [newSkill, setNewSkill] = useState("");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   if (!parsedResume) {
     return (
-      <div className="w-full text-center p-8 rounded-xl border border-brand-border bg-brand-card text-brand-secondary">
-        <p className="text-sm font-semibold">No resume parsing data available. Please go back and upload a resume.</p>
+      <div className="w-full text-center p-8 rounded-sm border border-amber-200/80 dark:border-amber-900/30 bg-[#FFFDF7] dark:bg-[#121626] text-brand-secondary">
+        <p className="text-sm font-semibold">No resume parsing data available. Please upload a resume first.</p>
         <button
           type="button"
           onClick={onBack}
-          className="mt-4 px-4 py-2 bg-slate-100 dark:bg-slate-900 border border-brand-border text-brand-text rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-800"
+          className="mt-4 px-4 py-2 bg-white dark:bg-slate-900 border border-brand-border text-brand-text rounded-sm text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
         >
           Go Back
         </button>
@@ -20,76 +46,32 @@ export default function StepResumeParsingReview({ resumeData, parsedResume, setP
     );
   }
 
-  const overallConfidence = parsedResume.confidence ?? 0.90;
-  const isLowConfidence = overallConfidence < 0.80;
-
-  // Input Field Helper with Low Confidence Highlighting
-  const renderInputField = (label, sectionKey, value, onChange, type = "text") => {
-    const conf = parsedResume.fieldConfidences?.[sectionKey] ?? 1.0;
-    const isLow = conf < 0.8;
-    return (
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
-          <span>{label}</span>
-          <span className={`font-mono font-bold ${isLow ? "text-amber-400 animate-pulse" : "text-slate-500"}`}>
-            {Math.round(conf * 100)}%
-          </span>
-        </div>
-        <input
-          type={type}
-          value={value || ""}
-          onChange={onChange}
-          className={`w-full rounded-lg border px-3 py-2 text-xs font-semibold text-brand-text outline-none transition ${
-            isLow
-              ? "border-amber-500/60 bg-amber-500/5 focus:border-amber-500 ring-1 ring-amber-500/20"
-              : "border-brand-border bg-slate-50 dark:bg-slate-900/60 focus:border-blue-500/60"
-          }`}
-        />
-        {isLow && (
-          <p className="text-[9px] text-amber-500 font-bold leading-none mt-0.5">
-            ⚠️ Verify - extraction confidence is low.
-          </p>
-        )}
-      </div>
+  // Filter out completely blank education entries that sometimes get generated
+  const educationList = useMemo(() => {
+    return (parsedResume.education || []).filter(
+      (edu) => (edu.degree && edu.degree.trim()) || (edu.institution && edu.institution.trim()) || (edu.branch && edu.branch.trim())
     );
-  };
+  }, [parsedResume.education]);
 
-  // TextArea Helper
-  const renderTextAreaField = (label, sectionKey, value, onChange) => {
-    const conf = parsedResume.fieldConfidences?.[sectionKey] ?? 1.0;
-    const isLow = conf < 0.8;
-    return (
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
-          <span>{label}</span>
-          <span className={`font-mono font-bold ${isLow ? "text-amber-400 animate-pulse" : "text-slate-500"}`}>
-            {Math.round(conf * 100)}%
-          </span>
-        </div>
-        <textarea
-          rows="3"
-          value={value || ""}
-          onChange={onChange}
-          className={`w-full rounded-lg border p-3 text-xs font-semibold text-brand-text outline-none transition resize-y leading-relaxed ${
-            isLow
-              ? "border-amber-500/60 bg-amber-500/5 focus:border-amber-500 ring-1 ring-amber-500/20"
-              : "border-brand-border bg-slate-50 dark:bg-slate-900/60 focus:border-blue-500/60"
-          }`}
-        />
-        {isLow && (
-          <p className="text-[9px] text-amber-500 font-bold leading-none mt-0.5">
-            ⚠️ Verify - extraction confidence is low.
-          </p>
-        )}
-      </div>
+  // Filter out completely blank experience entries
+  const experienceList = useMemo(() => {
+    return (parsedResume.experience || []).filter(
+      (exp) => (exp.company && exp.company.trim()) || (exp.position && exp.position.trim())
     );
-  };
+  }, [parsedResume.experience]);
 
-  // Skill Chip handlers
+  // Filter out completely blank project entries
+  const projectsList = useMemo(() => {
+    return (parsedResume.projects || []).filter(
+      (p) => (p.name && p.name.trim()) || (p.description && p.description.trim())
+    );
+  }, [parsedResume.projects]);
+
+  // Skill Handlers
   const handleRemoveSkill = (skillToRemove) => {
     setParsedResume((prev) => ({
       ...prev,
-      skills: (prev.skills || []).filter((s) => s !== skillToRemove),
+      skills: (prev.skills || []).filter((s) => s !== skillToRemove)
     }));
   };
 
@@ -100,107 +82,10 @@ export default function StepResumeParsingReview({ resumeData, parsedResume, setP
     if (!(parsedResume.skills || []).includes(trimmed)) {
       setParsedResume((prev) => ({
         ...prev,
-        skills: [...(prev.skills || []), trimmed],
+        skills: [...(prev.skills || []), trimmed]
       }));
     }
     setNewSkill("");
-  };
-
-  // List Modification Handlers
-  const handleAddEducation = () => {
-    setParsedResume((prev) => ({
-      ...prev,
-      education: [
-        ...(prev.education || []),
-        { degree: "", institution: "", university: "", branch: "", cgpa: "", startDate: "", endDate: "" },
-      ],
-    }));
-  };
-
-  const handleRemoveEducation = (index) => {
-    setParsedResume((prev) => ({
-      ...prev,
-      education: (prev.education || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleAddExperience = () => {
-    setParsedResume((prev) => ({
-      ...prev,
-      experience: [
-        ...(prev.experience || []),
-        { company: "", position: "", employmentType: "Full-time", startDate: "", endDate: "", duration: "", responsibilities: "" },
-      ],
-    }));
-  };
-
-  const handleRemoveExperience = (index) => {
-    setParsedResume((prev) => ({
-      ...prev,
-      experience: (prev.experience || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleAddProject = () => {
-    setParsedResume((prev) => ({
-      ...prev,
-      projects: [
-        ...(prev.projects || []),
-        { name: "", description: "", technologies: "", githubLink: "", liveUrl: "" },
-      ],
-    }));
-  };
-
-  const handleRemoveProject = (index) => {
-    setParsedResume((prev) => ({
-      ...prev,
-      projects: (prev.projects || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleAddCertification = () => {
-    setParsedResume((prev) => ({
-      ...prev,
-      certifications: [
-        ...(prev.certifications || []),
-        { name: "", issuer: "", issueDate: "" },
-      ],
-    }));
-  };
-
-  const handleRemoveCertification = (index) => {
-    setParsedResume((prev) => ({
-      ...prev,
-      certifications: (prev.certifications || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleAddAchievement = () => {
-    setParsedResume((prev) => ({
-      ...prev,
-      achievements: [...(prev.achievements || []), ""],
-    }));
-  };
-
-  const handleRemoveAchievement = (index) => {
-    setParsedResume((prev) => ({
-      ...prev,
-      achievements: (prev.achievements || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleAddLanguage = () => {
-    setParsedResume((prev) => ({
-      ...prev,
-      languages: [...(prev.languages || []), ""],
-    }));
-  };
-
-  const handleRemoveLanguage = (index) => {
-    setParsedResume((prev) => ({
-      ...prev,
-      languages: (prev.languages || []).filter((_, i) => i !== index),
-    }));
   };
 
   return (
@@ -209,137 +94,170 @@ export default function StepResumeParsingReview({ resumeData, parsedResume, setP
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="w-full rounded-xl border border-brand-border bg-brand-card p-5 sm:p-6 shadow-xl space-y-6 text-brand-text"
+      className="w-full rounded-sm border border-amber-200/80 dark:border-amber-900/30 bg-[#FFFDF7] dark:bg-[#121626] p-5 sm:p-6 shadow-xs space-y-6 text-brand-text"
     >
       {/* Header */}
-      <div className="border-b border-brand-border pb-4 flex items-center justify-between">
+      <div className="border-b border-amber-200/60 dark:border-slate-800 pb-3 flex items-center justify-between">
         <div>
-          <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-emerald-505 dark:text-emerald-400 block mb-0.5">
-            Step 3 of 4 • Parsing Complete
+          <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-amber-700 dark:text-amber-400 block mb-0.5">
+            Step 3 of 4 • AI Analysis Complete
           </span>
-          <h2 className="text-xl font-black text-brand-text tracking-tight">
-            Resume Review & Editing
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight font-outfit">
+            Resume Profile Verified
           </h2>
           <p className="text-xs text-brand-secondary mt-0.5">
-            Review and edit the extracted details from your resume before proceeding.
+            Review the extracted tech stack and projects that will tailor your interview questions.
           </p>
         </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
           <Check className="h-4 w-4 stroke-[3]" />
         </div>
       </div>
 
-      {/* Confidence Header Ribbon */}
-      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border ${
-        isLowConfidence 
-          ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-          : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-      }`}>
-        <div className="space-y-0.5">
-          <span className="text-[9px] font-mono uppercase font-black tracking-wider opacity-75">
-            ATS Extraction Status
-          </span>
-          <h4 className="text-xs font-black text-white">Parsed Profile Check</h4>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-black border ${
-            isLowConfidence 
-              ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-              : "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-          }`}>
-            Confidence Score: {Math.round(overallConfidence * 100)}%
-          </span>
-          {isLowConfidence && (
-            <span className="text-[10px] font-bold text-amber-400 animate-pulse">
-              ⚠️ Low Confidence Warning
-            </span>
-          )}
-        </div>
-      </div>
+      {/* Candidate Profile Summary Header Card */}
+      <div className="p-4 rounded-sm border border-brand-border bg-white dark:bg-slate-900/60 space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-brand-border/60 pb-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xs bg-[#F59E0B] text-slate-900 font-bold text-sm">
+              {(parsedResume.name || "C").substring(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                {parsedResume.name || "Candidate Name"}
+              </h3>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                {parsedResume.summary ? parsedResume.summary.slice(0, 90) + "..." : "Resume Profile Loaded"}
+              </p>
+            </div>
+          </div>
 
-      {/* 1. Personal Details */}
-      <div className="space-y-3">
-        <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-blue-400 flex items-center gap-1.5 border-b border-white/5 pb-1">
-          <User className="h-3.5 w-3.5" />
-          <span>Personal Details</span>
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {renderInputField("Full Name", "name", parsedResume.name, (e) =>
-            setParsedResume({ ...parsedResume, name: e.target.value })
-          )}
-          {renderInputField("Email", "email", parsedResume.email, (e) =>
-            setParsedResume({ ...parsedResume, email: e.target.value })
-          )}
-          {renderInputField("Phone", "phone", parsedResume.phone, (e) =>
-            setParsedResume({ ...parsedResume, phone: e.target.value })
-          )}
-          {renderInputField("LinkedIn Link", "linkedin", parsedResume.linkedin, (e) =>
-            setParsedResume({ ...parsedResume, linkedin: e.target.value })
-          )}
-          {renderInputField("GitHub Link", "github", parsedResume.github, (e) =>
-            setParsedResume({ ...parsedResume, github: e.target.value })
-          )}
-          {renderInputField("Portfolio Website", "portfolio", parsedResume.portfolio, (e) =>
-            setParsedResume({ ...parsedResume, portfolio: e.target.value })
-          )}
-          {renderInputField("Location / Address", "location", parsedResume.location, (e) =>
-            setParsedResume({ ...parsedResume, location: e.target.value })
-          )}
+          <button
+            type="button"
+            onClick={() => setIsEditingProfile(!isEditingProfile)}
+            className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer self-start sm:self-auto"
+          >
+            {isEditingProfile ? "Done Editing" : "Edit Contact Details"}
+          </button>
         </div>
-      </div>
 
-      {/* 2. Professional Summary */}
-      <div className="space-y-2">
-        <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-indigo-400 flex items-center gap-1.5 border-b border-white/5 pb-1">
-          <FileText className="h-3.5 w-3.5" />
-          <span>Professional Summary</span>
-        </h3>
-        {renderTextAreaField("Career Objective / Summary", "summary", parsedResume.summary, (e) =>
-          setParsedResume({ ...parsedResume, summary: e.target.value })
+        {/* Contact Info Pills */}
+        {!isEditingProfile ? (
+          <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-brand-secondary">
+            {parsedResume.email && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-slate-50 dark:bg-slate-800 border border-brand-border">
+                <Mail className="w-3 h-3 text-slate-500" />
+                <span>{parsedResume.email}</span>
+              </span>
+            )}
+            {parsedResume.phone && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-slate-50 dark:bg-slate-800 border border-brand-border">
+                <Phone className="w-3 h-3 text-slate-500" />
+                <span>{parsedResume.phone}</span>
+              </span>
+            )}
+            {parsedResume.location && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-slate-50 dark:bg-slate-800 border border-brand-border">
+                <MapPin className="w-3 h-3 text-slate-500" />
+                <span>{parsedResume.location}</span>
+              </span>
+            )}
+            {parsedResume.github && (
+              <a
+                href={parsedResume.github.startsWith("http") ? parsedResume.github : `https://${parsedResume.github}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-slate-50 dark:bg-slate-800 border border-brand-border text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                <Globe className="w-3 h-3" />
+                <span>GitHub</span>
+              </a>
+            )}
+            {parsedResume.linkedin && (
+              <a
+                href={parsedResume.linkedin.startsWith("http") ? parsedResume.linkedin : `https://${parsedResume.linkedin}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-slate-50 dark:bg-slate-800 border border-brand-border text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                <Globe className="w-3 h-3" />
+                <span>LinkedIn</span>
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={parsedResume.name || ""}
+              onChange={(e) => setParsedResume({ ...parsedResume, name: e.target.value })}
+              className="px-2.5 py-1.5 rounded-xs border border-brand-border bg-slate-50 dark:bg-slate-900 text-xs"
+            />
+            <input
+              type="text"
+              placeholder="Email"
+              value={parsedResume.email || ""}
+              onChange={(e) => setParsedResume({ ...parsedResume, email: e.target.value })}
+              className="px-2.5 py-1.5 rounded-xs border border-brand-border bg-slate-50 dark:bg-slate-900 text-xs"
+            />
+            <input
+              type="text"
+              placeholder="Phone"
+              value={parsedResume.phone || ""}
+              onChange={(e) => setParsedResume({ ...parsedResume, phone: e.target.value })}
+              className="px-2.5 py-1.5 rounded-xs border border-brand-border bg-slate-50 dark:bg-slate-900 text-xs"
+            />
+          </div>
         )}
       </div>
 
-      {/* 3. Skills */}
+      {/* Extracted Skills Section - Clean, Organized & Sharp */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between border-b border-white/5 pb-1">
-          <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-cyan-400 flex items-center gap-1.5">
-            <Code2 className="h-3.5 w-3.5" />
-            <span>Extracted Skills</span>
-          </h3>
-          <span className="text-[10px] font-bold text-slate-500">
-            {(parsedResume.skills || []).length} Skills
+        <div className="flex items-center justify-between border-b border-brand-border/60 pb-1.5">
+          <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+            <Code2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Extracted Skills ({parsedResume.skills?.length || 0})</span>
+          </label>
+          <span className="text-[10px] text-brand-secondary font-mono">
+            Click × to remove or add custom stack below
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        {/* Clean, readable skill tags with amber highlight */}
+        <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 rounded-sm border border-brand-border bg-white dark:bg-slate-900/40">
           {(parsedResume.skills || []).map((skill) => (
             <span
               key={skill}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-bold"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xs bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-slate-800 dark:text-amber-200 text-xs font-medium"
             >
               <span>{skill}</span>
               <button
                 type="button"
                 onClick={() => handleRemoveSkill(skill)}
-                className="hover:text-rose-400 transition cursor-pointer"
+                className="text-slate-400 hover:text-rose-500 transition cursor-pointer"
+                title={`Remove ${skill}`}
               >
                 <X className="h-3 w-3" />
               </button>
             </span>
           ))}
+          {(!parsedResume.skills || parsedResume.skills.length === 0) && (
+            <span className="text-xs text-brand-secondary italic">No skills listed.</span>
+          )}
         </div>
 
+        {/* Add Skill Form */}
         <form onSubmit={handleAddSkill} className="flex items-center gap-2 pt-1">
           <input
             type="text"
-            placeholder="Add skill (e.g. Docker, GraphQL)"
+            placeholder="Add missing skill (e.g. Docker, TypeScript, Redis)..."
             value={newSkill}
             onChange={(e) => setNewSkill(e.target.value)}
-            className="flex-1 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold text-white outline-none focus:border-cyan-500/60"
+            className="flex-1 px-3 py-1.5 rounded-sm border border-brand-border bg-white dark:bg-slate-900/60 text-xs font-semibold text-brand-text outline-none focus:border-amber-500"
           />
           <button
             type="submit"
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-bold hover:bg-cyan-500/30 transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-sm bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-900/60 transition cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Add</span>
@@ -347,517 +265,152 @@ export default function StepResumeParsingReview({ resumeData, parsedResume, setP
         </form>
       </div>
 
-      {/* 4. Education */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-white/5 pb-1">
-          <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <GraduationCap className="h-4 w-4" />
-            <span>Education History</span>
-          </h3>
-          <button
-            type="button"
-            onClick={handleAddEducation}
-            className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add School</span>
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {(parsedResume.education || []).map((edu, idx) => (
-            <div key={idx} className="p-4 rounded-xl border border-white/10 bg-slate-900/40 relative space-y-3">
-              <button
-                type="button"
-                onClick={() => handleRemoveEducation(idx)}
-                className="absolute top-3 right-3 text-slate-500 hover:text-rose-400 transition cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Degree</label>
-                  <input
-                    type="text"
-                    value={edu.degree || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.education];
-                      updated[idx].degree = e.target.value;
-                      setParsedResume({ ...parsedResume, education: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Institution</label>
-                  <input
-                    type="text"
-                    value={edu.institution || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.education];
-                      updated[idx].institution = e.target.value;
-                      setParsedResume({ ...parsedResume, education: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Branch / Major</label>
-                  <input
-                    type="text"
-                    value={edu.branch || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.education];
-                      updated[idx].branch = e.target.value;
-                      setParsedResume({ ...parsedResume, education: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">CGPA / %</label>
-                  <input
-                    type="text"
-                    value={edu.cgpa || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.education];
-                      updated[idx].cgpa = e.target.value;
-                      setParsedResume({ ...parsedResume, education: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Start Date</label>
-                  <input
-                    type="text"
-                    value={edu.startDate || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.education];
-                      updated[idx].startDate = e.target.value;
-                      setParsedResume({ ...parsedResume, education: updated });
-                    }}
-                    placeholder="e.g. 2020"
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">End Date</label>
-                  <input
-                    type="text"
-                    value={edu.endDate || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.education];
-                      updated[idx].endDate = e.target.value;
-                      setParsedResume({ ...parsedResume, education: updated });
-                    }}
-                    placeholder="e.g. 2024"
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-          {(parsedResume.education || []).length === 0 && (
-            <p className="text-xs text-slate-500 italic">No education entries found.</p>
-          )}
-        </div>
-      </div>
-
-      {/* 5. Experience */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-white/5 pb-1">
-          <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-rose-400 flex items-center gap-1.5">
-            <Briefcase className="h-3.5 w-3.5" />
-            <span>Work Experience</span>
-          </h3>
-          <button
-            type="button"
-            onClick={handleAddExperience}
-            className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-rose-400 hover:text-rose-300 transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Role</span>
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {(parsedResume.experience || []).map((exp, idx) => (
-            <div key={idx} className="p-4 rounded-xl border border-white/10 bg-slate-900/40 relative space-y-3">
-              <button
-                type="button"
-                onClick={() => handleRemoveExperience(idx)}
-                className="absolute top-3 right-3 text-slate-500 hover:text-rose-400 transition cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Company</label>
-                  <input
-                    type="text"
-                    value={exp.company || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.experience];
-                      updated[idx].company = e.target.value;
-                      setParsedResume({ ...parsedResume, experience: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Position</label>
-                  <input
-                    type="text"
-                    value={exp.position || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.experience];
-                      updated[idx].position = e.target.value;
-                      setParsedResume({ ...parsedResume, experience: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Start Date</label>
-                  <input
-                    type="text"
-                    value={exp.startDate || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.experience];
-                      updated[idx].startDate = e.target.value;
-                      setParsedResume({ ...parsedResume, experience: updated });
-                    }}
-                    placeholder="e.g. June 2022"
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">End Date</label>
-                  <input
-                    type="text"
-                    value={exp.endDate || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.experience];
-                      updated[idx].endDate = e.target.value;
-                      setParsedResume({ ...parsedResume, experience: updated });
-                    }}
-                    placeholder="e.g. Present"
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-[9px] font-bold uppercase text-slate-400">Responsibilities</label>
-                <textarea
-                  rows="2"
-                  value={exp.responsibilities || ""}
-                  onChange={(e) => {
-                    const updated = [...parsedResume.experience];
-                    updated[idx].responsibilities = e.target.value;
-                    setParsedResume({ ...parsedResume, experience: updated });
-                  }}
-                  className="w-full rounded-lg border border-white/10 bg-slate-900/60 p-3 text-xs text-white outline-none focus:border-blue-500 resize-y"
-                />
-              </div>
-            </div>
-          ))}
-          {(parsedResume.experience || []).length === 0 && (
-            <p className="text-xs text-slate-500 italic">No experience entries found.</p>
-          )}
-        </div>
-      </div>
-
-      {/* 6. Projects */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-white/5 pb-1">
-          <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-teal-400 flex items-center gap-1.5">
-            <FolderGit2 className="h-3.5 w-3.5" />
-            <span>Projects Done</span>
-          </h3>
-          <button
-            type="button"
-            onClick={handleAddProject}
-            className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-teal-400 hover:text-teal-300 transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Project</span>
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {(parsedResume.projects || []).map((proj, idx) => (
-            <div key={idx} className="p-4 rounded-xl border border-white/10 bg-slate-900/40 relative space-y-3">
-              <button
-                type="button"
-                onClick={() => handleRemoveProject(idx)}
-                className="absolute top-3 right-3 text-slate-500 hover:text-rose-400 transition cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div className="col-span-1 sm:col-span-3">
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Project Name</label>
-                  <input
-                    type="text"
-                    value={proj.name || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.projects];
-                      updated[idx].name = e.target.value;
-                      setParsedResume({ ...parsedResume, projects: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div className="col-span-1 sm:col-span-3">
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Description</label>
-                  <textarea
-                    rows="2"
-                    value={proj.description || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.projects];
-                      updated[idx].description = e.target.value;
-                      setParsedResume({ ...parsedResume, projects: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 p-3 text-xs text-white outline-none focus:border-blue-500 resize-y"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Technologies</label>
-                  <input
-                    type="text"
-                    value={proj.technologies || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.projects];
-                      updated[idx].technologies = e.target.value;
-                      setParsedResume({ ...parsedResume, projects: updated });
-                    }}
-                    placeholder="e.g. React, Node, WebSockets"
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">GitHub Link</label>
-                  <input
-                    type="text"
-                    value={proj.githubLink || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.projects];
-                      updated[idx].githubLink = e.target.value;
-                      setParsedResume({ ...parsedResume, projects: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Live URL</label>
-                  <input
-                    type="text"
-                    value={proj.liveUrl || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.projects];
-                      updated[idx].liveUrl = e.target.value;
-                      setParsedResume({ ...parsedResume, projects: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-          {(parsedResume.projects || []).length === 0 && (
-            <p className="text-xs text-slate-500 italic">No projects found.</p>
-          )}
-        </div>
-      </div>
-
-      {/* 7. Certifications */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-white/5 pb-1">
-          <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-amber-400 flex items-center gap-1.5">
-            <Award className="h-4 w-4" />
-            <span>Certifications</span>
-          </h3>
-          <button
-            type="button"
-            onClick={handleAddCertification}
-            className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-amber-400 hover:text-amber-300 transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Cert</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(parsedResume.certifications || []).map((cert, idx) => (
-            <div key={idx} className="p-3.5 rounded-xl border border-white/10 bg-slate-900/40 relative space-y-2.5">
-              <button
-                type="button"
-                onClick={() => handleRemoveCertification(idx)}
-                className="absolute top-2.5 right-2.5 text-slate-500 hover:text-rose-400 transition cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-
-              <div className="space-y-1.5">
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Certification Name</label>
-                  <input
-                    type="text"
-                    value={cert.name || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.certifications];
-                      updated[idx].name = e.target.value;
-                      setParsedResume({ ...parsedResume, certifications: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Issuer</label>
-                  <input
-                    type="text"
-                    value={cert.issuer || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.certifications];
-                      updated[idx].issuer = e.target.value;
-                      setParsedResume({ ...parsedResume, certifications: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-slate-400">Issue Date</label>
-                  <input
-                    type="text"
-                    value={cert.issueDate || ""}
-                    onChange={(e) => {
-                      const updated = [...parsedResume.certifications];
-                      updated[idx].issueDate = e.target.value;
-                      setParsedResume({ ...parsedResume, certifications: updated });
-                    }}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-          {(parsedResume.certifications || []).length === 0 && (
-            <p className="text-xs text-slate-500 italic col-span-2">No certifications found.</p>
-          )}
-        </div>
-      </div>
-
-      {/* 8. Achievements */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-white/5 pb-1">
-          <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-purple-400 flex items-center gap-1.5">
-            <Award className="h-4 w-4" />
-            <span>Achievements / Awards</span>
-          </h3>
-          <button
-            type="button"
-            onClick={handleAddAchievement}
-            className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-purple-400 hover:text-purple-300 transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Achievement</span>
-          </button>
-        </div>
-
+      {/* 2-Column Grid for Experience & Education */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Work Experience */}
         <div className="space-y-2">
-          {(parsedResume.achievements || []).map((ach, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={typeof ach === "string" ? ach : ach.name || ""}
-                onChange={(e) => {
-                  const updated = [...parsedResume.achievements];
-                  updated[idx] = e.target.value;
-                  setParsedResume({ ...parsedResume, achievements: updated });
-                }}
-                className="flex-1 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={() => handleRemoveAchievement(idx)}
-                className="p-2 text-slate-500 hover:text-rose-400 transition cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-          {(parsedResume.achievements || []).length === 0 && (
-            <p className="text-xs text-slate-500 italic">No achievements found.</p>
-          )}
+          <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 border-b border-brand-border/60 pb-1">
+            <Briefcase className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Work Experience ({experienceList.length})</span>
+          </label>
+
+          <div className="space-y-2">
+            {experienceList.length > 0 ? (
+              experienceList.map((exp, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-sm border border-brand-border bg-white dark:bg-slate-900/60 space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {exp.position || "Software Engineer"}
+                    </span>
+                    <span className="text-[10px] font-mono text-brand-secondary">
+                      {exp.startDate || ""} {exp.endDate ? `– ${exp.endDate}` : ""}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                    {exp.company}
+                  </p>
+                  {exp.responsibilities && (
+                    <p className="text-[11px] text-brand-secondary line-clamp-2">
+                      {exp.responsibilities}
+                    </p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="p-3 rounded-sm border border-dashed border-brand-border text-center text-xs text-brand-secondary italic">
+                No formal work experience detected (Fresher / Student Profile)
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Education History */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 border-b border-brand-border/60 pb-1">
+            <GraduationCap className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Education ({educationList.length})</span>
+          </label>
+
+          <div className="space-y-2">
+            {educationList.length > 0 ? (
+              educationList.map((edu, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-sm border border-brand-border bg-white dark:bg-slate-900/60 space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {edu.degree || edu.branch || "Degree"}
+                    </span>
+                    <span className="text-[10px] font-mono text-brand-secondary">
+                      {edu.endDate || edu.startDate || ""}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                    {edu.institution || edu.university || "University"}
+                  </p>
+                  {edu.cgpa && (
+                    <span className="inline-block text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-xs">
+                      CGPA / Score: {edu.cgpa}
+                    </span>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="p-3 rounded-sm border border-dashed border-brand-border text-center text-xs text-brand-secondary italic">
+                Self-taught / Professional Track (No university records extracted)
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 9. Languages */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-white/5 pb-1">
-          <h3 className="text-[11px] font-mono uppercase font-bold tracking-wider text-violet-400 flex items-center gap-1.5">
-            <Languages className="h-4 w-4" />
-            <span>Languages</span>
-          </h3>
-          <button
-            type="button"
-            onClick={handleAddLanguage}
-            className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-violet-400 hover:text-violet-300 transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Language</span>
-          </button>
-        </div>
+      {/* Projects Detected */}
+      {projectsList.length > 0 && (
+        <div className="space-y-2">
+          <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 border-b border-brand-border/60 pb-1">
+            <FolderGit2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Highlighted Projects ({projectsList.length})</span>
+          </label>
 
-        <div className="flex flex-wrap gap-2">
-          {(parsedResume.languages || []).map((lang, idx) => (
-            <div key={idx} className="flex items-center gap-1 bg-slate-900 border border-white/10 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-200">
-              <input
-                type="text"
-                value={lang || ""}
-                onChange={(e) => {
-                  const updated = [...parsedResume.languages];
-                  updated[idx] = e.target.value;
-                  setParsedResume({ ...parsedResume, languages: updated });
-                }}
-                className="bg-transparent border-none text-xs text-white outline-none w-20 focus:w-28 transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => handleRemoveLanguage(idx)}
-                className="text-slate-500 hover:text-rose-400 cursor-pointer"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {projectsList.map((proj, idx) => (
+              <div
+                key={idx}
+                className="p-3 rounded-sm border border-brand-border bg-white dark:bg-slate-900/60 space-y-1"
               >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-          {(parsedResume.languages || []).length === 0 && (
-            <p className="text-xs text-slate-500 italic w-full">No languages listed.</p>
-          )}
+                <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                  {proj.name}
+                </span>
+                {proj.technologies && (
+                  <p className="text-[10px] font-mono text-amber-700 dark:text-amber-400">
+                    {typeof proj.technologies === "string" ? proj.technologies : proj.technologies.join(", ")}
+                  </p>
+                )}
+                {proj.description && (
+                  <p className="text-[11px] text-brand-secondary line-clamp-2">
+                    {proj.description}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* AI Tailoring Active Banner */}
+      <div className="p-3 rounded-sm border border-amber-300/80 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="text-slate-700 dark:text-slate-300 font-medium">
+            AI Interviewer has configured custom questions matching your tech stack & projects.
+          </span>
+        </div>
+        <span className="font-bold text-amber-800 dark:text-amber-400 font-mono text-[11px] shrink-0">
+          Tailoring Ready ✓
+        </span>
       </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex items-center justify-between pt-4 border-t border-brand-border">
+      {/* Navigation Footer */}
+      <div className="flex items-center justify-between pt-3 border-t border-amber-200/60 dark:border-slate-800">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-brand-border bg-slate-100 dark:bg-slate-900 text-xs font-bold text-brand-text dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-sm border border-brand-border bg-white dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-brand-secondary hover:text-brand-text transition cursor-pointer"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
-          <span>Back</span>
+          <span>Back to Upload</span>
         </button>
 
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-extrabold text-white shadow-md active:scale-98 transition duration-150 cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-sm bg-[#4F46E5] hover:bg-[#4338CA] text-xs font-bold text-white shadow-xs active:scale-98 transition duration-150 cursor-pointer"
         >
-          <span>Continue to Lobby</span>
+          <span>Continue to Waiting Room</span>
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>

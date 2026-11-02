@@ -167,11 +167,54 @@ export default function InterviewSession() {
     }
   }, [sessionData, interviewId]);
 
-  // Sync mockup questions for client-side local sessions if future phases are empty
+  // Sync fallback questions if any phase has empty questions
   useEffect(() => {
-    if (interviewId && interviewId.startsWith("session-") && sessionData) {
+    if (interviewId && sessionData?.phases) {
       let changed = false;
       const updatedPhases = { ...sessionData.phases };
+
+      if (!updatedPhases.phase1?.questions?.length) {
+        updatedPhases.phase1 = {
+          ...updatedPhases.phase1,
+          questions: [
+            {
+              id: "p1_q1",
+              phase: 1,
+              phaseName: "Aptitude Assessment",
+              type: "mcq",
+              category: "Logical Reasoning",
+              difficulty: "Medium",
+              question: "If a sequence follows: 2, 6, 12, 20, 30, ... what is the next number in the pattern?",
+              options: [
+                { id: "A", text: "40" },
+                { id: "B", text: "42" },
+                { id: "C", text: "44" },
+                { id: "D", text: "48" },
+              ],
+              correctAnswer: "B",
+              explanation: "Difference between terms increases by 2: +4, +6, +8, +10, +12. 30 + 12 = 42.",
+            },
+            {
+              id: "p1_q2",
+              phase: 1,
+              phaseName: "Aptitude Assessment",
+              type: "mcq",
+              category: "Quantitative",
+              difficulty: "Medium",
+              question: "A worker completes a job in 12 days, and another completes it in 24 days. Working together, how many days will it take?",
+              options: [
+                { id: "A", text: "6 days" },
+                { id: "B", text: "8 days" },
+                { id: "C", text: "9 days" },
+                { id: "D", text: "10 days" },
+              ],
+              correctAnswer: "B",
+              explanation: "1/12 + 1/24 = 3/24 = 1/8 => 8 days.",
+            },
+          ],
+        };
+        changed = true;
+      }
 
       if (!updatedPhases.phase2?.questions?.length) {
         updatedPhases.phase2 = {
@@ -268,18 +311,10 @@ export default function InterviewSession() {
   useEffect(() => {
     if (!interviewId || !currentPhaseKey || !sessionData) return;
     try {
-      // 1. Check local storage completion flags
+      // Check local storage completion flags for this specific phase
       const isCompleted = localStorage.getItem(`interview_completed_phase_${interviewId}_${currentPhaseKey}`);
-      
-      // 2. Check active phases history from DB
-      const activePhases = sessionData.activePhases || ["phase1"];
-      const latestPhase = activePhases[activePhases.length - 1] || "phase1";
-      
-      const phaseOrders = { phase1: 1, phase2: 2, phase3: 3, phase4: 4 };
-      const requestedPhaseOrder = phaseOrders[currentPhaseKey] || 1;
-      const latestPhaseOrder = phaseOrders[latestPhase] || 1;
 
-      if (isCompleted === "true" || requestedPhaseOrder < latestPhaseOrder) {
+      if (isCompleted === "true") {
         let phaseCode = "oa";
         if (currentPhaseKey === "phase2") phaseCode = "tech1";
         else if (currentPhaseKey === "phase3") phaseCode = "tech2";
@@ -310,7 +345,7 @@ export default function InterviewSession() {
   // Active Questions for current phase
   const currentPhaseObj = sessionData?.phases?.[currentPhaseKey] || {};
   const currentQuestions = currentPhaseObj.questions || [];
-  const activeQuestion = currentQuestions[currentIndex];
+  const activeQuestion = currentQuestions[currentIndex] || currentQuestions[0];
 
   // Load initial answers from localStorage & DB if available
   useEffect(() => {
@@ -504,7 +539,7 @@ export default function InterviewSession() {
     const totalCount = currentQuestions.length || 2;
     const skippedCount = Math.max(0, totalCount - answeredCount);
 
-    const phaseDurationSecs = (sessionData?.phases?.phase3?.durationMins || 30) * 60;
+    const phaseDurationSecs = (sessionData?.phases?.phase3?.durationMins || 10) * 60;
     const timeSpentSecs = Math.max(0, phaseDurationSecs - timeLeftSeconds);
     const mins = Math.floor(timeSpentSecs / 60);
     const secs = timeSpentSecs % 60;
@@ -627,7 +662,7 @@ export default function InterviewSession() {
     } else if (currentPhaseKey === "phase2") {
       setCurrentPhaseKey("phase3");
       setCurrentIndex(0);
-      setTimeLeftSeconds((sessionData?.phases?.phase3?.durationMins || 30) * 60);
+      setTimeLeftSeconds((sessionData?.phases?.phase3?.durationMins || 10) * 60);
       const q1 = sessionData?.phases?.phase3?.questions?.[0];
       if (q1) setVisitedQuestions((prev) => ({ ...prev, [q1.id]: true }));
     }

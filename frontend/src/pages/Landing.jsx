@@ -45,31 +45,27 @@ export default function Landing() {
   const stats = [
     {
       value: "10,000+",
-      label: "Active Candidates",
-      sub: "Practicing weekly",
+      label: "Active Learners",
       icon: Users,
       color: "bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400"
     },
     {
-      value: "500,000+",
-      label: "AI Questions Generated",
-      sub: "Across all tech stacks",
-      icon: MessageSquare,
+      value: "500K+",
+      label: "AI Questions",
+      icon: Code2,
       color: "bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
     },
     {
       value: "95.4%",
-      label: "Candidate Satisfaction",
-      sub: "Verified feedback",
+      label: "Satisfaction",
       icon: CheckCircle2,
       color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400"
     },
     {
-      value: "3.2×",
-      label: "Faster Offer Timeline",
-      sub: "Compared to solo prep",
-      icon: Target,
-      color: "bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
+      value: "3.2x",
+      label: "Faster Shortlisting",
+      icon: Zap,
+      color: "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"
     }
   ];
 
@@ -136,7 +132,7 @@ export default function Landing() {
       
       {/* Top Navbar */}
       <header className="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-[#0B0E1B]/85 backdrop-blur-xl transition-all">
-        <div className="w-full flex items-center justify-between px-4 sm:px-8 lg:px-12 xl:px-16 py-3.5">
+        <div className="w-full flex items-center justify-between px-4 sm:px-8 lg:px-12 xl:px-16 py-2.5 sm:py-3">
           {/* Logo */}
           <div
             onClick={() => navigate("/")}
@@ -159,12 +155,11 @@ export default function Landing() {
 
             <button
               onClick={() => {
-                const el = document.getElementById("coding-preview");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
+                navigate("/practice");
               }}
               className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
             >
-              Live Coding
+              Practice
             </button>
 
             <button
@@ -174,17 +169,7 @@ export default function Landing() {
               }}
               className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
             >
-              How it Works
-            </button>
-
-            <button
-              onClick={() => {
-                const el = document.getElementById("testimonials");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
-            >
-              Success Stories
+              How It Works
             </button>
 
             {/* Resources Dropdown */}
@@ -249,7 +234,7 @@ export default function Landing() {
             {signedIn ? (
               <button
                 onClick={() => navigate("/dashboard")}
-                className="px-4 py-2 rounded-md text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer shadow-2xs"
               >
                 Dashboard
               </button>
@@ -266,122 +251,146 @@ export default function Landing() {
               onClick={() => navigate(signedIn ? "/create-interview" : "/register")}
               className="inline-flex items-center gap-1.5 rounded-md bg-[#4F46E5] hover:bg-[#4338CA] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 active:scale-98 transition-all cursor-pointer"
             >
-              <span>Get Started Free</span>
+              <span>Get Started</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 pt-8 pb-10 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-14 items-center">
-          
-          {/* Left Column: Clean Headline & Value Prop (5 cols) */}
+      {/* Hero Section - Polished, Beautiful & Sharp Geometry */}
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 pt-6 sm:pt-8 pb-5 sm:pb-6 relative z-10 text-center">
+        {/* Soft, silky atmospheric background glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-[520px] pointer-events-none -z-10 overflow-hidden">
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] h-[360px] bg-gradient-to-b from-indigo-200/40 via-purple-100/30 to-transparent dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-transparent blur-3xl" />
+          <div className="absolute top-12 left-10 w-80 h-80 bg-purple-300/20 dark:bg-purple-900/15 rounded-full blur-3xl" />
+          <div className="absolute top-12 right-10 w-80 h-80 bg-blue-300/20 dark:bg-blue-900/15 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-3xl mx-auto space-y-3">
+          {/* Eyebrow Pill Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200/80 dark:border-indigo-800/80 bg-indigo-50/70 dark:bg-indigo-950/40 px-3.5 py-1 text-xs sm:text-[13px] font-semibold text-[#4F46E5] dark:text-indigo-400 shadow-2xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#4F46E5] dark:text-indigo-400 fill-[#4F46E5]" />
+            <span className="tracking-wide">AI-Powered Interview Preparation</span>
+          </motion.div>
+
+          {/* Centered Main Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.08 }}
+            className="text-3xl sm:text-4xl lg:text-[46px] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.16] font-outfit"
+          >
+            Practice Smarter.
+            <br />
+            Get Hired{" "}
+            <span className="relative inline-block whitespace-nowrap">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 font-bold">
+                Faster.
+              </span>
+              {/* Perfectly positioned curved underline stroke strictly below the text */}
+              <svg
+                className="absolute left-0 -bottom-2 sm:-bottom-2.5 w-full h-2.5 sm:h-3 pointer-events-none overflow-visible"
+                viewBox="0 0 120 14"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 9 C 35 2, 85 2, 117 8"
+                  stroke="url(#faster-underline-grad)"
+                  strokeWidth="2.75"
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="faster-underline-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#3B82F6" />
+                    <stop offset="50%" stopColor="#6366F1" />
+                    <stop offset="100%" stopColor="#8B5CF6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </span>
+          </motion.h1>
+
+
+          {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-5 space-y-6 text-left"
+            transition={{ duration: 0.5, delay: 0.22 }}
+            className="flex flex-wrap items-center justify-center gap-2.5 pt-0.5"
           >
-            {/* Eyebrow Pill */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-1 text-xs sm:text-sm font-bold text-indigo-600 dark:text-indigo-400 shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 fill-indigo-600" />
-              <span>AI-POWERED INTERVIEW PREPARATION</span>
-            </div>
+            <button
+              onClick={() => navigate(signedIn ? "/create-interview" : "/register")}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#4F46E5] hover:bg-[#4338CA] px-4.5 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md shadow-indigo-600/25 hover:shadow-lg hover:shadow-indigo-600/35 transition-all duration-150 cursor-pointer active:scale-98"
+            >
+              <span>Start Free Practice</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
 
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[54px] xl:text-[60px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.08]">
-              Practice Smarter.
-              <br />
-              Get Hired{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-                Faster.
-              </span>
-            </h1>
+            <button
+              onClick={() => {
+                const el = document.getElementById("coding-preview");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 px-4 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 transition-all duration-150 cursor-pointer shadow-xs active:scale-98"
+            >
+              <Play className="w-3 h-3 text-slate-900 dark:text-white fill-slate-900 dark:fill-white" />
+              <span>Try Live Coding</span>
+            </button>
+          </motion.div>
+        </div>
 
-            {/* Subheading */}
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-xl">
-              Realistic AI mock interviews, live compiler with real-time test cases, and personalized feedback engineered to help you crack technical and behavioral rounds at top tech companies.
-            </p>
+        {/* Grand Centerpiece App Mockup Window */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98, y: 25 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.65, delay: 0.28 }}
+          className="max-w-5xl xl:max-w-6xl mx-auto w-full pt-4 sm:pt-5"
+        >
+          <IntervexaHeroPreview />
+        </motion.div>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap items-center gap-3.5 pt-1">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(signedIn ? "/create-interview" : "/register")}
-                className="inline-flex items-center gap-2 rounded-sm bg-[#4F46E5] hover:bg-[#4338CA] px-6 py-3.5 text-sm sm:text-base font-bold text-white shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
-              >
-                <span>Start Free Practice</span>
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  const el = document.getElementById("coding-preview");
-                  if (el) el.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="inline-flex items-center gap-2 rounded-sm bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 px-5 py-3.5 text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-xs"
-              >
-                <Play className="w-4 h-4 text-indigo-600 dark:text-indigo-400 fill-indigo-600 dark:fill-indigo-400" />
-                <span>Try Live Coding Demo</span>
-              </motion.button>
-            </div>
-
-            {/* Premium Social Proof Strip (Clean replacement for icon clutter) */}
-            <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 text-xs select-none">
-              <div className="flex items-center -space-x-2">
-                <img
-                  src="/aman.jpg"
-                  alt="Candidate"
-                  className="h-8 w-8 rounded-full border-2 border-white dark:border-[#0B0E1B] object-cover shadow-2xs"
-                />
-                <img
-                  src="/priya.jpg"
-                  alt="Candidate"
-                  className="h-8 w-8 rounded-full border-2 border-white dark:border-[#0B0E1B] object-cover shadow-2xs"
-                />
-                <img
-                  src="/rohit.jpg"
-                  alt="Candidate"
-                  className="h-8 w-8 rounded-full border-2 border-white dark:border-[#0B0E1B] object-cover shadow-2xs"
-                />
-              </div>
-
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-                    ))}
+        {/* 4 Stat Metric Cards (Directly below mockup window in a single row) */}
+        <div className="max-w-5xl xl:max-w-6xl mx-auto w-full pt-2.5 sm:pt-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
+            {stats.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.45, delay: idx * 0.08 }}
+                  whileHover={{ y: -2, transition: { duration: 0.15 } }}
+                  className="flex items-center gap-3 p-3 sm:p-3.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#121626] shadow-xs text-left transition-all"
+                >
+                  <div className={"h-9 w-9 sm:h-10 sm:w-10 rounded-md flex items-center justify-center shrink-0 " + item.color + " shadow-2xs"}>
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <span className="text-slate-800 dark:text-slate-100 font-bold">4.9 / 5</span>
-                  <span className="text-slate-400 font-normal">• 10,000+ candidates</span>
-                </div>
-                <div className="text-slate-500 dark:text-slate-400 text-[11px]">
-                  No credit card required • 2 full mock sessions free
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Right Column: AI Mock Interview Studio Visual (7 cols) */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-7"
-          >
-            <IntervexaHeroPreview />
-          </motion.div>
+                  <div>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                      {item.value}
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-semibold leading-tight">
+                      {item.label}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      {/* Top Tech Company Hiring Ticker / Trust Strip (Brand New Enterprise Credibility) */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-6 border-y border-slate-200/70 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm select-none">
+      {/* Top Tech Company Hiring Ticker / Trust Strip */}
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-3 sm:py-3.5 border-y border-slate-200/70 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm select-none">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
             Candidates Prepared For Interviews At
@@ -398,49 +407,14 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Stats Metric Strip */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-7 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
-          {stats.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-30px" }}
-                transition={{ duration: 0.45, delay: idx * 0.08 }}
-                whileHover={{ y: -3, transition: { duration: 0.2 } }}
-                className="flex items-center gap-3.5 p-4 sm:p-5 rounded-sm bg-white dark:bg-[#121626] shadow-xs hover:shadow-md text-left transition-all cursor-default"
-              >
-                <div className={`h-11 w-11 rounded-sm flex items-center justify-center shrink-0 ${item.color} shadow-2xs`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {item.value}
-                  </div>
-                  <div className="text-sm text-slate-800 dark:text-slate-200 font-bold leading-tight">
-                    {item.label}
-                  </div>
-                  <div className="text-xs text-slate-400 font-medium">
-                    {item.sub}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
       {/* "WHY INTERVEXA?" Features Section — High-Impact BENTO GRID with reduced gaps & flat sharp edges */}
-      <section id="features" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-10 relative z-10 text-center scroll-mt-20">
+      <section id="features" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-6 sm:py-8 relative z-10 text-center scroll-mt-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="max-w-3xl mx-auto space-y-2 mb-8"
+          className="max-w-3xl mx-auto space-y-1.5 mb-5"
         >
           <div className="inline-flex items-center gap-2 rounded-sm bg-purple-500/10 px-3.5 py-1 text-xs sm:text-sm font-bold text-purple-600 dark:text-purple-400">
             <span>WHY INTERVEXA?</span>
@@ -455,7 +429,7 @@ export default function Landing() {
         </motion.div>
 
         {/* 4-Card Bento Grid with reduced gap and borderless flat design */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3 text-left">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 text-left">
           
           {/* Bento Card 1: AI Question Generator (7 cols) */}
           <motion.div
@@ -608,7 +582,7 @@ export default function Landing() {
       </div>
 
       {/* "HOW IT WORKS" 4 Connected Timeline Steps */}
-      <section id="how-it-works" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-10 relative z-10 text-center scroll-mt-20">
+      <section id="how-it-works" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-6 sm:py-8 relative z-10 text-center scroll-mt-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -669,7 +643,7 @@ export default function Landing() {
       </section>
 
       {/* "LOVED BY STUDENTS" Testimonials with Real Placement Verification */}
-      <section id="testimonials" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-10 relative z-10 text-center scroll-mt-20">
+      <section id="testimonials" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-6 sm:py-8 relative z-10 text-center scroll-mt-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -742,7 +716,7 @@ export default function Landing() {
       </section>
 
       {/* Bottom Banner CTA Section */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-8 relative z-10">
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 py-4 sm:py-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}

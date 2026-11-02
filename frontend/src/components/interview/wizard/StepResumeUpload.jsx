@@ -194,14 +194,14 @@ export default function StepResumeUpload({ resumeData, setResumeData, setParsedR
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="w-full rounded-xl border border-brand-border bg-brand-card p-5 sm:p-6 shadow-xl space-y-5 text-brand-text"
+      className="w-full rounded-sm border border-amber-200/80 dark:border-amber-900/30 bg-[#FFFDF7] dark:bg-[#121626] p-5 sm:p-6 shadow-xs space-y-5 text-brand-text"
     >
       {/* Step Header */}
-      <div className="border-b border-brand-border pb-2.5">
-        <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-blue-505 dark:text-blue-400 block mb-0.5">
+      <div className="border-b border-amber-200/60 dark:border-slate-800 pb-2.5">
+        <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-amber-700 dark:text-amber-400 block mb-0.5">
           Step 2 of 4
         </span>
-        <h2 className="text-lg font-black text-brand-text tracking-tight">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight font-outfit">
           Upload Your Resume
         </h2>
         <p className="text-[11px] text-brand-secondary mt-0.5">

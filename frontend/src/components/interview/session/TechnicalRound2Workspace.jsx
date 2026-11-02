@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "../../Logo";
 import {
@@ -11,6 +11,7 @@ import {
   Brain,
   Volume2,
   Mic,
+  MicOff,
   Video,
   Wifi,
   RefreshCw,
@@ -30,7 +31,10 @@ import {
   HelpCircle,
   Shield,
   Layers,
-  Sparkles
+  Sparkles,
+  Radio,
+  Headphones,
+  Play
 } from "lucide-react";
 
 export default function TechnicalRound2Workspace({
@@ -45,40 +49,113 @@ export default function TechnicalRound2Workspace({
   const [initProgress, setInitProgress] = useState(0);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
 
+  // Live Microphone & Audio Calibration State
+  const [micTesting, setMicTesting] = useState(false);
+  const [micVolume, setMicVolume] = useState(0);
+  const [micTested, setMicTested] = useState(false);
+  const [audioTesting, setAudioTesting] = useState(false);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const animFrameRef = useRef(null);
+
   // Staggered initialization checklist for the overlay
   const initSteps = [
-    { label: "Loading Candidate Profile", key: "profile" },
-    { label: "Loading Resume Insights", key: "insights" },
-    { label: "Preparing Interview Strategy", key: "strategy" },
-    { label: "Connecting AI Interview Agent", key: "agent" },
-    { label: "Synchronizing Interview Session", key: "sync" },
-    { label: "Generating First Question", key: "question" }
+    { label: "Connecting Low-Latency Voice Engine", key: "engine" },
+    { label: "Calibrating Microphone & Audio Streams", key: "audio" },
+    { label: "Loading Resume Knowledge Graph", key: "insights" },
+    { label: "Connecting AI Technical Recruiter", key: "agent" },
+    { label: "Synchronizing Real-Time Speech Protocol", key: "sync" },
+    { label: "Launching Live Voice Session", key: "ready" }
   ];
 
-  // Simulated loading process when Start button is clicked
+  // Microphone Testing
+  const startMicTest = async () => {
+    try {
+      setMicTesting(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioCtx;
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      analyserRef.current = analyser;
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateVolume = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        setMicVolume(Math.min(100, Math.round((avg / 128) * 100)));
+        if (avg > 15) setMicTested(true);
+        animFrameRef.current = requestAnimationFrame(updateVolume);
+      };
+      updateVolume();
+    } catch (err) {
+      console.error("Mic test error:", err);
+      setMicTesting(false);
+    }
+  };
+
+  const stopMicTest = () => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+    }
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      audioContextRef.current.close();
+    }
+    setMicTesting(false);
+  };
+
+  const testAudioOutput = () => {
+    if (!window.speechSynthesis) return;
+    setAudioTesting(true);
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance("Audio output verified. I am your AI interviewer, and I am ready for our live voice session.");
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onend = () => setAudioTesting(false);
+    utterance.onerror = () => setAudioTesting(false);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopMicTest();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  // Initialization process when Start button is clicked
   useEffect(() => {
     if (!isInitializing) return;
 
     const interval = setInterval(() => {
       setInitProgress((prev) => {
-        const next = prev + 1.5;
+        const next = prev + 2.5;
         if (next >= 100) {
           clearInterval(interval);
           setTimeout(() => {
             if (onCompletePhase) {
               onCompletePhase();
             }
-          }, 600);
+          }, 500);
           return 100;
         }
         return next;
       });
-    }, 45);
+    }, 40);
 
     return () => clearInterval(interval);
   }, [isInitializing, onCompletePhase]);
 
-  // Sync active step based on progress percentage
   useEffect(() => {
     if (!isInitializing) return;
     const stepCount = initSteps.length;
@@ -90,12 +167,13 @@ export default function TechnicalRound2Workspace({
   }, [initProgress, isInitializing]);
 
   const handleStartInterview = () => {
+    stopMicTest();
     setIsInitializing(true);
     setInitProgress(0);
     setActiveStepIndex(0);
   };
 
-  // Process candidateInfo dynamically from resumeAnalysis prop, with fallback defaults
+  // Process candidateInfo dynamically
   const parsedEducation = Array.isArray(resumeAnalysis?.education)
     ? resumeAnalysis.education
         .map((edu) => `${edu.degree || edu.degreeName || ""} at ${edu.school || edu.institution || ""}`)
@@ -110,494 +188,352 @@ export default function TechnicalRound2Workspace({
   const candidateInfo = {
     name: resumeAnalysis?.name || "Candidate Profile",
     education: parsedEducation || "Not specified",
-    experience: resumeAnalysis?.experience || (resumeAnalysis?.experienceYears ? `${resumeAnalysis.experienceYears} Years of Experience` : "Not specified"),
+    experience: resumeAnalysis?.experience || (resumeAnalysis?.experienceYears ? `${resumeAnalysis.experienceYears} Years of Experience` : "1-3 Years"),
     certificates: resumeAnalysis?.certifications || resumeAnalysis?.certificates || "None detected",
     skills: Array.isArray(resumeAnalysis?.skills) && resumeAnalysis.skills.length > 0
       ? resumeAnalysis.skills
-      : ["React", "Node.js", "TypeScript", "Next.js", "Express", "System Design"],
-    projectsCount: resumeAnalysis?.projectsCount || (Array.isArray(resumeAnalysis?.projects) ? resumeAnalysis.projects.length : 0)
+      : ["React", "JavaScript", "TypeScript", "Node.js", "Express", "System Design"],
+    projectsCount: resumeAnalysis?.projectsCount || (Array.isArray(resumeAnalysis?.projects) ? resumeAnalysis.projects.length : 2)
   };
 
-  // Timeline steps configuration
-  const timelineSteps = [
-    { title: "Resume Analysis", status: "completed", desc: "AI-parsed insights saved" },
-    { title: "Interview Preparation", status: "completed", desc: "Environment calibrated" },
-    { title: "AI Introduction", status: "active", desc: "Setting context & structure" },
-    { title: "Resume Discussion", status: "upcoming", desc: "Exploring experience & roles" },
-    { title: "Technical Skills", status: "upcoming", desc: "Core language & system questions" },
-    { title: "Project Deep Dive", status: "upcoming", desc: "Detailed discussion on architecture" },
-    { title: "Adaptive Follow-up Questions", status: "upcoming", desc: "Probing responses dynamically" },
-    { title: "Final AI Evaluation", status: "upcoming", desc: "Comprehensive score compiling" }
-  ];
-
   return (
-    <div className="min-h-screen bg-brand-bg text-brand-text font-sans flex flex-col selection:bg-blue-500/30 selection:text-blue-200">
+    <div className="min-h-screen bg-[#FFFDF7] dark:bg-[#0E121E] text-slate-800 dark:text-slate-100 font-sans flex flex-col selection:bg-amber-500/20">
       
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-40 w-full border-b border-brand-border bg-brand-card/85 backdrop-blur-md px-6 py-4">
+      {/* Top Header */}
+      <header className="sticky top-0 z-40 w-full border-b border-amber-200/80 dark:border-slate-800 bg-[#FFFDF7]/95 dark:bg-[#0E121E]/95 backdrop-blur-md px-6 py-3.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Logo & Platform Info */}
           <div className="flex items-center gap-3">
             <Logo />
-            <div className="h-4 w-[1px] bg-brand-border" />
-            <span className="text-[9px] font-mono font-bold bg-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-              Technical Round 2
+            <div className="h-4 w-[1px] bg-amber-300/80 dark:bg-slate-700" />
+            <span className="text-[10px] font-mono font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-800/40 px-2 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-1.5">
+              <Radio className="w-3 h-3 text-amber-600 animate-pulse" />
+              Live Voice-to-Voice Session
             </span>
           </div>
 
-          {/* Header Badges */}
           <div className="hidden sm:flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-500 dark:text-emerald-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-              AI Agent Online
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              AI Voice Engine Online
             </div>
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-card border border-brand-border text-[10px] font-mono font-bold text-brand-secondary">
-              <Check className="h-3 w-3 text-emerald-500 dark:text-emerald-400 stroke-[3]" />
-              Resume Verified
-            </div>
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-card border border-brand-border text-[10px] font-mono font-bold text-brand-secondary">
-              <Check className="h-3 w-3 text-emerald-500 dark:text-emerald-400 stroke-[3]" />
-              System Ready
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-sm bg-amber-50/80 dark:bg-slate-800/60 border border-amber-200/60 dark:border-slate-700 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+              <Check className="h-3 w-3 text-emerald-500 stroke-[3]" />
+              Zero Typing Required
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Main Content Area */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left Column (8 cols): Welcome Header & Summary Cards */}
-        <section className="lg:col-span-8 space-y-8 flex flex-col justify-start">
+        {/* Left Column (8 cols): Voice Hero & Calibration Cards */}
+        <section className="lg:col-span-8 space-y-6 flex flex-col justify-start">
           
-          {/* Main Header / Welcome */}
+          {/* Main Hero Header */}
           <motion.div
-            initial={{ opacity: 0, y: -15 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="space-y-3"
+            transition={{ duration: 0.3 }}
+            className="space-y-2.5"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
-              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Phase 3 • Technical Assessment</span>
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-sm bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/40 text-[11px] font-mono font-bold text-amber-800 dark:text-amber-400">
+              <Mic className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <span>Phase 3 • Technical & System Discussion</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-brand-text flex items-center gap-3">
-              Technical Round 2
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 dark:text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white font-outfit flex items-center gap-3">
+              Live Voice-to-Voice AI Interview
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                 <Check className="h-3.5 w-3.5 stroke-[3]" />
               </span>
             </h1>
-            <h2 className="text-lg font-bold text-brand-secondary">AI Technical Interview</h2>
-            <p className="text-sm text-brand-secondary leading-relaxed max-w-2xl font-medium">
-              Your resume has been successfully analyzed. Today's interview will be personalized based on your projects, technical skills, and experience.
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl font-medium">
+              You are about to enter a real-time conversational interview with your dedicated AI Technical Recruiter. Speak naturally into your microphone—the AI speaks questions aloud, listens to your reasoning, and asks dynamic follow-ups based on your resume.
             </p>
           </motion.div>
 
-          {/* Welcome Message Card */}
+          {/* Audio & Mic Calibration Card */}
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-brand-card border border-brand-border rounded-xl p-5 relative overflow-hidden"
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="rounded-sm border border-amber-300/90 dark:border-amber-900/40 bg-white dark:bg-[#141828] p-5 shadow-xs space-y-4"
           >
-            {/* Subtle border accent */}
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-blue-500/30" />
-            
-            <div className="flex gap-4">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/5 border border-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 shadow-inner">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-bold text-brand-text">AI Welcome Message</h3>
-                <p className="text-xs text-brand-secondary leading-relaxed font-medium">
-                  Welcome to Technical Round 2. Our AI has carefully analyzed your resume and prepared a personalized interview tailored to your technical skills, projects, and experience. The interview will adapt dynamically based on your responses. Take your time, explain your thinking clearly, and answer naturally. We wish you the very best.
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Resume Insights Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="bg-brand-card border border-brand-border rounded-xl p-5 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-brand-border pb-3">
-                  <h3 className="text-sm font-bold text-brand-text tracking-tight flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                    Resume Insights
+            <div className="flex items-center justify-between border-b border-amber-200/60 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-sm bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400">
+                  <Headphones className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white font-outfit">
+                    Audio & Voice Calibration
                   </h3>
-                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    Verified Summary
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono">
+                    Verify your microphone and speakers before starting
                   </span>
                 </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-sm border border-amber-200 dark:border-amber-900/30">
+                Live Test
+              </span>
+            </div>
 
-                <div className="space-y-3.5 text-xs">
-                  <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                    <span className="text-brand-secondary font-medium">Candidate Name</span>
-                    <span className="text-brand-text font-bold">{candidateInfo.name}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                    <span className="text-brand-secondary font-medium">Role Applied</span>
-                    <span className="text-brand-text font-bold">{role}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                    <span className="text-brand-secondary font-medium">Experience</span>
-                    <span className="text-brand-text font-bold">{candidateInfo.experience}</span>
-                  </div>
-                  <div className="flex flex-col gap-1 border-b border-brand-border/40 pb-2">
-                    <span className="text-brand-secondary font-medium">Education</span>
-                    <span className="text-brand-text font-bold truncate max-w-full leading-normal">{candidateInfo.education}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                    <span className="text-brand-secondary font-medium">Projects Found</span>
-                    <span className="text-brand-text font-bold">{candidateInfo.projectsCount} Projects</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-brand-secondary font-medium">Primary Skills Detected</span>
-                    <div className="flex flex-wrap gap-1">
-                      {candidateInfo.skills.slice(0, 9).map((skill) => (
-                        <span
-                          key={skill}
-                          className="px-2 py-0.5 rounded-full bg-brand-bg border border-brand-border text-[10px] font-bold text-brand-secondary tracking-tight"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                      {candidateInfo.skills.length > 9 && (
-                        <span className="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                          +{candidateInfo.skills.length - 9} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1 pt-1.5">
-                    <span className="text-brand-secondary font-medium">Certificates Detected</span>
-                    <span className="text-[11px] text-brand-text font-bold leading-normal">
-                      {candidateInfo.certificates}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              {/* Mic Test Box */}
+              <div className="p-3.5 rounded-sm border border-slate-200 dark:border-slate-800 bg-[#FFFDF7] dark:bg-[#111422] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Mic className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    Microphone Input
+                  </span>
+                  {micTested && (
+                    <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <Check className="h-3 w-3 stroke-[3]" /> Detected
                     </span>
-                  </div>
+                  )}
+                </div>
+
+                {/* Animated Waveform Level */}
+                <div className="h-9 bg-slate-100 dark:bg-slate-900 rounded-sm border border-slate-200 dark:border-slate-800 flex items-center justify-center px-3 gap-1 overflow-hidden">
+                  {Array.from({ length: 24 }).map((_, i) => {
+                    const activeHeight = micTesting
+                      ? Math.max(4, Math.round((Math.sin(i * 0.4 + micVolume) + 1) * (micVolume / 100) * 14))
+                      : 4;
+                    return (
+                      <div
+                        key={i}
+                        className={`w-1 rounded-xs transition-all duration-75 ${
+                          micTesting && micVolume > 10
+                            ? "bg-amber-500 dark:bg-amber-400"
+                            : "bg-slate-300 dark:bg-slate-700"
+                        }`}
+                        style={{ height: `${activeHeight}px` }}
+                      />
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {micTesting ? "Speak to test volume..." : "Click test to calibrate mic"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={micTesting ? stopMicTest : startMicTest}
+                    className={`px-3 py-1 rounded-sm text-[11px] font-bold transition cursor-pointer ${
+                      micTesting
+                        ? "bg-rose-500/10 text-rose-600 border border-rose-300 dark:border-rose-900 hover:bg-rose-500/20"
+                        : "bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                    }`}
+                  >
+                    {micTesting ? "Stop Test" : "Test Microphone"}
+                  </button>
                 </div>
               </div>
 
-              <div className="pt-5 mt-auto">
-                <button
-                  type="button"
-                  className="w-full py-2 bg-brand-bg hover:bg-slate-100 dark:hover:bg-slate-800 border border-brand-border text-xs font-bold text-brand-text rounded-lg transition duration-200 cursor-pointer text-center"
-                >
-                  View Resume Insights
-                </button>
-              </div>
-            </motion.div>
-
-            {/* AI Interview Agent Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="bg-brand-card border border-brand-border rounded-xl p-5 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-brand-border pb-3">
-                  <h3 className="text-sm font-bold text-brand-text tracking-tight flex items-center gap-2">
-                    <Bot className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                    AI Interview Agent
-                  </h3>
-                  <span className="text-[10px] font-mono font-bold text-emerald-555 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                    <span className="h-1 w-1 bg-emerald-555 dark:bg-emerald-400 rounded-full animate-ping" />
-                    Online
+              {/* Speaker Test Box */}
+              <div className="p-3.5 rounded-sm border border-slate-200 dark:border-slate-800 bg-[#FFFDF7] dark:bg-[#111422] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Volume2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    AI Speaker Output
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-slate-500">
+                    Text-to-Speech
                   </span>
                 </div>
 
-                {/* Avatar and Info Grid */}
-                <div className="flex flex-col gap-4">
-                  {/* Bot Avatar Section */}
-                  <div className="flex items-center gap-3 bg-brand-bg/50 p-3 rounded-lg border border-brand-border">
-                    <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white relative shadow-md">
-                      <Bot className="h-5 w-5" />
-                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-400 border-2 border-brand-card rounded-full" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-brand-text block">Interview Agent #7</span>
-                      <span className="text-[10px] font-mono text-brand-secondary block font-medium">Model: Gemini 3.5 Pro (Adaptive)</span>
-                    </div>
-                  </div>
+                <div className="h-9 bg-slate-100 dark:bg-slate-900 rounded-sm border border-slate-200 dark:border-slate-800 flex items-center justify-center px-3 text-[11px] font-mono text-slate-600 dark:text-slate-400">
+                  {audioTesting ? "🔊 Playing AI Voice Sample..." : "Click below to test speaker clarity"}
+                </div>
 
-                  {/* Overview details */}
-                  <div className="space-y-3 text-xs">
-                    <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                      <span className="text-brand-secondary font-medium">Interview Type</span>
-                      <span className="text-brand-text font-bold">Resume Based</span>
-                    </div>
-                    <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                      <span className="text-brand-secondary font-medium">Question Strategy</span>
-                      <span className="text-brand-text font-bold">Adaptive</span>
-                    </div>
-                    <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                      <span className="text-brand-secondary font-medium">Follow-up Questions</span>
-                      <span className="text-emerald-500 dark:text-emerald-400 font-bold">Enabled</span>
-                    </div>
-                    <div className="flex justify-between border-b border-brand-border/40 pb-2">
-                      <span className="text-brand-secondary font-medium">Evaluation</span>
-                      <span className="text-brand-text font-bold">Post Interview AI Analysis</span>
-                    </div>
-                    <div className="flex justify-between pb-1">
-                      <span className="text-brand-secondary font-medium">Session Status</span>
-                      <span className="text-blue-600 dark:text-blue-400 font-bold font-mono uppercase tracking-wider text-[11px]">Ready</span>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Verifies clear playback
+                  </span>
+                  <button
+                    type="button"
+                    onClick={testAudioOutput}
+                    disabled={audioTesting}
+                    className="px-3 py-1 rounded-sm text-[11px] font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Play className="h-3 w-3 fill-current" />
+                    <span>{audioTesting ? "Speaking..." : "Play Voice Sample"}</span>
+                  </button>
                 </div>
               </div>
-
-              <div className="pt-5 mt-auto space-y-3.5">
-                {/* Bot Meta Info */}
-                <div className="bg-brand-bg p-2.5 rounded-lg border border-brand-border flex items-center gap-2 text-[10px] text-brand-secondary font-medium">
-                  <Clock className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
-                  <span>Estimated duration: 20–30 Minutes. Session difficulty adjusts dynamically.</span>
-                </div>
-                <button
-                  type="button"
-                  className="w-full py-2 bg-brand-bg hover:bg-slate-100 dark:hover:bg-slate-800 border border-brand-border text-xs font-bold text-brand-text rounded-lg transition duration-200 cursor-pointer text-center"
-                >
-                  Configure Audio Settings
-                </button>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Interview Brief Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="bg-brand-card border border-brand-border rounded-xl p-5"
-          >
-            <h3 className="text-sm font-bold text-brand-text border-b border-brand-border pb-3 mb-4 flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-              Interview Brief
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ul className="space-y-3.5 text-xs text-brand-secondary">
-                <li className="flex items-start gap-2.5">
-                  <div className="h-5 w-5 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 mt-0.5">
-                    <FileText className="h-3 w-3" />
-                  </div>
-                  <span className="font-medium">Questions are generated using your resume profile.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <div className="h-5 w-5 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 mt-0.5">
-                    <GitFork className="h-3 w-3" />
-                  </div>
-                  <span className="font-medium">Your answers influence future questions in real-time.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <div className="h-5 w-5 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 mt-0.5">
-                    <Briefcase className="h-3 w-3" />
-                  </div>
-                  <span className="font-medium">Projects listed in the resume may be discussed in depth.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <div className="h-5 w-5 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 mt-0.5">
-                    <Sliders className="h-3 w-3" />
-                  </div>
-                  <span className="font-medium">The AI interviewer adapts continuously to your experience level.</span>
-                </li>
-              </ul>
-
-              <ul className="space-y-3.5 text-xs text-brand-secondary">
-                <li className="flex items-start gap-2.5">
-                  <div className="h-5 w-5 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 mt-0.5">
-                    <Cpu className="h-3 w-3" />
-                  </div>
-                  <span className="font-medium">Core technical concepts and design patterns will be explored.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <div className="h-5 w-5 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 mt-0.5">
-                    <Lock className="h-3 w-3" />
-                  </div>
-                  <span className="font-medium">Every answer will be securely stored and parsed.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <div className="h-5 w-5 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 mt-0.5">
-                    <Activity className="h-3 w-3" />
-                  </div>
-                  <span className="font-medium">Final evaluation report happens after the interview ends.</span>
-                </li>
-              </ul>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* Right Column (4 cols): Timeline, Readiness & Rules */}
-        <aside className="lg:col-span-4 space-y-8 flex flex-col justify-start">
-          
-          {/* Vertical Timeline Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-brand-card border border-brand-border rounded-xl p-5"
-          >
-            <h3 className="text-sm font-bold text-brand-text border-b border-brand-border pb-3 mb-4 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-              Interview Timeline
-            </h3>
-
-            {/* Vertical Timeline */}
-            <div className="space-y-5 relative pl-6 before:absolute before:left-[10px] before:top-2 before:bottom-2 before:w-[1.5px] before:bg-brand-border">
-              {timelineSteps.map((step, idx) => {
-                const isCompleted = step.status === "completed";
-                const isActive = step.status === "active";
-
-                return (
-                  <div key={step.title} className="relative flex flex-col text-xs leading-normal">
-                    {/* Node Dot / Icon */}
-                    <div className="absolute -left-[14px] -translate-x-1/2 top-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-brand-card z-10">
-                      {isCompleted ? (
-                        <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400 fill-brand-card z-20" />
-                      ) : isActive ? (
-                        <span className="relative flex h-2.5 w-2.5 items-center justify-center bg-brand-card rounded-full z-20">
-                          <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400/30 opacity-75 animate-ping" />
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
-                        </span>
-                      ) : (
-                        <div className="h-2 w-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-brand-border z-20" />
-                      )}
-                    </div>
-
-                    <div className="flex-1 space-y-0.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`font-bold ${isActive ? "text-brand-text" : isCompleted ? "text-brand-text/90" : "text-brand-secondary/60"}`}>
-                          {step.title}
-                        </span>
-                        {isCompleted && (
-                          <span className="text-[8px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase tracking-wider">
-                            Completed
-                          </span>
-                        )}
-                        {isActive && (
-                          <span className="text-[10px] text-blue-500 dark:text-blue-400 font-bold">↓</span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-brand-secondary font-medium">
-                        {step.desc}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </motion.div>
 
-          {/* System Readiness Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-brand-card border border-brand-border rounded-xl p-5"
-          >
-            <h3 className="text-sm font-bold text-brand-text border-b border-brand-border pb-3 mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-              System Readiness
-            </h3>
-
-            <ul className="space-y-2.5">
-              {[
-                "Resume Processed",
-                "AI Interview Plan Generated",
-                "AI Agent Connected",
-                "Microphone Ready",
-                "Camera Ready",
-                "Stable Internet"
-              ].map((checkItem) => (
-                <li
-                  key={checkItem}
-                  className="flex items-center justify-between p-2 rounded-lg bg-brand-bg border border-brand-border"
-                >
-                  <span className="text-xs text-brand-text font-medium">{checkItem}</span>
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-555 dark:text-emerald-400">
-                    <Check className="h-3 w-3 stroke-[3]" />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-
-          {/* Interview Rules Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="bg-brand-card border border-brand-border rounded-xl p-5"
-          >
-            <h3 className="text-sm font-bold text-brand-text border-b border-brand-border pb-3 mb-4 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-              Interview Rules
-            </h3>
-
-            <div className="grid grid-cols-1 gap-2.5">
-              {[
-                { text: "Speak clearly during response times.", icon: Volume2 },
-                { text: "Take your time and think before answering.", icon: Brain },
-                { text: "The AI agent may ask adaptive follow-up questions.", icon: HelpCircle },
-                { text: "Do not refresh or exit the browser window.", icon: RefreshCw },
-                { text: "Ensure your microphone remains enabled.", icon: Mic },
-                { text: "Maintain a stable internet connection throughout.", icon: Wifi },
-                { text: "Be honest and detailed while answering.", icon: ShieldCheck }
-              ].map((rule, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3 p-2.5 rounded-lg bg-brand-bg border border-brand-border hover:border-blue-500/40 transition duration-150"
-                >
-                  <div className="h-6 w-6 rounded bg-brand-card border border-brand-border flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0">
-                    <rule.icon className="h-3.5 w-3.5" />
-                  </div>
-                  <p className="text-[11px] text-brand-secondary font-medium leading-normal pt-0.5">
-                    {rule.text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </aside>
-      </main>
-
-      {/* Bottom Checklist & Primary Action Bar */}
-      <footer className="mt-auto border-t border-brand-border bg-brand-card px-6 py-6 sticky bottom-0 z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.4)]">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          
-          {/* Horizontal Checklist */}
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+          {/* Voice Interaction Protocol (How It Works) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             {[
-              "Resume Analyzed",
-              "AI Ready",
-              "Microphone Ready",
-              "Camera Ready",
-              "Internet Stable",
-              "Instructions Read"
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-2 text-[11px] font-bold text-brand-secondary bg-brand-bg border border-brand-border px-2.5 py-1 rounded-full">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-555 dark:text-emerald-400" />
-                <span>{item}</span>
+              {
+                step: "01",
+                title: "AI Speaks Question",
+                desc: "Your AI interviewer asks questions aloud using natural conversational speech pacing.",
+                icon: Volume2,
+                color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/40"
+              },
+              {
+                step: "02",
+                title: "Speak Your Answer",
+                desc: "Your mic activates automatically. Speak your architectural decisions & coding logic aloud.",
+                icon: Mic,
+                color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/40"
+              },
+              {
+                step: "03",
+                title: "Adaptive Follow-ups",
+                desc: "The AI evaluates your verbal reasoning in real time and asks contextual follow-ups.",
+                icon: Brain,
+                color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40"
+              }
+            ].map((card, i) => (
+              <div
+                key={i}
+                className="p-3.5 rounded-sm border border-amber-200/80 dark:border-slate-800 bg-white dark:bg-[#141828] space-y-2 shadow-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <div className={`p-1.5 rounded-sm border ${card.color}`}>
+                    <card.icon className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-slate-400">
+                    STEP {card.step}
+                  </span>
+                </div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white font-outfit">
+                  {card.title}
+                </h4>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                  {card.desc}
+                </p>
               </div>
             ))}
           </div>
 
-          {/* Action Button */}
-          <div className="w-full md:w-auto flex justify-center">
-            <button
-              onClick={handleStartInterview}
-              className="w-full md:w-auto min-w-[200px] flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-98 transition duration-200 cursor-pointer shadow-md border border-transparent"
-            >
-              Start AI Interview
-              <ArrowRight className="h-4 w-4" />
-            </button>
+          {/* Candidate Profile Context Box */}
+          <div className="rounded-sm border border-amber-200/80 dark:border-slate-800 bg-white dark:bg-[#141828] p-4.5 space-y-3">
+            <div className="flex items-center justify-between border-b border-amber-200/60 dark:border-slate-800 pb-2.5">
+              <span className="text-xs font-bold text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                Resume Knowledge Graph
+              </span>
+              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-sm border border-emerald-500/20">
+                {candidateInfo.experience} • {role}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-[11px] text-slate-500 font-medium self-center mr-1 font-mono">Topics Loaded:</span>
+              {candidateInfo.skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="px-2 py-0.5 rounded-xs bg-[#FFFDF7] dark:bg-slate-800 border border-amber-200/80 dark:border-slate-700 text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
           </div>
+        </section>
+
+        {/* Right Column (4 cols): System Checklist & Rules */}
+        <aside className="lg:col-span-4 space-y-5 flex flex-col justify-start">
+          
+          {/* Live Agent Card */}
+          <div className="rounded-sm border border-amber-200/80 dark:border-slate-800 bg-white dark:bg-[#141828] p-4 space-y-3 shadow-xs">
+            <div className="flex items-center gap-3 border-b border-amber-200/60 dark:border-slate-800 pb-3">
+              <div className="h-10 w-10 rounded-sm bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white relative shadow-sm">
+                <Bot className="h-5 w-5" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white font-outfit">
+                  AI Technical Recruiter #7
+                </h4>
+                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 block font-medium">
+                  Voice Model: Gemini 2.5 Flash Voice
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+                <span className="text-slate-500 font-medium">Interaction Mode</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">Full-Duplex Voice</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+                <span className="text-slate-500 font-medium">Question Strategy</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">Adaptive System Design</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+                <span className="text-slate-500 font-medium">Round Duration</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">10 Minutes (Projects & Skills)</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-500 font-medium">Status</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono uppercase tracking-wider text-[10px]">
+                  Engine Ready
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Interview Rules */}
+          <div className="rounded-sm border border-amber-200/80 dark:border-slate-800 bg-white dark:bg-[#141828] p-4 space-y-3 shadow-xs">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white font-outfit border-b border-amber-200/60 dark:border-slate-800 pb-2.5 flex items-center gap-1.5">
+              <Shield className="h-3.5 w-3.5 text-amber-600" />
+              Live Voice Guidelines
+            </h4>
+
+            <ul className="space-y-2 text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>Speak directly into your microphone in a quiet room.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>Explain your technical trade-offs and architectural reasoning.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>You can pause to think—the AI allows natural pacing.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>Live transcripts appear automatically on screen as you speak.</span>
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </main>
+
+      {/* Sticky Bottom Action Bar */}
+      <footer className="mt-auto border-t border-amber-200/80 dark:border-slate-800 bg-[#FFFDF7]/95 dark:bg-[#0E121E]/95 backdrop-blur-md px-6 py-4 sticky bottom-0 z-30 shadow-md">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-slate-600 dark:text-slate-400">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+              <Check className="h-3 w-3 stroke-[3]" /> Mic Ready
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+              <Check className="h-3 w-3 stroke-[3]" /> Voice Agent Ready
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+              <Check className="h-3 w-3 stroke-[3]" /> Low Latency Stream
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleStartInterview}
+            className="w-full sm:w-auto px-7 py-3 rounded-sm bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-xs sm:text-sm font-bold font-outfit uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-md flex items-center justify-center gap-2 active:scale-98"
+          >
+            <Mic className="h-4 w-4 animate-pulse" />
+            <span>Start Live Voice Interview</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </div>
       </footer>
 
@@ -608,78 +544,63 @@ export default function TechnicalRound2Workspace({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-6"
+            className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6"
           >
-            {/* Ambient subtle glow backdrops */}
-            <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" />
-            <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" />
+            <div className="w-full max-w-md bg-[#FFFDF7] dark:bg-[#121626] border border-amber-300 dark:border-amber-900/50 rounded-sm p-6 shadow-2xl space-y-5 text-center">
+              <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-300 dark:border-amber-800">
+                <Mic className="h-6 w-6 animate-pulse" />
+              </div>
 
-            <div className="w-full max-w-lg bg-brand-card border border-brand-border rounded-xl p-8 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-blue-600" />
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-outfit">
+                  Launching Live Voice Interview...
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                  {initSteps[activeStepIndex]?.label || "Preparing audio channel..."}
+                </p>
+              </div>
 
-              <div className="space-y-6">
-                
-                {/* Header */}
-                <div className="text-center space-y-2">
-                  <div className="h-12 w-12 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 mx-auto animate-pulse">
-                    <Cpu className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-black text-brand-text tracking-tight">
-                    Launching AI Interview...
-                  </h3>
-                  <p className="text-xs text-brand-secondary max-w-sm mx-auto leading-normal">
-                    Calibrating questions and establishing a secure communication link with the AI Interview Agent.
-                  </p>
+              {/* Progress Bar */}
+              <div className="space-y-1.5 text-left">
+                <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-xs overflow-hidden">
+                  <motion.div
+                    className="h-full bg-amber-600 dark:bg-amber-500"
+                    style={{ width: `${initProgress}%` }}
+                  />
                 </div>
-
-                {/* Staggered Checklist */}
-                <div className="space-y-2.5">
-                  {initSteps.map((step, idx) => {
-                    const isDone = idx < activeStepIndex;
-                    const isCurrent = idx === activeStepIndex;
-
-                    return (
-                      <div
-                        key={step.key}
-                        className={`flex items-center justify-between p-2.5 rounded-lg border transition duration-200 ${
-                          isCurrent
-                            ? "bg-blue-500/5 border-blue-500/30 text-blue-600 dark:text-blue-300 font-bold"
-                            : isDone
-                            ? "bg-brand-bg border border-brand-border text-brand-secondary font-medium"
-                            : "bg-brand-bg/50 border border-brand-border/60 text-brand-secondary/40 font-medium"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {isDone ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                          ) : isCurrent ? (
-                            <RefreshCw className="h-4 w-4 text-blue-500 dark:text-blue-400 animate-spin shrink-0" />
-                          ) : (
-                            <div className="h-4 w-4 rounded-full border border-brand-border bg-brand-bg shrink-0" />
-                          )}
-                          <span className="text-xs">{step.label}</span>
-                        </div>
-                        <span className="text-[10px] font-mono font-bold uppercase">
-                          {isDone ? "Completed" : isCurrent ? "Loading" : "Queued"}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="flex justify-between text-[10px] font-mono text-slate-500">
+                  <span>Calibrating Voice Pipeline</span>
+                  <span>{Math.round(initProgress)}%</span>
                 </div>
+              </div>
 
-                {/* Progress bar container */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-brand-secondary font-mono">
-                    <span>Calibration Progress</span>
-                    <span>{Math.round(initProgress)}%</span>
-                  </div>
-                  <div className="w-full h-2 rounded bg-brand-bg border border-brand-border overflow-hidden">
-                    <motion.div
-                      className="h-full bg-blue-600"
-                      style={{ width: `${initProgress}%` }}
-                    />
-                  </div>
-                </div>
+              {/* Step Checklist */}
+              <div className="space-y-1.5 text-left pt-1">
+                {initSteps.map((step, idx) => {
+                  const isDone = idx < activeStepIndex;
+                  const isCurrent = idx === activeStepIndex;
+                  return (
+                    <div
+                      key={step.key}
+                      className={`flex items-center gap-2 text-xs font-mono ${
+                        isDone
+                          ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                          : isCurrent
+                          ? "text-amber-600 dark:text-amber-400 font-bold"
+                          : "text-slate-400 dark:text-slate-600"
+                      }`}
+                    >
+                      {isDone ? (
+                        <Check className="h-3 w-3 stroke-[3]" />
+                      ) : isCurrent ? (
+                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                      ) : (
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+                      )}
+                      <span>{step.label}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </motion.div>
@@ -688,4 +609,3 @@ export default function TechnicalRound2Workspace({
     </div>
   );
 }
-

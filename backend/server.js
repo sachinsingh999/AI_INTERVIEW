@@ -1,7 +1,8 @@
 // ===== Imports =====
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 
 // ===== Routes =====
@@ -21,7 +22,6 @@ connectDB();
 
 // Clean up leftover compiler temp files on startup
 const fs = require("fs");
-const path = require("path");
 const cleanupTempDir = () => {
   const tempDir = path.join(__dirname, "temp");
   if (fs.existsSync(tempDir)) {

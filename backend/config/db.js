@@ -1,11 +1,19 @@
 const mongoose = require("mongoose");
+const dns = require("dns");
 const Question = require("../models/Question");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 
-const connectDB = async () => {
+// Resolve IPv4 first on Node 18+ to avoid querySrv ECONNREFUSED with MongoDB Atlas
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
+
+const connectDB = async (retryCount = 0) => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
     console.log("MongoDB Connected");
 
     // Auto-seed admin user from environment variables
@@ -128,8 +136,13 @@ const connectDB = async () => {
       console.log("Seeded initial database coding questions successfully.");
     }
   } catch (error) {
-    console.log("Database connection/seeding failed: " + error.message);
-    process.exit(1);
+    console.error("Database connection/seeding failed:", error.message);
+    if (retryCount < 5) {
+      console.log(`Retrying MongoDB connection in 3s (Attempt ${retryCount + 1}/5)...`);
+      setTimeout(() => connectDB(retryCount + 1), 3000);
+    } else {
+      console.warn("MongoDB connection could not be established after retries. Server will remain running.");
+    }
   }
 };
 

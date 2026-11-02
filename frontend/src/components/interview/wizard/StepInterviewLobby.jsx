@@ -17,6 +17,9 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
     setIsStarting(true);
 
     try {
+      // Always start sequentially with Phase 1 (Aptitude Assessment)
+      const targetPhase = "aptitude";
+
       const payload = {
         role: roleData.role || "Software Engineer",
         experience: roleData.experience || "1-3 Years",
@@ -27,6 +30,7 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
           aptitude: true,
           technicalRound1: true,
           technicalRound2: true,
+          hrRound: true,
         },
       };
 
@@ -37,12 +41,12 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
       const interviewId = res.data?.interviewId || res.data?._id || `session_${Date.now()}`;
 
       setTimeout(() => {
-        navigate(`/interview/session/${interviewId}?phase=oa`);
-      }, 1200);
+        navigate(`/interview/session/${interviewId}?phase=${targetPhase}`);
+      }, 1000);
     } catch (err) {
       console.error("Error creating interview session:", err);
       const fallbackId = `session-${Date.now()}`;
-      navigate(`/interview/session/${fallbackId}?phase=oa`);
+      navigate(`/interview/session/${fallbackId}?phase=aptitude`);
     }
   };
 
@@ -52,111 +56,64 @@ export default function StepInterviewLobby({ roleData, resumeData, parsedResume,
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="w-full rounded-xl border border-brand-border bg-brand-card p-5 sm:p-6 shadow-xl space-y-5 text-brand-text"
+      className="w-full rounded-sm border border-amber-200/80 dark:border-amber-900/30 bg-[#FFFDF7] dark:bg-[#121626] p-5 sm:p-6 shadow-xs space-y-5 text-brand-text"
     >
       {/* Step Header */}
-      <div className="border-b border-brand-border pb-2.5 flex items-center justify-between">
+      <div className="border-b border-amber-200/60 dark:border-slate-800 pb-3 flex items-center justify-between">
         <div>
-          <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-violet-500 dark:text-violet-400 block mb-0.5">
+          <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-amber-700 dark:text-amber-400 block mb-0.5">
             Step 4 of 4 • Interview Lobby
           </span>
-          <h2 className="text-lg font-black text-brand-text tracking-tight">
-            Interview Waiting Room
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight font-outfit">
+            Ready to Begin Your Interview
           </h2>
-          <p className="text-[11px] text-brand-secondary mt-0.5">
-            Review your interview roadmap and verify hardware before starting.
+          <p className="text-xs text-brand-secondary mt-0.5">
+            Review your session configuration and verify your hardware.
           </p>
         </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xs bg-amber-500/10 text-amber-600 border border-amber-500/20">
           <ShieldCheck className="h-4 w-4" />
         </div>
       </div>
 
-      {/* Modern Roadmap Card */}
-      <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 space-y-4">
-        <div className="flex items-center justify-between border-b border-white/5 pb-2">
-          <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span>Interview Plan Roadmap</span>
+      {/* Clean Session Overview Card */}
+      <div className="rounded-xl border border-brand-border bg-slate-50 dark:bg-slate-900/60 p-4 space-y-3.5">
+        <div className="flex items-center justify-between border-b border-brand-border pb-2.5">
+          <h3 className="text-xs font-bold text-brand-text flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+            <span>Interview Session Plan</span>
           </h3>
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
             <CheckCircle2 className="h-3 w-3" />
-            <span>Resume Verified</span>
+            <span>{resumeData.uploaded ? "Resume Tailored" : "Standard Model"}</span>
           </span>
         </div>
 
-        {/* Phase Timeline */}
-        <div className="space-y-3 relative pl-3.5 border-l-2 border-indigo-500/30 my-1">
-          {/* Phase 1 */}
-          <div className="relative pl-3">
-            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-cyan-400 ring-2 ring-white dark:ring-slate-950" />
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-brand-text">
-                Phase 1: Aptitude Assessment
-              </h4>
-              <span className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-300">15 Mins</span>
-            </div>
-            <p className="text-[10px] text-brand-secondary mt-0.5">
-              Quantitative, logical reasoning, and data interpretation logic assessment.
-            </p>
+        {/* Overview Details */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="p-2.5 rounded-lg border border-brand-border bg-white dark:bg-slate-900/80">
+            <span className="text-[10px] font-semibold text-brand-secondary uppercase block">Role</span>
+            <span className="text-xs font-bold text-brand-text truncate block">{roleData.role}</span>
           </div>
-
-          {/* Phase 2 */}
-          <div className="relative pl-3">
-            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-indigo-400 ring-2 ring-white dark:ring-slate-950" />
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-brand-text">
-                Phase 2: Technical Interview - Round 1 (Core Concepts)
-              </h4>
-              <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-300">20 Mins</span>
-            </div>
-            <p className="text-[10px] text-brand-secondary mt-0.5">
-              Core language fundamentals, architecture, and tech stack evaluation.
-            </p>
+          <div className="p-2.5 rounded-lg border border-brand-border bg-white dark:bg-slate-900/80">
+            <span className="text-[10px] font-semibold text-brand-secondary uppercase block">Focus</span>
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate block">
+              {roleData.roundType || "Technical & Coding"}
+            </span>
           </div>
-
-          {/* Phase 3 */}
-          <div className="relative pl-3">
-            <div className="absolute -left-[19px] top-1 h-3 w-3 rounded-sm bg-violet-400 ring-2 ring-white dark:ring-slate-950" />
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-brand-text">
-                Phase 3: Technical Interview - Round 2 (Coding & Problem Solving)
-              </h4>
-              <span className="text-[10px] font-mono font-bold text-violet-600 dark:text-violet-300">30 Mins</span>
-            </div>
-            <p className="text-[10px] text-brand-secondary mt-0.5">
-              Live code implementation, algorithm solving, and system scenario round.
-            </p>
+          <div className="p-2.5 rounded-lg border border-brand-border bg-white dark:bg-slate-900/80">
+            <span className="text-[10px] font-semibold text-brand-secondary uppercase block">Experience</span>
+            <span className="text-xs font-bold text-brand-text truncate block">{roleData.experience}</span>
+          </div>
+          <div className="p-2.5 rounded-lg border border-brand-border bg-white dark:bg-slate-900/80">
+            <span className="text-[10px] font-semibold text-brand-secondary uppercase block">Difficulty</span>
+            <span className="text-xs font-bold text-brand-text truncate block">{roleData.difficulty}</span>
           </div>
         </div>
 
-        {/* Estimated Total Time */}
-        <div className="flex items-center justify-between rounded-lg bg-slate-100 dark:bg-white/5 p-3 border border-brand-border">
-          <div className="flex items-center gap-1.5 text-brand-secondary text-xs font-bold">
-            <Clock className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
-            <span>Estimated Total Time</span>
-          </div>
-          <span className="text-xs font-black text-brand-text font-mono">65 Minutes</span>
-        </div>
-      </div>
-
-      {/* Session Metadata Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="rounded-lg border border-white/10 bg-slate-900/40 p-2.5">
-          <span className="text-[9px] font-bold uppercase text-slate-500 block">Job Role</span>
-          <span className="text-xs font-black text-white">{roleData.role}</span>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-slate-900/40 p-2.5">
-          <span className="text-[9px] font-bold uppercase text-slate-500 block">Experience</span>
-          <span className="text-xs font-black text-white">{roleData.experience}</span>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-slate-900/40 p-2.5">
-          <span className="text-[9px] font-bold uppercase text-slate-500 block">Difficulty</span>
-          <span className="text-xs font-black text-white">{roleData.difficulty}</span>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-slate-900/40 p-2.5">
-          <span className="text-[9px] font-bold uppercase text-slate-500 block">Phases</span>
-          <span className="text-xs font-black text-emerald-400">3 Phases</span>
+        <div className="flex items-center justify-between text-xs text-brand-secondary pt-1">
+          <span>AI Interviewer voice & live compiler active</span>
+          <span className="font-semibold text-brand-text">~25-30 Mins</span>
         </div>
       </div>
 

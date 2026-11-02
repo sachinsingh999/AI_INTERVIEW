@@ -37,7 +37,7 @@ export default function VoiceInterviewWorkspace({
   interviewId,
   role = "Senior Software Engineer",
   difficulty = "Adaptive",
-  timeLeftSeconds: initialTimeLeft = 1800,
+  timeLeftSeconds: initialTimeLeft = 600,
   resumeAnalysis,
   onCompletePhase,
   sessionData
@@ -64,7 +64,7 @@ export default function VoiceInterviewWorkspace({
   const [isPaused, setIsPaused] = useState(false);
   const [autoSubmitCountdown, setAutoSubmitCountdown] = useState(null);
   
-  // Timer settings
+  // Timer settings: 10 minutes total
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
   const [thinkingTimeStart, setThinkingTimeStart] = useState(null);
   const [speechTimeStart, setSpeechTimeStart] = useState(null);
@@ -81,7 +81,7 @@ export default function VoiceInterviewWorkspace({
   const autoSubmitTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const isFetchingRef = useRef(false);
-  const maxQuestions = 10;
+  const maxQuestions = 5;
 
   const currentIndexRef = useRef(currentIndex);
   const speechTranscriptRef = useRef(speechTranscript);
@@ -336,7 +336,6 @@ export default function VoiceInterviewWorkspace({
       }
 
       setSpeechTranscript(transcript);
-      resetSilenceTimer();
     };
 
     rec.onerror = (event) => {
@@ -363,32 +362,7 @@ export default function VoiceInterviewWorkspace({
     setListening(false);
   };
 
-  // Auto-Submit Silence Timer Logic
-  const resetSilenceTimer = () => {
-    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    setAutoSubmitCountdown(null);
-
-    // If candidate edits text, avoid interrupting them
-    autoSubmitTimerRef.current = setTimeout(() => {
-      // Start 2 second submission countdown visualizer to total 5.5 seconds of silence
-      let secondsLeft = 2;
-      setAutoSubmitCountdown(secondsLeft);
-      
-      countdownIntervalRef.current = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft <= 0) {
-          clearInterval(countdownIntervalRef.current);
-          setAutoSubmitCountdown(null);
-          handleSubmitVoiceAnswer();
-        } else {
-          setAutoSubmitCountdown(secondsLeft);
-        }
-      }, 1000);
-
-    }, 3500); // 3.5 seconds of silence triggers countdown
-  };
-
+  // Silence timer disabled: always wait for explicit user submission
   const cancelSilenceTimer = () => {
     if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -760,13 +734,6 @@ export default function VoiceInterviewWorkspace({
                 <div className={`h-2.5 w-2.5 rounded-full ${listening ? "bg-blue-500 dark:bg-blue-400 animate-ping" : "bg-slate-350 dark:bg-slate-800"}`} />
                 <span className="text-xs font-bold text-brand-text">Your Answer Transcript</span>
               </div>
-              
-              {/* Auto submit warning banner */}
-              {autoSubmitCountdown !== null && (
-                <span className="text-[10px] font-mono font-bold text-blue-500 animate-pulse bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded">
-                  No speech detected. Auto-submitting in {autoSubmitCountdown}s...
-                </span>
-              )}
             </div>
 
             {/* Transcript text box */}

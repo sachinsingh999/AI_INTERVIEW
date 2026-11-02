@@ -38,6 +38,10 @@ const createInterview = async (req, res) => {
     const selectedSkills = Array.isArray(parsedResume?.skills) ? parsedResume.skills : technologies;
     const resumeSummaryStr = parsedResume?.summary || resumeText || "";
 
+    // Sequential phase-by-phase design: Start strictly at Phase 1, unlock next phases on completion
+    const initialActivePhases = ["phase1"];
+    const initialCurrentPhase = "phase1";
+
     // 1. Create the new interview immediately with status: "Generating"
     const interview = await Interview.create({
       user: req.user._id,
@@ -54,7 +58,8 @@ const createInterview = async (req, res) => {
       language,
       resumeText: resumeSummaryStr,
       resumeAnalysis: parsedResume,
-      activePhases: ["phase1"],
+      activePhases: initialActivePhases,
+      currentPhase: initialCurrentPhase,
     });
 
     // 2. Fetch every question previously asked to this user across all interviews
@@ -84,29 +89,37 @@ Interview Plan: Aptitude (${interviewPlan?.aptitude ? "Yes" : "No"}), Tech Round
       contextPrompt += `\nExcluded Questions (Do NOT repeat or generate questions similar to these):\n${excludedTexts.map((q, idx) => `${idx + 1}. ${q}`).join("\n")}\n`;
     }
 
-    // 3. Generate ONLY Phase 1 (Aptitude) questions immediately
+    // 3. Fast generation of Phase 1 (Aptitude) questions so initialization takes < 300ms
     let aptitudeQuestions = [];
-    let aptAttempts = 0;
-    while (aptitudeQuestions.length < 10 && aptAttempts < 1) {
-      const batch = await generate10AptitudeQuestions({
+    try {
+      // Fast Gemini attempt with 2.5s timeout; falls back instantly to local pool on delay
+      const aiPromise = generate10AptitudeQuestions({
         role,
         experience,
         skills: selectedSkills,
         resumeText: resumeSummaryStr,
         difficulty,
-        excludedTexts: [...excludedTexts, ...aptitudeQuestions.map(q => q.question)],
+        excludedTexts: [...excludedTexts],
       });
-      for (const q of batch) {
-        const fp = getFingerprint(q.question);
-        if (fp && !excludedFingerprints.has(fp)) {
-          if (!aptitudeQuestions.some(existing => getFingerprint(existing.question) === fp)) {
-            aptitudeQuestions.push(q);
-            if (aptitudeQuestions.length === 10) break;
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("AI timeout")), 2500)
+      );
+      const batch = await Promise.race([aiPromise, timeoutPromise]);
+      if (Array.isArray(batch) && batch.length >= 10) {
+        for (const q of batch) {
+          const fp = getFingerprint(q.question);
+          if (fp && !excludedFingerprints.has(fp)) {
+            if (!aptitudeQuestions.some(existing => getFingerprint(existing.question) === fp)) {
+              aptitudeQuestions.push(q);
+              if (aptitudeQuestions.length === 10) break;
+            }
           }
         }
       }
-      aptAttempts++;
+    } catch (e) {
+      // Fast fallback below
     }
+
     if (aptitudeQuestions.length < 10) {
       const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackService");
       const needed = 10 - aptitudeQuestions.length;
@@ -200,9 +213,9 @@ Interview Plan: Aptitude (${interviewPlan?.aptitude ? "Yes" : "No"}), Tech Round
         templateId: computedTemplateId,
         workspaceFiles: initialFiles,
         status: "In Progress",
-        currentPhase: "phase1",
+        currentPhase: initialCurrentPhase,
         phasesState,
-        activePhases: ["phase1"],
+        activePhases: initialActivePhases,
       },
       { new: true }
     );
@@ -1088,8 +1101,7 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
     const { validateFunctionSignature, generateStarterCodeFromSignature } = require("../services/signatureService");
 
     let phase2Questions = [];
-    if (activePhases.includes("phase2")) {
-      if (interview && Array.isArray(interview.technicalQuestions) && interview.technicalQuestions.length > 0) {
+    if (interview && Array.isArray(interview.technicalQuestions) && interview.technicalQuestions.length > 0) {
         phase2Questions = await Promise.all(interview.technicalQuestions.map(async (q, idx) => {
           // Look up the Question document to ensure the correct signature is used
           const dbQ = await Question.findOne({ title: q.title });
@@ -1213,12 +1225,10 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
           console.error("Error fetching random technical questions from DB:", fbErr.message);
         }
       }
-    }
 
     // Phase 3: Technical Interview - Round 2 (Advanced / Coding & Problem Solving)
     let phase3Questions = [];
-    if (activePhases.includes("phase3")) {
-      if (interview && Array.isArray(interview.questions) && interview.questions.length > 0) {
+    if (interview && Array.isArray(interview.questions) && interview.questions.length > 0) {
         phase3Questions = await Promise.all(interview.questions.map(async (q, idx) => {
           const dbQ = await Question.findOne({ title: q.title });
           const functionSignature = dbQ?.functionSignature || q.functionSignature || {
@@ -1306,41 +1316,41 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
           console.error("Error fetching Phase 3 questions:", fbErr.message);
         }
       }
-    }
 
     // Phase 4: HR & Behavioral Round
-    let phase4Questions = [];
-    if (activePhases.includes("phase4")) {
-      phase4Questions = [
-        {
-          id: "p4_q1",
-          phase: 4,
-          phaseName: "HR & Behavioral Round",
-          type: "hr",
-          title: "Behavioral: Conflict Resolution & Team Alignment",
-          description: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
-          placeholder: "Use the STAR method: Situation, Task, Action, Result...",
-        },
-        {
-          id: "p4_q2",
-          phase: 4,
-          phaseName: "HR & Behavioral Round",
-          type: "hr",
-          title: "Situational: Handling High-Pressure Deadlines & Trade-offs",
-          description: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
-          placeholder: "Explain the scenario, trade-offs made, and outcome...",
-        },
-        {
-          id: "p4_q3",
-          phase: 4,
-          phaseName: "HR & Behavioral Round",
-          type: "hr",
-          title: "Cultural Fit: Ownership & Long-Term Technical Vision",
-          description: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
-          placeholder: "Share your career vision and values...",
-        },
-      ];
-    }
+    const phase4Questions = [
+      {
+        id: "p4_q1",
+        phase: 4,
+        phaseName: "HR & Behavioral Round",
+        type: "hr",
+        title: "Behavioral: Conflict Resolution & Team Alignment",
+        description: "Describe a situation where you had a major technical disagreement with a colleague or team lead. How did you handle the situation, and what was the resolution?",
+        placeholder: "Use the STAR method: Situation, Task, Action, Result...",
+      },
+      {
+        id: "p4_q2",
+        phase: 4,
+        phaseName: "HR & Behavioral Round",
+        type: "hr",
+        title: "Situational: Handling High-Pressure Deadlines & Trade-offs",
+        description: "Tell us about a time when a critical bug or unexpected deadline shift threatened project delivery. How did you prioritize tasks and communicate under pressure?",
+        placeholder: "Explain the scenario, trade-offs made, and outcome...",
+      },
+      {
+        id: "p4_q3",
+        phase: 4,
+        phaseName: "HR & Behavioral Round",
+        type: "hr",
+        title: "Cultural Fit: Ownership & Long-Term Technical Vision",
+        description: "What drives your passion as a software developer, and how do you ensure continuous growth while contributing to company culture?",
+        placeholder: "Share your career vision and values...",
+      },
+    ];
+
+    const safeActivePhases = (interview?.activePhases && interview.activePhases.length > 0)
+      ? interview.activePhases
+      : ["phase1"];
 
     res.status(200).json({
       success: true,
@@ -1351,7 +1361,7 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
       experience,
       difficulty,
       totalDuration: 65,
-      activePhases: interview?.activePhases || ["phase1"],
+      activePhases: safeActivePhases,
       workspaceSubmission: interview?.workspaceSubmission,
       workspaceState: interview?.workspaceState,
       phases: {
@@ -1369,8 +1379,8 @@ const { getFallbackAptitudeQuestions } = require("../services/aptitudeFallbackSe
         },
         phase3: {
           phaseNumber: 3,
-          name: "Technical Round 2 (Coding & Problem Solving)",
-          durationMins: 30,
+          name: "Technical Round 2 (Project & Skills Discussion)",
+          durationMins: 10,
           questions: phase3Questions,
         },
         phase4: {
@@ -3840,20 +3850,15 @@ const getVoiceNextQuestion = async (req, res) => {
     let currentQuestions = interview.questions || [];
     const indexNum = Number(currentIndex) || 0;
 
-    // Define the strict interview sequence mapping
+    // 10-Minute Voice Interview: 5 questions total (~2 mins per question: Projects + Skills focus)
     const sequencePhases = [
-      "Introduction",
-      "Resume Discussion",
-      "Projects",
-      "Technical Concepts",
-      "Problem Solving",
-      "Follow-up Questions",
-      "Follow-up Questions",
-      "Follow-up Questions",
-      "Follow-up Questions",
-      "Final Wrap-up"
+      "Introduction & Technical Background",
+      "Primary Project Deep-Dive & Architecture",
+      "Project Technical Challenges & Trade-offs",
+      "Core Technical Skills & Stack Scenario",
+      "Advanced System Design & Final Wrap-up"
     ];
-    const targetCategory = sequencePhases[indexNum] || "Follow-up Questions";
+    const targetCategory = sequencePhases[indexNum] || "Project & Skills Discussion";
 
     const user = await User.findById(interview.user);
     const candidateName = user ? (user.firstName || user.username || "Candidate") : "Candidate";
@@ -3874,57 +3879,62 @@ const getVoiceNextQuestion = async (req, res) => {
     }));
 
     const prompt = `
-You are a Senior Software Engineer conducting Technical Round 2, a resume-driven theoretical voice interview.
-Your task is to dynamically generate the next interview question in real-time. Do NOT use predefined or hardcoded questions.
+You are Intervexa's AI voice interviewer conducting a focused 10-Minute Technical Interview.
 
-Candidate Name: ${candidateName}
-Candidate Applied Role: ${interview.role}
-Candidate Experience: ${interview.experience}
-Candidate's Resume Text: ${interview.resumeText}
-Candidate's Tech Stack & Skills: ${JSON.stringify(interview.technologies)}
-Selected Max Difficulty: ${interview.difficulty}
+INTERVIEW OVERVIEW:
+- Total Time: Exactly 10 Minutes (~2 mins per question)
+- Total Questions: 5 Questions
+- Core Focus: Candidate's REAL PROJECTS + Core TECHNICAL SKILLS from their resume
 
-Current Context:
-- Previous Questions and Answers: ${JSON.stringify(previousQAs)}
-- Current Question Index: ${indexNum + 1} of 10
-- REQUIRED INTERVIEW SEQUENCE PHASE: ${targetCategory}
+INTERVIEW CONTEXT:
+- Phase: Technical Round 2 (10-Minute Live Voice Session)
+- Candidate: ${candidateName}
+- Target Role: ${interview.role}
+- Experience Level: ${interview.experience}
+- Candidate Resume Text: ${interview.resumeText || "N/A"}
+- Candidate Tech Stack & Skills: ${JSON.stringify(interview.technologies || [])}
+- Selected Difficulty: ${interview.difficulty || "Medium"}
+- Previous Q&As in this session: ${JSON.stringify(previousQAs)}
+- Question Index: ${indexNum + 1} of 5
+- Target Stage: ${targetCategory}
 
-Question Generation Guidelines:
-1. Strict Sequence Phase:
-   - You MUST formulate a question matching the required phase of the interview: "${targetCategory}".
-   - Guidelines for each phase:
-     * "Introduction": You MUST welcome the candidate by saying: "Welcome ${candidateName} to your Technical Round 2 interview." and then ask them to start by introducing themselves. Example: "Welcome ${candidateName} to your Technical Round 2 interview. Can you please start by introducing yourself?"
-     * "Resume Discussion": Pick an experience detail, certification, or skill claim directly from their resume to discuss.
-     * "Projects": Target one of the main projects listed on their resume, asking about its purpose, stack, or architecture.
-     * "Technical Concepts": Focus on core technical stack concepts or conceptual questions (e.g. React lifecycle, Node event loop).
-     * "Problem Solving": Present a theoretical scaling, optimization, database design, or system architecture challenge related to their tech stack.
-     * "Follow-up Questions": Probe deeper into their previous answers, testing their decisions, architectural constraints, and design trade-offs.
-     * "Final Wrap-up": Wrap up the session, summarize briefly, and ask if they have any closing questions for you.
-2. Continuous Adaptation:
-   - Adapt the difficulty of the next question continuously based on the candidate's previous responses and demonstrated understanding.
-   - If they showed strong understanding, you can increase the technical depth, but you MUST NEVER exceed the selected max difficulty (${interview.difficulty}).
-   - If they struggled, simplify the discussion while remaining within the difficulty constraints.
-3. Conversational Flow:
-   - Ensure the new question naturally follows the candidate's previous response (if applicable), creating a realistic discussion rather than isolated Q&A.
-   - Evaluate conceptual understanding, practical experience, architectural thinking, decision-making, and project ownership.
-4. ABSOLUTE PROHIBITIONS:
-   - Do NOT ask coding questions, DSA problems, live coding exercises, competitive programming, algorithm implementations, database query writing (e.g. SQL queries), API routes implementations, or whiteboard exercises. 
-   - No code syntax writing or syntax testing. Exclusively theoretical and conceptual technical discussion.
+INTERVIEW STRUCTURE (5 Questions):
+1. INTRODUCTION (Question 1):
+   - Welcome ${candidateName} warmly.
+   - Ask them for a brief 1-minute introduction of their technical background and primary tech stack.
+2. PRIMARY PROJECT ARCHITECTURE (Question 2):
+   - Pick the most relevant project from their resume/skills.
+   - Ask what problem it solved, the overall architecture, tech choices, and their direct personal contribution.
+3. PROJECT CHALLENGES & TRADE-OFFS (Question 3):
+   - Ask about a real technical challenge, bug, performance bottleneck, or database trade-off they solved in their projects.
+4. CORE TECHNICAL SKILLS SCENARIO (Question 4):
+   - Ask a practical, scenario-based question assessing their core technical skills (e.g. React/Node/TypeScript state management, concurrency, async patterns, caching, API design).
+5. SYSTEM DESIGN & WRAP-UP (Question 5):
+   - Ask an architectural scaling/reliability scenario combining their project experience and skills, then warmly conclude the interview and thank the candidate.
 
-Return ONLY a JSON response in the following format. Do NOT include markdown blocks (\`\`\`), comments, or extra text.
+VOICE INTERVIEW RULES:
+- Ask exactly ONE question at a time.
+- Use natural spoken language, concise and conversational.
+- Do not announce internal section names or read out a list.
+- Acknowledge their previous answer briefly before asking the next question.
+- No coding syntax writing or DSA whiteboard puzzles—strictly practical project architecture & technical skills discussion.
+- Use brief spoken acknowledgments when following up on a previous response.
+- Exclusively theoretical and architectural discussion—no coding syntax writing or DSA whiteboard testing.
+
+Return ONLY a valid JSON object matching this schema:
 {
-  "question": "The question string...",
-  "skill": "React" or "Node.js" etc. (the specific skill being evaluated),
-  "project": "CartNow" or "" (the project being discussed),
-  "topic": "Virtual DOM" or "React Fiber" (the specific topic/concept),
+  "question": "The spoken question string...",
+  "skill": "React" or "Node.js" etc.,
+  "project": "Project name if discussing project" or "",
+  "topic": "System Architecture" or "Component State" etc.,
   "category": "${targetCategory}",
-  "confidenceScore": integer between 0 and 10 representing estimated candidate confidence based on their last answer (default 10 for first question)
+  "confidenceScore": 10
 }
 `;
 
     let questionData;
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const responseText = result.response.text().trim();
       

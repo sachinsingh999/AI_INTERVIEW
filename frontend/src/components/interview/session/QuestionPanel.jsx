@@ -39,7 +39,21 @@ export default function QuestionPanel({
   flaggedQuestions = {},
   onSelectQuestion = () => {},
 }) {
-  if (!question) return null;
+  if (!question) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center rounded-sm border border-amber-200/80 dark:border-amber-900/30 bg-[#FFFDF7] dark:bg-[#121626] shadow-xs min-h-[480px]">
+        <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
+          <Brain className="w-6 h-6 animate-pulse" />
+        </div>
+        <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-outfit mb-1">
+          Loading Questions...
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+          Preparing assessment questions for {currentPhaseName || "this round"}. Please wait a moment.
+        </p>
+      </div>
+    );
+  }
 
   const handleMcqSelect = (optId) => {
     if (isLocked) return;
@@ -81,69 +95,6 @@ export default function QuestionPanel({
             <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-mono font-bold">
               +10 Marks
             </span>
-
-            {/* Questions Heatmap List */}
-            {questions && questions.length > 0 && (
-              <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-brand-border select-none">
-                <span className="text-[10px] uppercase font-bold text-brand-secondary font-mono tracking-wider px-1">
-                  Questions:
-                </span>
-                <div className="flex items-center gap-1">
-                  {questions.map((q, idx) => {
-                    const isActive = currentIndex === idx;
-                    const qAnswer = answers[q.id];
-                    const qStatus = qAnswer?.runStatus; // "run", "submitted_passed", "submitted_failed"
-                    const isQFlagged = !!flaggedQuestions[q.id];
-                    const isVisited = !!visitedQuestions[q.id];
-
-                    let cellColorClass = "bg-slate-100 dark:bg-slate-900 text-brand-secondary border-brand-border";
-                    let statusLabel = "Unvisited";
-
-                    if (qStatus === "submitted_passed") {
-                      cellColorClass = "bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400";
-                      statusLabel = "All Passed";
-                    } else if (qStatus === "submitted_failed") {
-                      cellColorClass = "bg-rose-500/10 border-rose-500 text-rose-600 dark:text-rose-455";
-                      statusLabel = "Submission Failed";
-                    } else if (qStatus === "run") {
-                      cellColorClass = "bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-455";
-                      statusLabel = "Run Completed";
-                    } else if (isQFlagged) {
-                      cellColorClass = "bg-rose-500/10 border-rose-500 text-rose-600 dark:text-rose-455";
-                      statusLabel = "Flagged";
-                    } else {
-                      const isQAnswered = q.type === "coding" || q.type === "technical" || q.starterCode
-                        ? (qAnswer?.code && qAnswer.code.trim().length > 0 && qAnswer.code !== q.starterCode)
-                        : (qAnswer?.selectedOption || (Array.isArray(qAnswer?.selectedOptions) && qAnswer.selectedOptions.length > 0) || qAnswer?.text?.trim()?.length > 0);
-
-                      if (isQAnswered) {
-                        cellColorClass = "bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400";
-                        statusLabel = "Answered";
-                      } else if (isVisited) {
-                        cellColorClass = "bg-slate-200 dark:bg-slate-800 text-brand-text border-brand-border";
-                        statusLabel = "Visited";
-                      }
-                    }
-
-                    if (isActive) {
-                      cellColorClass += " ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900 scale-105";
-                    }
-
-                    return (
-                      <button
-                        key={q.id}
-                        type="button"
-                        onClick={() => onSelectQuestion(idx)}
-                        className={`h-6 w-6 rounded-md border text-[10px] font-mono font-bold flex items-center justify-center transition cursor-pointer hover:border-blue-500 hover:text-brand-text ${cellColorClass}`}
-                        title={`${statusLabel}: ${q.title || `Question ${idx + 1}`}`}
-                      >
-                        {idx + 1}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">

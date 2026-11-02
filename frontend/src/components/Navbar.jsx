@@ -292,12 +292,12 @@ function Navbar() {
           </div>
 
           {/* Desktop Right Side Controls (lg+ viewports) */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2.5">
             {/* Search Trigger */}
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="flex items-center justify-between rounded-sm border border-brand-border bg-brand-bg/40 px-3 py-2 text-xs text-brand-secondary hover:border-blue-550/30 hover:bg-slate-150 dark:hover:bg-slate-900/60 transition-all duration-200 cursor-pointer w-48 xl:w-56"
+              className="flex items-center justify-between rounded-sm border border-brand-border bg-brand-bg/40 px-3 py-2 text-xs text-brand-secondary hover:border-blue-550/30 hover:bg-slate-150 dark:hover:bg-slate-900/60 transition-all duration-200 cursor-pointer w-40 xl:w-48"
             >
               <div className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-brand-secondary" />
@@ -312,11 +312,49 @@ function Navbar() {
             <button
               type="button"
               onClick={() => navigate("/forge-ai")}
-              className="relative inline-flex items-center gap-1.5 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] px-3.5 py-2.5 text-xs font-black text-[#0F172A] shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:shadow-[0_0_22px_rgba(245,158,11,0.55)] transition-all hover:scale-[1.02] active:scale-95 duration-200 cursor-pointer group overflow-hidden"
+              className="relative inline-flex items-center gap-1.5 rounded-sm bg-[#F59E0B] hover:bg-[#D97706] px-3 py-2 text-xs font-black text-[#0F172A] shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:shadow-[0_0_22px_rgba(245,158,11,0.55)] transition-all hover:scale-[1.02] active:scale-95 duration-200 cursor-pointer group overflow-hidden"
             >
               <Sparkles className="w-4 h-4 text-[#0F172A] shrink-0 group-hover:rotate-12 transition-transform duration-300" />
               <span>ForgeAI</span>
             </button>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="flex h-8 w-8 items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text transition-all duration-200 cursor-pointer"
+              title="Switch Theme"
+            >
+              {resolvedTheme === "dark" ? <Sun className="w-4 h-4 text-[#F59E0B]" /> : <Moon className="w-4 h-4 text-slate-600 dark:text-[#F59E0B]" />}
+            </button>
+
+            {/* User Profile Card & Sign Out (Moved from Sidebar) */}
+            <div className="flex items-center gap-1.5 pl-2 border-l border-brand-border/60 dark:border-white/10">
+              <button
+                onClick={() => navigate("/profile")}
+                className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/5 p-1 rounded-sm transition cursor-pointer text-left select-none"
+                title="View Profile"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#F59E0B] text-xs font-black uppercase text-[#0F172A] shrink-0 shadow-md">
+                  {(user?.name || "SK").substring(0, 2).toUpperCase()}
+                </span>
+                <div className="min-w-0 max-w-[120px]">
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">
+                    {user?.name || "Sachin Kumar"}
+                  </div>
+                  <div className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 truncate">
+                    Premium User 👑
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={logout}
+                className="h-8 w-8 flex items-center justify-center rounded-sm border border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/10 hover:bg-rose-100 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-500 transition cursor-pointer active:scale-95 duration-100"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4 text-rose-500" />
+              </button>
+            </div>
           </div>
 
           {/* Mobile Action Controls (lg- viewports) */}
@@ -665,91 +703,28 @@ function Navbar() {
             </div>
           </div>
 
-          {/* Combined User Profile & Actions Footer - Single Line Icon Layout */}
+          {/* Sidebar Collapse Toggle Footer */}
           <div className="pt-2 px-1 shrink-0">
             {!isSidebarCollapsed ? (
-              <div className="rounded-sm border border-brand-border dark:border-white/5 bg-slate-50/50 dark:bg-white/5 p-1.5 flex items-center justify-between gap-1.5">
-                {/* Profile info button */}
+              <div className="p-1">
                 <button
-                  onClick={() => navigate("/profile")}
-                  className="flex items-center gap-2 min-w-0 flex-1 hover:bg-slate-100 dark:hover:bg-white/5 p-1 rounded-sm transition cursor-pointer text-left select-none"
-                  title="View Profile"
+                  onClick={toggleSidebar}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text hover:border-slate-400 dark:hover:border-slate-600 text-xs font-semibold transition cursor-pointer"
+                  title="Collapse Sidebar (Ctrl+B)"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#F59E0B] text-xs font-black uppercase text-[#0F172A] shrink-0 shadow-md">
-                    {(user?.name || "SK").substring(0, 2).toUpperCase()}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">
-                      {user?.name || "Sachin Kumar"}
-                    </div>
-                    <div className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 truncate">
-                      Premium User 👑
-                    </div>
-                  </div>
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Collapse Sidebar</span>
                 </button>
-
-                {/* Icon-only Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* Sign Out Icon Button */}
-                  <button
-                    onClick={logout}
-                    className="h-8 w-8 flex items-center justify-center rounded-sm border border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/10 hover:bg-rose-100 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-500 transition cursor-pointer active:scale-95 duration-100"
-                    title="Sign Out"
-                  >
-                    <LogOut className="w-4 h-4 text-rose-500" />
-                  </button>
-
-                  {/* Collapse Sidebar Icon Button */}
-                  <button
-                    onClick={toggleSidebar}
-                    className="h-8 w-8 flex items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text hover:border-slate-400 dark:hover:border-slate-600 transition cursor-pointer"
-                    title="Collapse Sidebar (Ctrl+B)"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
             ) : (
-              // Collapsed state footer
-              <div className="flex flex-col items-center gap-3">
-                {/* Profile Avatar */}
-                <div className="relative group w-full flex justify-center">
-                  <button
-                    onClick={() => navigate("/profile")}
-                    className="flex h-8 w-8 items-center justify-center rounded-sm bg-indigo-600 text-xs font-black uppercase text-white shrink-0 shadow-md hover:scale-105 transition cursor-pointer"
-                  >
-                    {(user?.name || "SK").substring(0, 2).toUpperCase()}
-                  </button>
-                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-brand-border bg-slate-900 dark:bg-[#070b13] text-white text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
-                    Profile
-                  </div>
-                </div>
-
-                {/* Sign Out Button */}
-                <div className="relative group w-full flex justify-center">
-                  <button
-                    onClick={logout}
-                    className="flex h-8 w-8 items-center justify-center rounded-sm border border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/10 hover:bg-rose-100 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-500 transition cursor-pointer active:scale-95 duration-100"
-                  >
-                    <LogOut className="w-4 h-4 shrink-0 text-rose-500" />
-                  </button>
-                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-rose-500/20 bg-rose-950 text-rose-350 text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
-                    Sign Out
-                  </div>
-                </div>
-
-                {/* Expand Toggle Button */}
-                <div className="relative group w-full flex justify-center">
-                  <button
-                    onClick={toggleSidebar}
-                    className="h-8 w-8 flex items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text hover:border-slate-400 dark:hover:border-slate-600 transition cursor-pointer"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-sm border border-brand-border bg-slate-900 dark:bg-[#070b13] text-white text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-xl z-50">
-                    Expand Sidebar (Ctrl+B)
-                  </div>
-                </div>
+              <div className="flex justify-center p-1">
+                <button
+                  onClick={toggleSidebar}
+                  className="h-8 w-8 flex items-center justify-center rounded-sm border border-brand-border bg-brand-bg/40 text-brand-secondary hover:text-brand-text hover:border-slate-400 dark:hover:border-slate-600 transition cursor-pointer"
+                  title="Expand Sidebar (Ctrl+B)"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
